@@ -12,6 +12,7 @@
   "description": "Sistema de Gerenciamento das Ofertas do Supermercados Princesa",
   "dependencies": {
     "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
     "express": "^4.19.2",
     "express-async-errors": "^3.1.1",
     "knex": "^3.1.0",
