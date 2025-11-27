@@ -1,0 +1,22 @@
+{
+  "name": "supervarejo_api-erp",
+  "version": "2.6.8",
+  "main": "knexfile.js",
+  "scripts": {
+    "dev": "nodemon ./src/server.js",
+    "start": "node ./src/server.js"
+  },
+  "keywords": [],
+  "author": "Diego Scavone",
+  "license": "ISC",
+  "description": "Sistema de Gerenciamento das Ofertas do Supermercados Princesa",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "express-async-errors": "^3.1.1",
+    "knex": "^3.1.0",
+    "nodemon": "^3.1.4",
+    "pg": "^8.13.3",
+    "puppeteer": "^24.4.0"
+  }
+}
