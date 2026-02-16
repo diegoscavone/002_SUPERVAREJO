@@ -82,15 +82,26 @@ class PostersPdfController {
 
     //Função que verifica e gera o pdf somente dos cartazes que estão selecionados no front
     async function generatePdf(selectedPosterIds) {
+      // const browser = await puppeteer.launch({
+      //   headless: true,
+      //   args: [
+      //     '--no-sandbox',
+      //     '--disable-setuid-sandbox',
+      //     '--disable-gpu',
+      //     '--window-size=1920x1080'
+      //   ],
+      //   timeout: 60000
+      // })
+
       const browser = await puppeteer.launch({
-        headless: true,
+        executablePath:
+          process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
-          '--disable-gpu',
-          '--window-size=1920x1080'
-        ],
-        timeout: 60000
+          '--disable-dev-shm-usage', // Importante para evitar crash por falta de memória em containers
+          '--headless=new'
+        ]
       })
       const page = await browser.newPage()
       let posterContent = ''

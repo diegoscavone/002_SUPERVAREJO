@@ -1,26 +1,35 @@
-# Stage 1: Install dependencies
-FROM node:lts AS builder
-
+# Estágio 1: Instalar dependências
+FROM node:lts-alpine AS builder
 WORKDIR /app
-
 COPY package*.json ./
+# Evita baixar o Chromium do Puppeteer durante o install
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 RUN npm install
 
-# Stage 2: Run the application
-FROM node:lts-slim AS production-runner
+# Estágio 2: Imagem de produção
+FROM node:lts-alpine
+
+# Variáveis para o Puppeteer encontrar o Chromium do Alpine
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
 WORKDIR /app
 
-# Copie apenas as dependências de produção
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/package*.json ./
+# Instalar Chromium e dependências de fontes (essencial para cartazes de mercado)
+RUN apk add --no-cache \
+    dumb-init \
+    udev \
+    ttf-freefont \
+    chromium \
+    nss \
+    freetype \
+    harfbuzz \
+    ca-certificates
 
-# Copie o código da aplicação
+COPY --from=builder /app/node_modules ./node_modules
 COPY . .
 
 EXPOSE 3333
 
-# Comando para iniciar o servidor API em produção
-# Assumimos que src/server.js é o entry point principal.
-# Se você tiver um script 'start' no package.json que seja otimizado para produção, use CMD ["npm", "run", "start"]
-CMD ["node", "src/server.js"]
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+CMD ["npm", "start"]
