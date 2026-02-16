@@ -8,7 +8,8 @@ import {
   ButtonSearch,
   Message,
   SelectWrapper,
-  Badge // Importe o componente Badge
+  Badge, // Importe o componente Badge
+  TableSection
 } from './styles.js'
 
 import { PiFunnel, PiPlus, PiSealPercent, PiTrash } from 'react-icons/pi'
@@ -328,7 +329,7 @@ export function Offers() {
             onClick={() => navigate('/offers/new')}
           />
         </div>
-        <Section title="Gestão de Ofertas">
+        <TableSection title="Gestão de Ofertas">
           {filteredOffers.length > 0 ? (
             <PostersTable
               data={filteredOffers}
@@ -343,7 +344,7 @@ export function Offers() {
               <p>Nenhuma oferta encontrada para os filtros selecionados.</p>
             </Message>
           )}
-        </Section>
+        </TableSection>
 
         <Section>
           <ButtonWrapper>

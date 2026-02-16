@@ -9,6 +9,7 @@ import {
 } from 'react-icons/pi'
 import { Container } from './styles'
 import { useNavigate } from 'react-router-dom'
+import { DEVICE_BREAKPOINTS } from '../../styles/devices'
 
 // Memo para o componente Checkbox para evitar re-renderizações desnecessárias
 const MemoizedCheckbox = React.memo(Checkbox)
@@ -23,6 +24,18 @@ export function PostersTable({
   editType = 'posters'
 }) {
   const navigate = useNavigate()
+  const [isMobile, setIsMobile] = useState(
+    window.innerWidth <= parseInt(DEVICE_BREAKPOINTS.MD)
+  )
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= parseInt(DEVICE_BREAKPOINTS.MD))
+    }
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   // Estados controlados para paginação
   const [pagination, setPagination] = useState({
@@ -262,7 +275,14 @@ export function PostersTable({
         width: '60px'
       })
     }
-
+    if (isMobile) {
+      return baseColumns.filter(
+        column =>
+          ['select', 'edit', 'code', 'description', 'campaign_name'].includes(
+            column.accessorKey
+          ) || ['select', 'edit'].includes(column.id)
+      )
+    }
     return baseColumns
   }, [
     columns,
@@ -273,7 +293,8 @@ export function PostersTable({
     isProcessingBatch,
     handleSelectAll,
     handleRowSelect,
-    selectedPosters
+    selectedPosters,
+    isMobile
   ])
 
   return (
@@ -328,18 +349,38 @@ export function PostersTable({
         </thead>
         <tbody>
           {paginatedData.map(row => {
+            if (isMobile) {
+              return (
+                <tr key={row.id}>
+                  <td>
+                    <div className="mobile-cell">
+                      <div
+                        className="mobile-cell-item"
+                        data-label="Descrição:"
+                      >
+                        {row.description}
+                      </div>
+                      <div
+                        className="mobile-cell-item"
+                        data-label="Campanha:"
+                      >
+                        {row.campaign_name}
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              )
+            }
             return (
               <tr key={row.id}>
                 {enhancedColumns.map(column => (
                   <td key={`${row.id}-${column.id || column.accessorKey}`}>
-                    {column.cell && typeof column.cell === 'function' ? (
-                      column.cell({ 
-                        row: { original: row }, 
-                        getValue: () => row[column.accessorKey] 
-                      })
-                    ) : (
-                      renderCell(row, column)
-                    )}
+                    {column.cell && typeof column.cell === 'function'
+                      ? column.cell({
+                          row: { original: row },
+                          getValue: () => row[column.accessorKey]
+                        })
+                      : renderCell(row, column)}
                   </td>
                 ))}
               </tr>

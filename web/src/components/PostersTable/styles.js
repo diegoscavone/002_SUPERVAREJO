@@ -136,4 +136,53 @@ export const Container = styled.div`
       padding: 0.8rem 0.5rem;
     }
   }
+
+  @media (max-width: ${DEVICE_BREAKPOINTS.MD}) {
+    height: 100%;
+    max-height: none;
+
+    thead {
+      display: none;
+    }
+
+    tr {
+      display: block;
+      margin-bottom: 1.5rem;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    td {
+      display: flex;
+      justify-content: flex-start;
+      align-items: center;
+      padding: 1rem;
+      border-bottom: 1px solid ${({ theme }) => theme.COLORS.GRAY_200};
+
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+
+    .mobile-cell {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 0.8rem;
+      min-width: 0;
+    }
+
+    .mobile-cell-item {
+      overflow-wrap: break-word;
+      word-break: break-word;
+    }
+
+    .mobile-cell-item::before {
+      content: attr(data-label);
+      font-weight: bold;
+      margin-right: 0.5rem;
+      display: block;
+      color: ${({ theme }) => theme.COLORS.GRAY_500};
+    }
+  }
 `

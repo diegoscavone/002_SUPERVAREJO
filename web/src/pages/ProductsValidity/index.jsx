@@ -14,24 +14,30 @@ import { Header } from '../../components/Header'
 import { Input } from '../../components/Input'
 import { InputMask } from '../../components/InputMask/index.jsx'
 import { Nav } from '../../components/Nav'
+import { Section } from '../../components/Section'
 import { useAuth } from '../../hooks/auth'
 import { api } from '../../services/api'
 import { apiERP } from '../../services/api.js'
 import {
+  ActionButton,
+  ActionButtons,
+  Card,
+  CardBody,
+  CardHeader,
   Container,
   Content,
   Form,
   InputWrapper,
   Label,
+  MobileLabel,
+  OfferPriceInput,
+  ProductCounter,
+  ProfitIndicator,
   Table,
   TableCell,
   TableHeader,
   TableRow,
-  ActionButton,
-  OfferPriceInput,
-  ProfitIndicator,
-  ValidityIndicator,
-  DescriptionCell
+  ValidityIndicator
 } from './styles'
 import { toastError, toastSuccess } from '../../styles/toastConfig.js'
 import { USER_ROLE } from '../../utils/roles.js'
@@ -43,11 +49,25 @@ export function ProductsValidity() {
   const [productValidity, setProductValidity] = useState('')
   const [fetchedProduct, setFetchedProduct] = useState(null)
   const [product, setProduct] = useState({ id: '', description: '' })
+  const [isMobile, setIsMobile] = useState(false)
 
   const { user } = useAuth()
   const codeInputRef = useRef(null)
 
   const userUnit = user.unit || user.unidade || user.unid_codigo
+
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.matchMedia('(max-width: 768px)').matches)
+    }
+
+    checkIsMobile()
+    window.addEventListener('resize', checkIsMobile)
+
+    return () => {
+      window.removeEventListener('resize', checkIsMobile)
+    }
+  }, [])
 
   const handleAddProduct = async () => {
     if (!fetchedProduct) {
@@ -115,6 +135,13 @@ export function ProductsValidity() {
     return (((price - cost) / price) * 100).toFixed(1)
   }, [])
 
+  const formatCurrency = useCallback(value => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(value)
+  }, [])
+
   const updateOfferPrice = useCallback(
     (productId, newPrice) => {
       setProductsList(prevProducts =>
@@ -178,12 +205,12 @@ export function ProductsValidity() {
   const getValidityColor = validade => {
     const today = new Date()
     const validityDate = new Date(validade)
-    const diffTime = Math.abs(validityDate - today)
+    const diffTime = validityDate - today
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
 
-    if (diffDays <= 20) {
+    if (diffDays <= 7) {
       return 'red'
-    } else if (diffDays <= 60) {
+    } else if (diffDays <= 15) {
       return 'yellow'
     } else {
       return 'green'
@@ -242,8 +269,8 @@ export function ProductsValidity() {
         `/products?search=${product.id}&unit=${userUnit}`
       )
 
-      if (response.data.products && response.data.products.length > 0) {
-        const productData = response.data.products[0]
+      if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+        const productData = response.data[0]
         setFetchedProduct(productData)
         setProduct({ ...product, description: productData.descricao })
       } else {
@@ -265,136 +292,179 @@ export function ProductsValidity() {
       <Nav />
       <ToastContainer />
       <Content>
-        <Form>
-          <InputWrapper>
-            <Label>Código do Produto</Label>
-            <Input
-              type="number"
-              onChange={e => setProduct({ ...product, id: e.target.value })}
-              icon={PiMagnifyingGlass}
-              name="product_id"
-              id="product_id"
-              value={product.id ?? ''}
-              ref={codeInputRef}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  handleProduct()
-                }
-              }}
-            />
-          </InputWrapper>
-          <InputWrapper>
-            <Label>Descrição</Label>
-            <Input
-              type="text"
-              placeholder="Descrição do produto"
-              value={product.description ?? ''}
-              readOnly
-              disabled
-            />
-          </InputWrapper>
-          <InputWrapper>
-            <Label>Lote</Label>
-            <Input
-              type="text"
-              placeholder="Lote do produto"
-              value={productBatch}
-              onChange={e => setProductBatch(e.target.value)}
-            />
-          </InputWrapper>
-          <InputWrapper>
-            <Label>Validade</Label>
-            <InputMask
-              mask="00/00/0000"
-              placeholder="DD/MM/AAAA"
-              icon={PiCalendarDots}
-              value={productValidity}
-              onChange={e => setProductValidity(e.target.value)}
-            />
-          </InputWrapper>
-          <Button
-            title="Adicionar Produto"
-            icon={PiPlus}
-            color="ORANGE"
-            onClick={handleAddProduct}
-            disabled={!fetchedProduct}
-          />
-        </Form>
+        <Section title={'Gestão de Validade'}>
+          <Card>
+            <CardHeader>
+              <Form>
+                <InputWrapper>
+                  <Label>Código do Produto</Label>
+                  <Input
+                    type="number"
+                    onChange={e =>
+                      setProduct({ ...product, id: e.target.value })
+                    }
+                    icon={PiMagnifyingGlass}
+                    name="product_id"
+                    id="product_id"
+                    value={product.id ?? ''}
+                    ref={codeInputRef}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        handleProduct()
+                      }
+                    }}
+                  />
+                </InputWrapper>
+                <InputWrapper>
+                  <Label>Descrição</Label>
+                  <Input
+                    type="text"
+                    placeholder="Descrição do produto"
+                    value={product.description ?? ''}
+                    readOnly
+                    disabled
+                  />
+                </InputWrapper>
+                <InputWrapper>
+                  <Label>Lote</Label>
+                  <Input
+                    type="text"
+                    placeholder="Lote do produto"
+                    value={productBatch}
+                    onChange={e => setProductBatch(e.target.value)}
+                  />
+                </InputWrapper>
+                <InputWrapper>
+                  <Label>Validade</Label>
+                  <InputMask
+                    mask="00/00/0000"
+                    placeholder="DD/MM/AAAA"
+                    icon={PiCalendarDots}
+                    value={productValidity}
+                    onChange={e => setProductValidity(e.target.value)}
+                  />
+                </InputWrapper>
+                <ActionButtons>
+                  <Button
+                    title="Adicionar"
+                    icon={PiPlus}
+                    color="ORANGE"
+                    onClick={handleAddProduct}
+                    disabled={!fetchedProduct}
+                  />
+                </ActionButtons>
+              </Form>
+            </CardHeader>
+            <CardBody>
+              {productsList.length === 0 ? (
+                <div className="empty-state">
+                  Nenhum produto cadastrado para controle de validade.
+                </div>
+              ) : (
+                <>
+                  <ProductCounter>
+                    <span>
+                      {productsList.length} produto
+                      {productsList.length !== 1 ? 's' : ''} na lista
+                    </span>
+                  </ProductCounter>
 
-        {user.role === USER_ROLE.ADMIN.value && (
-          <div className='table'>
-            <Table>
-              <thead>
-                <tr>
-                  <TableHeader>Código</TableHeader>
-                  <TableHeader>Descrição</TableHeader>
-                  <TableHeader>Lote</TableHeader>
-                  <TableHeader>Validade</TableHeader>
-                  <TableHeader>Custo</TableHeader>
-                  <TableHeader>Venda</TableHeader>
-                  <TableHeader className="column-price">
-                    Preço Oferta (R$)
-                  </TableHeader>
-                  <TableHeader className="column-profit">Margem</TableHeader>
-                  <TableHeader></TableHeader>
-                </tr>
-              </thead>
-              <tbody>
-                {productsList.map((product, index) => (
-                  <TableRow key={product.id}>
-                    <TableCell>{product.codigo}</TableCell>
-                    <TableCell>
-                      <ValidityIndicator
-                        color={getValidityColor(product.validade)}
-                      />
-                      {product.descricao}
-                    </TableCell>
-                    <TableCell>{product.lote}</TableCell>
-                    <TableCell>
-                      {product.validade.toLocaleDateString('pt-BR')}
-                    </TableCell>
-                    <TableCell>
-                      {Number(product.custoempresa).toFixed(2)}
-                    </TableCell>
-                    <TableCell>{Number(product.prvenda).toFixed(2)}</TableCell>
-                    <TableCell>
-                      <OfferPriceInput
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        className="offer-price-input"
-                        value={product.offerPrice}
-                        onChange={e =>
-                          updateOfferPrice(product.id, e.target.value)
-                        }
-                        onBlur={e =>
-                          handleOfferPriceBlur(product.id, e.target.value)
-                        }
-                        onKeyDown={e => handleKeyDown(e, index)}
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <ProfitIndicator
-                        className={getProfitClass(product.profit)}
-                      >
-                        {product.profit}%
-                      </ProfitIndicator>
-                    </TableCell>
-
-                    <TableCell>
-                      <ActionButton
-                        onClick={() => handleRemoveProduct(product.id)}
-                      >
-                        <PiTrash />
-                      </ActionButton>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </tbody>
-            </Table>
-          </div>
-        )}
+                  <Table>
+                    <thead>
+                      <tr>
+                        <TableHeader>Código</TableHeader>
+                        <TableHeader>Descrição</TableHeader>
+                        {!isMobile && <TableHeader>Lote</TableHeader>}
+                        <TableHeader>Validade</TableHeader>
+                        {!isMobile && <TableHeader>Custo</TableHeader>}
+                        {!isMobile && <TableHeader>Venda</TableHeader>}
+                        <TableHeader className="column-price">
+                          Preço Oferta (R$)
+                        </TableHeader>
+                        {!isMobile && (
+                          <TableHeader className="column-profit">
+                            Margem
+                          </TableHeader>
+                        )}
+                        <TableHeader></TableHeader>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {productsList.map((product, index) => (
+                        <TableRow key={product.id}>
+                          <TableCell>
+                            <MobileLabel>Código:</MobileLabel>
+                            {product.codigo}
+                          </TableCell>
+                          <TableCell>
+                            <div className='description-content'>
+                            <ValidityIndicator
+                              color={getValidityColor(product.validade)}
+                            />
+                            {product.descricao}
+                            </div>
+                          </TableCell>
+                          {!isMobile && <TableCell>{product.lote}</TableCell>}
+                          <TableCell>
+                            <MobileLabel>Validade:</MobileLabel>
+                            {product.validade.toLocaleDateString('pt-BR')}
+                          </TableCell>
+                          {!isMobile && (
+                            <TableCell>
+                              {formatCurrency(product.custoempresa)}
+                            </TableCell>
+                          )}
+                          {!isMobile && (
+                            <TableCell>
+                              {formatCurrency(product.prvenda)}
+                            </TableCell>
+                          )}
+                          <TableCell>
+                            <MobileLabel>Preço Oferta:</MobileLabel>
+                            <OfferPriceInput
+                              type="number"
+                              min="0"
+                              step="0.01"
+                              className="offer-price-input"
+                              value={product.offerPrice}
+                              onChange={e =>
+                                updateOfferPrice(product.id, e.target.value)
+                              }
+                              onBlur={e =>
+                                handleOfferPriceBlur(
+                                  product.id,
+                                  e.target.value
+                                )
+                              }
+                              onKeyDown={e => handleKeyDown(e, index)}
+                            />
+                          </TableCell>
+                          {!isMobile && (
+                            <TableCell>
+                              <ProfitIndicator
+                                className={getProfitClass(product.profit)}
+                              >
+                                {product.profit}%
+                              </ProfitIndicator>
+                            </TableCell>
+                          )}
+                          <TableCell>
+                            <ActionButton
+                              onClick={() => handleRemoveProduct(product.id)}
+                            >
+                              <PiTrash />
+                            </ActionButton>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </tbody>
+                  </Table>
+                </>
+              )}
+            </CardBody>
+          </Card>
+        </Section>
       </Content>
       <Footer />
     </Container>

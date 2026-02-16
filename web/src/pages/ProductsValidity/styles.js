@@ -16,7 +16,7 @@ export const Container = styled.div`
   background-color: ${({ theme }) => theme.COLORS.BACKGROUND_200};
 
   @media (max-width: ${DEVICE_BREAKPOINTS.LG}) {
-    grid-template-columns: 50px auto;
+    grid-template-columns: 35px auto;
   }
 `
 
@@ -31,10 +31,10 @@ export const Content = styled.div`
     display: flex;
     justify-content: flex-end;
   }
-  .table {
-    background-color: ${({ theme }) => theme.COLORS.WHITE};
-    padding: 1.5rem 2rem;
-    border-radius: 1rem;
+  @media (max-width: ${DEVICE_BREAKPOINTS.LG}) {
+    .content-header {
+      justify-content: flex-start;
+    }
   }
 `
 
@@ -58,13 +58,17 @@ export const Card = styled.div`
 `
 
 export const CardHeader = styled.div`
-  padding: 15px 0;
+  padding: 20px;
   border-bottom: 1px solid ${({ theme }) => theme.COLORS.GRAY_200};
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
   gap: 8px;
+
+  @media (max-width: ${DEVICE_BREAKPOINTS.LG}) {
+    align-items: flex-start;
+  }
 `
 
 export const CardTitle = styled.div`
@@ -82,7 +86,7 @@ export const CardTitle = styled.div`
 `
 
 export const CardBody = styled.div`
-  padding: 20px 0;
+  padding: 20px;
 
   .empty-state {
     text-align: center;
@@ -151,6 +155,17 @@ export const FilterChip = styled.span`
   }
 `
 
+export const MobileLabel = styled.span`
+  display: none; /* Esconde o label por padrão em desktop */
+  color: ${({ theme }) => theme.COLORS.GRAY_500};
+  font-weight: bold;
+  margin-right: 8px;
+
+  @media (max-width: ${DEVICE_BREAKPOINTS.LG}) {
+    display: inline-block; /* Mostra o label em mobile */
+  }
+`
+
 export const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
@@ -163,20 +178,28 @@ export const Table = styled.table`
   .column-profit {
     width: 150px;
   }
+
+  @media (max-width: ${DEVICE_BREAKPOINTS.LG}) {
+    display: block;
+  }
 `
 
 export const TableHeader = styled.th`
-  padding: 8px;
+  padding: 12px 15px;
   text-align: left;
-  border-bottom: 1px solid ${({ theme }) => theme.COLORS.BACKGROUND_300};
+  border-bottom: 2px solid ${({ theme }) => theme.COLORS.BACKGROUND_300};
   background-color: ${({ theme }) => theme.COLORS.GREEN};
   font-weight: 600;
+  font-size: 14px;
   color: ${({ theme }) => theme.COLORS.WHITE};
+
+  @media (max-width: ${DEVICE_BREAKPOINTS.LG}) {
+    display: none;
+  }
 `
 
 export const TableRow = styled.tr`
   transition: background-color 0.2s ease-in-out;
-  cursor: pointer;
 
   &:hover {
     background-color: ${({ theme }) => theme.COLORS.GREEN_LIGHT};
@@ -190,6 +213,40 @@ export const TableRow = styled.tr`
   &.selected-row {
     background-color: ${({ theme }) => theme.COLORS.GREEN_LIGHT};
     font-weight: bold;
+  }
+
+  @media (max-width: ${DEVICE_BREAKPOINTS.LG}) {
+    display: block;
+    margin-bottom: 15px;
+    border: 1px solid ${({ theme }) => theme.COLORS.GRAY_200};
+    border-radius: 8px;
+    padding: 10px;
+  }
+`
+
+export const TableCell = styled.td`
+  padding: 12px 15px;
+  text-align: left;
+  border-bottom: 1px solid ${({ theme }) => theme.COLORS.GRAY_200};
+  color: ${({ theme }) => theme.COLORS.GRAY_600};
+  font-size: 14px;
+  
+  .description-content {
+    display: flex;
+    align-items: center;
+  }
+
+
+  @media (max-width: ${DEVICE_BREAKPOINTS.LG}) {
+    display: block;
+    border-bottom: none;
+    padding: 8px 5px;
+    
+    &:last-child {
+      padding-top: 10px;
+      display: flex;
+      justify-content: flex-end;
+    }
   }
 `
 
@@ -209,22 +266,6 @@ export const ValidityIndicator = styled.span`
     }
     return 'transparent'
   }};
-`
-
-export const DescriptionCell = styled.td`
-  padding: 8px;
-  text-align: left;
-  border-bottom: 1px solid ${({ theme }) => theme.COLORS.GRAY_200};
-  color: ${({ theme }) => theme.COLORS.GRAY_600};
-  display: flex;
-  align-items: center;
-`
-
-export const TableCell = styled.td`
-  padding: 8px;
-  text-align: left;
-  border-bottom: 1px solid ${({ theme }) => theme.COLORS.GRAY_200};
-  color: ${({ theme }) => theme.COLORS.GRAY_600};
 `
 
 export const TableCheckbox = styled.label`
@@ -300,9 +341,10 @@ export const ActionButton = styled.button`
   color: ${({ theme }) => theme.COLORS.RED};
   cursor: pointer;
   margin-left: 5px;
+  font-size: 18px;
 
   &:hover {
-    text-decoration: underline;
+    filter: brightness(0.8);
   }
 `
 
@@ -317,16 +359,6 @@ export const OfferPriceInput = styled.input`
   &:focus {
     outline: none;
     border-color: ${({ theme }) => theme.COLORS.GREEN};
-  }
-
-  &[type='number']::-webkit-inner-spin-button,
-  &[type='number']::-webkit-outer-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-
-  &[type='number'] {
-    -moz-appearance: textfield;
   }
 `
 
@@ -371,7 +403,7 @@ export const Modal = styled.div`
   border-radius: 16px;
   width: 60%; /* Largura fixa em relação à tela */
   height: 800px; /* Altura fixa em pixels */
-  max-width: 1200px; /* Largura máxima */
+  max-width: 1400px; /* Largura máxima */
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -381,7 +413,7 @@ export const Modal = styled.div`
   }
 
   @media (max-width: ${DEVICE_BREAKPOINTS.XXL}) {
-    width: 70%;
+    width: 90%;
     height: 620px;
   }
 `
@@ -433,9 +465,6 @@ export const Form = styled.div`
   display: flex;
   align-items: end;
   gap: 1.6rem;
-  background-color: ${({ theme }) => theme.COLORS.WHITE};
-  padding: 1.5rem 2rem;
-  border-radius: 1rem;
 
   @media (max-width: ${DEVICE_BREAKPOINTS.LG}) {
     flex-wrap: wrap;
@@ -449,9 +478,10 @@ export const ActionButtons = styled.div`
 `
 
 export const InputWrapper = styled.div`
-  /* width: 100%; */
+  width: 100%;
   display: flex;
   flex-direction: column;
+
 `
 
 export const GroupDate = styled.div`

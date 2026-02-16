@@ -3,10 +3,11 @@ import { DEVICE_BREAKPOINTS } from '../../styles/devices'
 
 export const Container = styled.div`
   width: 100%;
-  height: 100%;
+  height: 100vh;
 
   display: grid;
   grid-template-columns: 50px auto;
+  grid-template-rows: auto 1fr auto;
   grid-template-areas:
     'header header'
     'nav content'
@@ -25,6 +26,7 @@ export const Content = styled.div`
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  overflow-y: auto;
   .content-header {
     display: flex;
     justify-content: flex-start;
@@ -33,11 +35,13 @@ export const Content = styled.div`
   @media (max-width: ${DEVICE_BREAKPOINTS.XL}) {
     padding: 1.6rem;
     gap: 1rem;
+
   }
 
   @media (max-width: ${DEVICE_BREAKPOINTS.XXL}) {
     padding: 1.6rem;
     gap: 1rem;
+    
   }
 
   @media (min-width: ${DEVICE_BREAKPOINTS.LG}) {
@@ -118,6 +122,20 @@ export const ButtonWrapper = styled.div`
 
   @media (max-width: ${DEVICE_BREAKPOINTS.XL}) {
     flex-direction: column;
+  }
+
+  @media (max-width: ${DEVICE_BREAKPOINTS.MD}) {
+    display: none;
+  }
+`
+
+export const TableSection = styled.section`
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+
+  > div {
+    flex-grow: 1;
   }
 `
 

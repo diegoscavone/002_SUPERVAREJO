@@ -9,9 +9,9 @@ export const Container = styled.header`
   justify-content: space-between;
   padding: 0 6rem;
 
-  /* @media (max-width: ${DEVICE_BREAKPOINTS.MD}) {
-    display: none;
-  } */
+  @media (max-width: ${DEVICE_BREAKPOINTS.MD}) {
+    width: 100%;
+  }
 `
 
 export const Brand = styled.div`
@@ -22,6 +22,13 @@ export const Brand = styled.div`
 
   > img {
     width: 200px;
+  }
+
+  @media (max-width: ${DEVICE_BREAKPOINTS.MD}) {
+    width: 80px;
+    > img {
+      width: 100px;
+    }
   }
 `
 

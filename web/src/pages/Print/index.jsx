@@ -597,25 +597,6 @@ export function Print() {
         </Section>
         <Section>
           {filteredPosters.length > 0 ? (
-            // <PostersTable
-            //   data={filteredPosters.map(poster => ({
-            //     id: poster.id,
-            //     product_id: poster.product_id,
-            //     description: poster.description,
-            //     complement: poster.complement,
-            //     packaging: poster.packaging,
-            //     price: poster.price,
-            //     initial_date: poster.initial_date || null,
-            //     final_date: poster.final_date || null,
-            //     campaign_id: getCampaignName(poster.campaign_id)
-            //   }))}
-            //   columns={posterColumns}
-            //   selectedPosters={selectedPosters}
-            //   onRowSelect={handleCheckboxSelected}
-            //   showEditColumn={true}
-            //   showSelectColumn={true}
-            // />
-
             <PostersTable
               data={filteredPosters}
               columns={columns}

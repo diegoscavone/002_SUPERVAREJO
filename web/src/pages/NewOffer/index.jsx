@@ -1618,7 +1618,7 @@ export function NewOffer() {
                 </span>
               </div>
               <Button
-                title="Adicionar Produto"
+                title="Inserir"
                 onClick={addSelectedProduct}
                 color="GREEN"
                 disabled={!selectedProductId}
