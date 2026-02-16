@@ -6,6 +6,7 @@ import { useAuth } from '../../hooks/auth'
 import { Notification } from '../Notification'
 
 import { PiPower  } from 'react-icons/pi'
+import { Button } from '../ui/button'
 
 export function Header() {
   const { signOut, user } = useAuth()
