@@ -1,436 +1,314 @@
-import React, { useMemo, useCallback, useState, useEffect } from 'react'
-import { Checkbox } from '../../components/Checkbox'
+import React, { useState } from 'react'
 import {
-  PiCaretCircleDown,
-  PiCaretCircleUp,
+  flexRender,
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable
+} from '@tanstack/react-table'
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow
+} from '@/components/ui/table'
+import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import {
   PiCaretLeft,
   PiCaretRight,
-  PiPencil
+  PiArrowsDownUp,
+  PiCaretUpBold,
+  PiCaretDownBold
 } from 'react-icons/pi'
-import { Container } from './styles'
-import { useNavigate } from 'react-router-dom'
-import { DEVICE_BREAKPOINTS } from '../../styles/devices'
-
-// Memo para o componente Checkbox para evitar re-renderizações desnecessárias
-const MemoizedCheckbox = React.memo(Checkbox)
+import { Checkbox } from '@/components/ui/checkbox'
+import { Badge } from '@/components/ui/badge' // Importe o Badge do shadcn
+import { ArrowDownUp, ArrowUpAZ, ArrowUpDown, ArrowUpZA } from 'lucide-react'
+// import { Pencil } from 'lucide-react' // Comentado conforme solicitado
 
 export function PostersTable({
   data = [],
   columns = [],
-  selectedPosters = {},
-  onRowSelect = () => {},
+  onRowSelect,
   showEditColumn = false,
   showSelectColumn = true,
-  editType = 'posters'
+  handleEdit
 }) {
-  const navigate = useNavigate()
-  const [isMobile, setIsMobile] = useState(
-    window.innerWidth <= parseInt(DEVICE_BREAKPOINTS.MD)
-  )
+  const [sorting, setSorting] = useState([])
+  const [rowSelection, setRowSelection] = useState({})
 
-  useEffect(() => {
-    const handleResize = () => {
-      setIsMobile(window.innerWidth <= parseInt(DEVICE_BREAKPOINTS.MD))
-    }
-
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
-
-  // Estados controlados para paginação
-  const [pagination, setPagination] = useState({
-    pageIndex: 0,
-    pageSize: 50
-  })
-
-  // Estado para ordenação
-  const [sorting, setSorting] = useState({
-    columnId: null,
-    direction: null // 'asc' | 'desc' | null
-  })
-
-  // Estado para filtros
-  const [globalFilter, setGlobalFilter] = useState('')
-
-  // Estado para operações em lote
-  const [isProcessingBatch, setIsProcessingBatch] = useState(false)
-
-  // Memoizando o handler de edição
-  const handleEdit = useCallback(
-    id => {
-      const baseUrl = editType === 'users' ? '/users/profile/' : '/details/'
-      navigate(`${baseUrl}${id}`)
-    },
-    [navigate, editType]
-  )
-
-  // Handler otimizado para seleção individual
-  const handleRowSelect = useCallback(
-    (rowId, isSelected) => {
-      if (isProcessingBatch) return
-
-      const newSelection = { ...selectedPosters }
-
-      if (isSelected) {
-        delete newSelection[rowId]
-      } else {
-        newSelection[rowId] = true
-      }
-
-      onRowSelect(newSelection)
-    },
-    [selectedPosters, onRowSelect, isProcessingBatch]
-  )
-
-  // Handler otimizado para selecionar todos
-  const handleSelectAll = useCallback(() => {
-    const selectedCount = Object.keys(selectedPosters).length
-    const allSelected = selectedCount === data.length && selectedCount > 0
-
-    setIsProcessingBatch(true)
-
-    setTimeout(() => {
-      let newSelection = {}
-
-      if (!allSelected) {
-        // Selecionar todos usando um loop otimizado
-        for (let i = 0; i < data.length; i++) {
-          const row = data[i]
-          if (row.id) {
-            newSelection[row.id] = true
+  const tableColumns = React.useMemo(() => {
+    const cols = [...columns].map(col => {
+      // Interceptamos a coluna de status para aplicar o Badge automaticamente
+      if (col.accessorKey === 'status') {
+        return {
+          ...col,
+          cell: ({ getValue }) => {
+            const status = getValue()
+            const statusMap = {
+              active: { label: 'Ativo', variant: 'success' }, // Verifique se criou a variant no shadcn
+              upcoming: { label: 'Futuro', variant: 'outline' },
+              expired: { label: 'Encerrado', variant: 'destructive' }
+            }
+            const config = statusMap[status] || {
+              label: 'Desconhecido',
+              variant: 'secondary'
+            }
+            return (
+              <Badge
+                variant={config.variant}
+                className="font-semibold text-[10px] uppercase rounded-xl tracking-wider"
+              >
+                {config.label}
+              </Badge>
+            )
           }
         }
       }
-
-      onRowSelect(newSelection)
-      setIsProcessingBatch(false)
-    }, 0)
-  }, [data, selectedPosters, onRowSelect])
-
-  // Cálculos memoizados para seleção
-  const selectionStats = useMemo(() => {
-    const selectedIds = Object.keys(selectedPosters)
-    const selectedCount = selectedIds.length
-    const allSelected = selectedCount === data.length && selectedCount > 0
-    const someSelected = selectedCount > 0 && !allSelected
-
-    return { selectedCount, allSelected, someSelected }
-  }, [selectedPosters, data.length])
-
-  // Handler para ordenação
-  const handleSort = useCallback((columnId, sortable = true) => {
-    if (!sortable) return
-
-    setSorting(prev => {
-      if (prev.columnId !== columnId) {
-        return { columnId, direction: 'asc' }
-      }
-      
-      if (prev.direction === 'asc') {
-        return { columnId, direction: 'desc' }
-      }
-      
-      if (prev.direction === 'desc') {
-        return { columnId: null, direction: null }
-      }
-      
-      return { columnId, direction: 'asc' }
+      return col
     })
-  }, [])
-
-  // Dados ordenados (sem filtro interno, apenas ordenação)
-  const processedData = useMemo(() => {
-    let sortedData = [...data]
-
-    // Aplicar ordenação
-    if (sorting.columnId && sorting.direction) {
-      const column = columns.find(col => col.id === sorting.columnId || col.accessorKey === sorting.columnId)
-      if (column) {
-        sortedData.sort((a, b) => {
-          let aValue = a[column.accessorKey] || ''
-          let bValue = b[column.accessorKey] || ''
-
-          // Converter para string para comparação
-          aValue = String(aValue).toLowerCase()
-          bValue = String(bValue).toLowerCase()
-
-          if (sorting.direction === 'asc') {
-            return aValue < bValue ? -1 : aValue > bValue ? 1 : 0
-          } else {
-            return aValue > bValue ? -1 : aValue < bValue ? 1 : 0
-          }
-        })
-      }
-    }
-
-    return sortedData
-  }, [data, columns, sorting])
-
-  // Dados paginados
-  const paginatedData = useMemo(() => {
-    const startIndex = pagination.pageIndex * pagination.pageSize
-    const endIndex = startIndex + pagination.pageSize
-    return processedData.slice(startIndex, endIndex)
-  }, [processedData, pagination])
-
-  // Informações de paginação
-  const paginationInfo = useMemo(() => {
-    const totalItems = processedData.length
-    const totalPages = Math.ceil(totalItems / pagination.pageSize)
-    const currentPage = pagination.pageIndex + 1
-    const canPreviousPage = pagination.pageIndex > 0
-    const canNextPage = pagination.pageIndex < totalPages - 1
-
-    return {
-      totalItems,
-      totalPages,
-      currentPage,
-      canPreviousPage,
-      canNextPage
-    }
-  }, [processedData.length, pagination])
-
-  // Handlers de paginação
-  const handlePreviousPage = useCallback(() => {
-    setPagination(prev => ({
-      ...prev,
-      pageIndex: Math.max(0, prev.pageIndex - 1)
-    }))
-  }, [])
-
-  const handleNextPage = useCallback(() => {
-    setPagination(prev => ({
-      ...prev,
-      pageIndex: Math.min(paginationInfo.totalPages - 1, prev.pageIndex + 1)
-    }))
-  }, [paginationInfo.totalPages])
-
-  const handlePageSizeChange = useCallback(e => {
-    const newSize = Number(e.target.value)
-    setPagination(prev => ({
-      pageIndex: 0, // Reset para primeira página
-      pageSize: newSize
-    }))
-  }, [])
-
-  // Renderizar célula
-  const renderCell = useCallback((row, column) => {
-    if (column.cell && typeof column.cell === 'function') {
-      return column.cell({ row: { original: row }, getValue: () => row[column.accessorKey] })
-    }
-    
-    if (column.accessorKey) {
-      return row[column.accessorKey] || ''
-    }
-    
-    return ''
-  }, [])
-
-  // Colunas memoizadas
-  const enhancedColumns = useMemo(() => {
-    const baseColumns = []
 
     if (showSelectColumn) {
-      baseColumns.push({
+      cols.unshift({
         id: 'select',
         header: ({ table }) => (
-          <MemoizedCheckbox
-            checked={selectionStats.allSelected}
-            indeterminate={selectionStats.someSelected}
-            onChange={handleSelectAll}
-            disabled={isProcessingBatch}
-          />
-        ),
-        cell: ({ row }) => {
-          const isSelected = selectedPosters[row.original.id] === true
-          return (
-            <MemoizedCheckbox
-              checked={isSelected}
-              onChange={() => handleRowSelect(row.original.id, isSelected)}
-              disabled={isProcessingBatch}
-            />
-          )
-        },
-        sortable: false,
-        width: '50px'
-      })
-    }
-
-    baseColumns.push(...columns)
-
-    if (showEditColumn) {
-      baseColumns.push({
-        id: 'edit',
-        header: '',
-        cell: ({ row }) => (
-          <button
-            className="edit"
-            onClick={() => handleEdit(row.original.id)}
-            type="button"
+          <div
+            className="flex items-center justify-center w-8"
+            onClick={e => e.stopPropagation()}
           >
-            <PiPencil />
-          </button>
+            <Checkbox
+              checked={table.getIsAllPageRowsSelected()}
+              onCheckedChange={value =>
+                table.toggleAllPageRowsSelected(!!value)
+              }
+              aria-label="Selecionar todos"
+              className="border-input data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600 shadow-none"
+            />
+          </div>
         ),
-        sortable: false,
-        width: '60px'
+        cell: ({ row }) => (
+          <div
+            className="flex items-center justify-center w-8"
+            onClick={e => e.stopPropagation()}
+          >
+            <Checkbox
+              checked={row.getIsSelected()}
+              onCheckedChange={value => row.toggleSelected(!!value)}
+              aria-label="Selecionar linha"
+              className="border-input data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600 shadow-none"
+            />
+          </div>
+        ),
+        enableSorting: false
       })
     }
-    if (isMobile) {
-      return baseColumns.filter(
-        column =>
-          ['select', 'edit', 'code', 'description', 'campaign_name'].includes(
-            column.accessorKey
-          ) || ['select', 'edit'].includes(column.id)
-      )
+
+    // Botão Editar Comentado
+    /*
+    if (showEditColumn) {
+      cols.push({
+        id: "actions",
+        header: () => <div className="text-center">Ações</div>,
+        cell: ({ row }) => (
+          <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => handleEdit(row.original.id)}
+              className="h-8 w-8 hover:text-green-600 hover:bg-green-50 transition-colors"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          </div>
+        ),
+        enableSorting: false,
+      });
     }
-    return baseColumns
-  }, [
-    columns,
-    showEditColumn,
-    showSelectColumn,
-    handleEdit,
-    selectionStats,
-    isProcessingBatch,
-    handleSelectAll,
-    handleRowSelect,
-    selectedPosters,
-    isMobile
-  ])
+    */
+
+    return cols
+  }, [columns, showSelectColumn]) // showEditColumn e handleEdit removidos das dependências por enquanto
+
+  const table = useReactTable({
+    data,
+    columns: tableColumns,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    onSortingChange: setSorting,
+    getSortedRowModel: getSortedRowModel(),
+    onRowSelectionChange: updater => {
+      const nextSelection =
+        typeof updater === 'function' ? updater(rowSelection) : updater
+      setRowSelection(nextSelection)
+      if (onRowSelect) onRowSelect(nextSelection)
+    },
+    state: {
+      sorting,
+      rowSelection
+    },
+    getRowId: row => row.id
+  })
 
   return (
-    <Container>
-      <div className="processing-indicator">
-        <div className="table-info">
-          {selectionStats.selectedCount > 0 && (
-            <span>{selectionStats.selectedCount} item(s) selecionado(s)</span>
-          )}
-        </div>
+    <div className="w-full flex flex-col gap-3">
+      <div className="flex items-center px-1">
+        <span className="text-sm font-medium text-neutral-600 ">
+          {table.getFilteredSelectedRowModel().rows.length} de{' '}
+          {table.getFilteredRowModel().rows.length} selecionados
+        </span>
       </div>
 
-      <table>
-        <thead>
-          <tr>
-            {enhancedColumns.map(column => (
-              <th 
-                key={column.id || column.accessorKey} 
-                className={column.id || column.accessorKey}
-                style={{ width: column.width }}
+      <div className="rounded-lg border border-border bg-white shadow-none overflow-hidden">
+        <Table>
+          <TableHeader className="bg-muted/30 border-b">
+            {table.getHeaderGroups().map(headerGroup => (
+              <TableRow
+                key={headerGroup.id}
+                className="hover:bg-transparent border-none"
               >
-                {column.header && typeof column.header === 'function' ? (
-                  column.header({ 
-                    table: { getState: () => ({ pagination }) },
-                    column: { getCanSort: () => column.sortable !== false }
-                  })
-                ) : column.id === 'select' || column.id === 'edit' ? (
-                  <span>{column.header || ''}</span>
-                ) : (
-                  <div
-                    className={column.sortable !== false ? 'sortable' : ''}
-                    onClick={() => handleSort(column.id || column.accessorKey, column.sortable !== false)}
-                    style={{
-                      cursor: column.sortable !== false ? 'pointer' : 'default',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}
-                  >
-                    {column.header}
-                    {sorting.columnId === (column.id || column.accessorKey) && (
-                      <>
-                        {sorting.direction === 'asc' && <PiCaretCircleUp />}
-                        {sorting.direction === 'desc' && <PiCaretCircleDown />}
-                      </>
-                    )}
-                  </div>
-                )}
-              </th>
+                {headerGroup.headers.map(header => {
+                  const isSortable = header.column.getCanSort()
+                  const sortedState = header.column.getIsSorted()
+
+                  return (
+                    <TableHead
+                      key={header.id}
+                      className={`h-10 px-4 py-2 bg-slate-50 text-neutral-600 font-semibold text-sm transition-colors ${isSortable ? 'cursor-pointer select-none hover:text-green-500' : ''}`}
+                      onClick={header.column.getToggleSortingHandler()}
+                    >
+                      <div className="flex items-center gap-1.5">
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
+                        {isSortable && (
+                          <div className="flex-shrink-0">
+                            {sortedState === 'asc' ? (
+                              <ArrowUpZA className="h-4 w-4 text-green-600" />
+                            ) : sortedState === 'desc' ? (
+                              <ArrowUpAZ className="h-4 w-4 text-green-600" />
+                            ) : (
+                              <ArrowDownUp className="h-4 w-4 text-green-600" />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </TableHead>
+                  )
+                })}
+              </TableRow>
             ))}
-          </tr>
-        </thead>
-        <tbody>
-          {paginatedData.map(row => {
-            if (isMobile) {
-              return (
-                <tr key={row.id}>
-                  <td>
-                    <div className="mobile-cell">
-                      <div
-                        className="mobile-cell-item"
-                        data-label="Descrição:"
-                      >
-                        {row.description}
-                      </div>
-                      <div
-                        className="mobile-cell-item"
-                        data-label="Campanha:"
-                      >
-                        {row.campaign_name}
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              )
-            }
-            return (
-              <tr key={row.id}>
-                {enhancedColumns.map(column => (
-                  <td key={`${row.id}-${column.id || column.accessorKey}`}>
-                    {column.cell && typeof column.cell === 'function'
-                      ? column.cell({
-                          row: { original: row },
-                          getValue: () => row[column.accessorKey]
-                        })
-                      : renderCell(row, column)}
-                  </td>
-                ))}
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-
-      {paginatedData.length === 0 && (
-        <div className="empty-state">
-          <p>Nenhum item encontrado</p>
-        </div>
-      )}
-
-      <div className="pagination-controls">
-        <div className="pagination-info">
-          Mostrando {Math.min(pagination.pageSize, paginatedData.length)} de{' '}
-          {paginationInfo.totalItems} itens
-        </div>
-
-        <div className="pagination-buttons">
-          <button
-            onClick={handlePreviousPage}
-            disabled={!paginationInfo.canPreviousPage}
-            type="button"
-          >
-            <PiCaretLeft />
-          </button>
-
-          <span className="page-info">
-            Página {paginationInfo.currentPage} de {paginationInfo.totalPages}
-          </span>
-
-          <button
-            onClick={handleNextPage}
-            disabled={!paginationInfo.canNextPage}
-            type="button"
-          >
-            <PiCaretRight />
-          </button>
-        </div>
-
-        <select value={pagination.pageSize} onChange={handlePageSizeChange}>
-          {[10, 20, 30, 40, 50, 100].map(pageSize => (
-            <option key={pageSize} value={pageSize}>
-              Mostrar {pageSize}
-            </option>
-          ))}
-        </select>
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows?.length ? (
+              table.getRowModel().rows.map(row => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && 'selected'}
+                  onClick={() => row.toggleSelected()}
+                  className={`
+          group cursor-pointer border-b last:border-0 transition-colors 
+          /* Efeito de Hover: Verde muito claro */
+          hover:bg-green-50 
+          /* Quando Selecionada: Verde claro persistente */
+          data-[state=selected]:bg-green-100/70 
+          /* Hover sobre uma linha já selecionada */
+          data-[state=selected]:hover:bg-green-100
+        `}
+                >
+                  {row.getVisibleCells().map(cell => (
+                    <TableCell
+                      key={cell.id}
+                      className="px-4 py-1.5 text-sm text-neutral-600"
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={tableColumns.length}
+                  className="h-24 text-center text-muted-foreground text-xs italic"
+                >
+                  Nenhum registro encontrado.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
       </div>
-    </Container>
+
+      <div className="flex items-center justify-between px-1 py-1">
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-medium text-neutral-600">Exibir</span>
+          <Select
+            value={`${table.getState().pagination.pageSize}`}
+            onValueChange={value => table.setPageSize(Number(value))}
+          >
+            <SelectTrigger className="h-7 w-16 text-[11px] shadow-none border-input focus:ring-green-600 bg-background">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent side="top">
+              {[10, 20, 30, 40, 50].map(pageSize => (
+                <SelectItem
+                  key={pageSize}
+                  value={`${pageSize}`}
+                  className="text-xs"
+                >
+                  {pageSize}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="text-sm text-neutral-600 tracking-tighter">
+            Página:{' '}
+            <span className="text-neutral-600 font-medium">
+              {table.getState().pagination.pageIndex + 1} -{' '}
+              {table.getPageCount()}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1">
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7 shadow-none border-input hover:border-green-600 hover:text-green-600 disabled:opacity-20"
+              onClick={() => table.previousPage()}
+              disabled={!table.getCanPreviousPage()}
+            >
+              <PiCaretLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="outline"
+              size="icon"
+              className="h-7 w-7 shadow-none border-input hover:border-green-600 hover:text-green-600 disabled:opacity-20"
+              onClick={() => table.nextPage()}
+              disabled={!table.getCanNextPage()}
+            >
+              <PiCaretRight className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

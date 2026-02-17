@@ -669,13 +669,15 @@ export function Home() {
               </Section>
             )}
             <Section>
-              <Button
-                type="button"
-                onClick={createPoster}
-                className="bg-green-600 hover:bg-green-700 text-white transition-colors self-end"
-              >
-                <Newspaper /> Criar Cartaz
-              </Button>
+              <div className="flex justify-start w-full">
+                <Button
+                  type="button"
+                  onClick={createPoster}
+                  className="bg-green-600 hover:bg-green-700 text-white transition-colors w-full md:w-auto"
+                >
+                  <Newspaper className="mr-2 h-4 w-4" /> Criar Cartaz
+                </Button>
+              </div>
             </Section>
           </Form>
 

@@ -3,29 +3,17 @@ import { DEVICE_BREAKPOINTS } from '../../styles/devices'
 
 export const Container = styled.div`
   width: 100%;
-  height: 100vh;
-
-  display: grid;
-  grid-template-columns: 50px auto;
-  grid-template-rows: auto 1fr auto;
-  grid-template-areas:
-    'header header'
-    'nav content'
-    'nav footer';
-
+  min-height: 100vh;
+  display: flex; /* Mudamos de Grid para Flex */
+  flex-direction: column;
   background-color: ${({ theme }) => theme.COLORS.BACKGROUND_200};
-
-  @media (max-width: ${DEVICE_BREAKPOINTS.LG}) {
-    grid-template-columns: 50px auto;
-  }
 `
 
 export const Content = styled.div`
-  grid-area: content;
-  padding: 3rem;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 16px;
   overflow-y: auto;
   .content-header {
     display: flex;
@@ -35,13 +23,11 @@ export const Content = styled.div`
   @media (max-width: ${DEVICE_BREAKPOINTS.XL}) {
     padding: 1.6rem;
     gap: 1rem;
-
   }
 
   @media (max-width: ${DEVICE_BREAKPOINTS.XXL}) {
     padding: 1.6rem;
     gap: 1rem;
-    
   }
 
   @media (min-width: ${DEVICE_BREAKPOINTS.LG}) {

@@ -1,46 +1,27 @@
-import {
-  Container,
-  Content,
-  ButtonWrapper,
-  InputWrapper,
-  Label,
-  Form,
-  ButtonSearch,
-  Message,
-  SelectWrapper,
-  Badge, // Importe o componente Badge
-  TableSection
-} from './styles.js'
+import { Badge, Container, Content } from './styles.js'
 
-import { PiFunnel, PiPlus, PiSealPercent, PiTrash } from 'react-icons/pi'
-
-import { Header } from '../../components/Header'
-import { Nav } from '../../components/Nav'
-import { Footer } from '../../components/Footer'
-import { Button } from '../../components/Button'
 import { Section } from '../../components/Section'
 
 import { useEffect, useState } from 'react'
 
-import { api } from '../../services/api'
+import { Button } from '@/components/ui/button'
+import { useNavigate } from 'react-router-dom'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
-import { useNavigate } from 'react-router-dom'
-import { Select } from '../../components/Select'
-import { Input } from '../../components/Input'
-import { InputMask } from '../../components/InputMask'
+import { Layout } from '../../components/Layout'
 import { PostersTable } from '../../components/PostersTable'
+import { api } from '../../services/api'
 import { toastError, toastInfo, toastSuccess } from '../../styles/toastConfig'
 
 import {
-  parseISO,
+  endOfDay,
   isAfter,
   isBefore,
-  startOfDay,
-  endOfDay,
-  parse
+  parse,
+  parseISO,
+  startOfDay
 } from 'date-fns'
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar.jsx'
+import { Tag, Trash2 } from 'lucide-react'
 
 export function Offers() {
   const navigate = useNavigate()
@@ -81,25 +62,39 @@ export function Offers() {
   }
 
   const offerColumns = [
-    { accessorKey: 'id', header: 'ID', enableSorting: true },
-    { accessorKey: 'name', header: 'Nome da Oferta', enableSorting: true },
+    { accessorKey: 'id', header: 'ID' },
+    { accessorKey: 'name', header: 'Nome da Oferta' },
     {
       accessorKey: 'initial_date',
       header: 'Data Inicial',
-      cell: ({ getValue }) => formatDate(getValue()),
-      enableSorting: true
+      cell: ({ getValue }) => formatDate(getValue())
     },
     {
       accessorKey: 'final_date',
       header: 'Data Final',
-      cell: ({ getValue }) => formatDate(getValue()),
-      enableSorting: true
+      cell: ({ getValue }) => formatDate(getValue())
     },
     {
       accessorKey: 'status',
       header: 'Status',
-      cell: ({ getValue }) => getStatusBadge(getValue()),
-      enableSorting: true
+      cell: ({ getValue }) => {
+        const status = getValue()
+        const statusMap = {
+          active: { label: 'Ativa', variant: 'success' }, // Verifique se criou a variant no Shadcn
+          upcoming: { label: 'Futura', variant: 'outline' },
+          expired: { label: 'Encerrada', variant: 'destructive' }
+        }
+        const config = statusMap[status] || {
+          label: 'Desconhecido',
+          variant: 'secondary'
+        }
+
+        return (
+          <Badge variant={config.variant} className="capitalize">
+            {config.label}
+          </Badge>
+        )
+      }
     }
   ]
 
@@ -199,24 +194,15 @@ export function Offers() {
       setLoading(true)
       const response = await api.get('/offers')
 
-      // Processar os dados para adicionar o status e contagem de produtos
       const processedOffers = response.data.map(offer => {
-        // Determinar o status da oferta com base na data atual
         const today = new Date()
         const initialDate = new Date(offer.initial_date)
-
-        // Definir a data final para o final do dia (23:59:59)
         const finalDate = new Date(offer.final_date)
         finalDate.setHours(23, 59, 59, 999)
 
-        let status = 'unknown'
-        if (today < initialDate) {
-          status = 'upcoming'
-        } else if (today > finalDate) {
-          status = 'expired'
-        } else {
-          status = 'active'
-        }
+        let status = 'active'
+        if (today < initialDate) status = 'upcoming'
+        else if (today > finalDate) status = 'expired'
 
         return {
           ...offer,
@@ -225,45 +211,18 @@ export function Offers() {
         }
       })
 
-      // Ordenar as ofertas: primeiro por status (ativas primeiro) e depois por data inicial
+      // Ordenação (Ativas -> Futuras -> Encerradas)
       const sortedOffers = processedOffers.sort((a, b) => {
-        // Definir prioridade para cada status
-        const statusPriority = {
-          active: 1, // Maior prioridade para ativas
-          upcoming: 2, // Segunda prioridade para futuras
-          expired: 3, // Menor prioridade para encerradas
-          unknown: 4 // Prioridade mais baixa para desconhecidas
+        const priority = { active: 1, upcoming: 2, expired: 3, unknown: 4 }
+        if (priority[a.status] !== priority[b.status]) {
+          return priority[a.status] - priority[b.status]
         }
-
-        // Primeiro, comparar por status
-        if (statusPriority[a.status] !== statusPriority[b.status]) {
-          return statusPriority[a.status] - statusPriority[b.status]
-        }
-
-        // Se tiverem o mesmo status, ordenar por data
-        // Para ofertas ativas, ordenar por data final (as que vencem primeiro aparecem antes)
-        if (a.status === 'active') {
-          return new Date(a.final_date) - new Date(b.final_date)
-        }
-
-        // Para ofertas futuras, ordenar por data inicial (as que começam primeiro aparecem antes)
-        if (a.status === 'upcoming') {
-          return new Date(a.initial_date) - new Date(b.initial_date)
-        }
-
-        // Para ofertas encerradas, ordenar por data final decrescente (as que encerraram mais recentemente aparecem antes)
-        if (a.status === 'expired') {
-          return new Date(b.final_date) - new Date(a.final_date)
-        }
-
-        // Fallback: ordenar por ID
-        return a.id - b.id
+        return new Date(a.initial_date) - new Date(b.initial_date)
       })
 
       setOffers(sortedOffers)
       setFilteredOffers(sortedOffers)
     } catch (error) {
-      console.error('Erro ao buscar ofertas:', error)
       toastError('Não foi possível carregar as ofertas.')
     } finally {
       setLoading(false)
@@ -271,19 +230,9 @@ export function Offers() {
   }
 
   function formatDate(dateString) {
-    if (!dateString) {
-      return 'Data inválida'
-    }
+    if (!dateString) return '---'
     const date = new Date(dateString)
-
-    if (isNaN(date.getTime())) {
-      return 'Data inválida'
-    }
-    return date.toLocaleDateString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
-    })
+    return isNaN(date.getTime()) ? '---' : date.toLocaleDateString('pt-BR')
   }
 
   useEffect(() => {
@@ -291,80 +240,85 @@ export function Offers() {
   }, [])
 
   async function deleteOffers() {
+    // Agora o selectedOffers vêm no formato do TanStack: { "id1": true, "id2": true }
     const selectedIds = Object.keys(selectedOffers).filter(
       id => selectedOffers[id]
     )
 
     if (selectedIds.length === 0) {
-      toastInfo('Selecione pelo menos uma oferta.')
-      return
+      return toastInfo('Selecione pelo menos uma oferta para excluir.')
     }
 
     try {
       setLoading(true)
-      const selectedOfferIds = selectedIds.map(id => Number(id))
-
-      await api.delete(`/offers/${selectedOfferIds.join(',')}`)
+      await api.delete(`/offers/${selectedIds.join(',')}`)
       toastSuccess('Oferta(s) excluída(s) com sucesso!')
       await fetchOffers()
+      setSelectedOffers({})
     } catch (error) {
       toastError('Erro ao excluir as ofertas.')
     } finally {
       setLoading(false)
-      // Limpar a seleção após a exclusão
-      setSelectedOffers({})
     }
   }
 
   return (
-    <SidebarProvider>
-      <Nav />
-      <SidebarInset className="bg-background">
-        <Container>
-          <Header />
-          <ToastContainer />
-          <Content>
-            <div className="content-header">
-              <Button
-                title="Nova Oferta"
-                icon={PiSealPercent}
-                color="ORANGE"
-                onClick={() => navigate('/offers/new')}
-              />
-            </div>
-            <TableSection title="Gestão de Ofertas">
+    <Layout>
+      <ToastContainer />
+      <Container>
+        <Content className="flex flex-col gap-6 p-6">
+          {/* Cabeçalho de Ações */}
+          <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-none">
+            <h1 className="text-base font-bold text-neutral-600">Gestão de Ofertas</h1>
+            <Button
+              type="button"
+              onClick={() => navigate('/offers/new')}
+              className="bg-orange-500 hover:bg-orange-600 text-white gap-2 shadow-none"
+            >
+              <Tag size={18} /> Nova Oferta
+            </Button>
+          </div>
+
+          {/* Seção da Tabela */}
+          <Section>
+            <div className="bg-white rounded-md">
               {filteredOffers.length > 0 ? (
                 <PostersTable
                   data={filteredOffers}
                   columns={offerColumns}
-                  selectedPosters={selectedOffers}
-                  onRowSelect={handleCheckboxSelected}
-                  showEditColumn={false}
+                  onRowSelect={setSelectedOffers} // Sincroniza seleção com DataTable
                   showSelectColumn={true}
+                  showEditColumn={true} // Se quiser habilitar o lápis
+                  handleEdit={id => navigate(`/offers/edit/${id}`)}
                 />
               ) : (
-                <Message>
-                  <p>Nenhuma oferta encontrada para os filtros selecionados.</p>
-                </Message>
+                <div className="p-8 text-center border-2 border-dashed rounded-lg">
+                  <p className="text-muted-foreground">
+                    Nenhuma oferta encontrada.
+                  </p>
+                </div>
               )}
-            </TableSection>
+            </div>
+          </Section>
 
-            <Section>
-              <ButtonWrapper>
+          {/* Botão de Exclusão em Lote */}
+          <Section>
+            {Object.keys(selectedOffers).length > 0 && (
+              <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2">
                 <Button
-                  title="Excluir"
-                  icon={PiTrash}
-                  color="RED"
+                  variant="destructive"
                   onClick={deleteOffers}
                   disabled={loading}
-                />
-              </ButtonWrapper>
-            </Section>
-          </Content>
-
-          <Footer />
-        </Container>
-      </SidebarInset>
-    </SidebarProvider>
+                  className="gap-2 shadow-none transition-all hover:bg-red-600 hover:brightness-110 active:scale-95"
+                >
+                  <Trash2 size={18} />
+                  Excluir ({Object.keys(selectedOffers).length})
+                </Button>
+              </div>
+            )}
+          </Section>
+        </Content>
+      </Container>
+    </Layout>
   )
 }
