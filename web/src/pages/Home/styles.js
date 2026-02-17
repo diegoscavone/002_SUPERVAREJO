@@ -2,24 +2,16 @@ import styled from 'styled-components'
 import { DEVICE_BREAKPOINTS } from '../../styles/devices'
 
 export const Container = styled.div`
-  width: 100%;
-  display: grid;
-  grid-template-columns: 50px auto;
-  grid-template-areas:
-    'header header'
-    'nav content'
-    'nav footer';
-
+ width: 100%;
+  min-height: 100vh;
+  display: flex;       /* Mudamos de Grid para Flex */
+  flex-direction: column; 
   background-color: ${({ theme }) => theme.COLORS.BACKGROUND_200};
-  @media (max-width: ${DEVICE_BREAKPOINTS.LG}) {
-    grid-template-columns: 50px auto;
-  }
 `
 export const Content = styled.div`
-  grid-area: content;
-  display: flex;
+display: flex;
   width: 100%;
-  height: 100%;
+  flex: 1; /* Faz o conteúdo ocupar o espaço restante */
 `
 export const Form = styled.form`
   display: flex;

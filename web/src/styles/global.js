@@ -8,7 +8,7 @@ export default createGlobalStyle`
   }
 
   :root{
-    font-size: 62.5%;
+    /* font-size: 62.5%; */
 
     --toastify-text-color-light: ${({ theme }) => theme.COLORS.WHITE};
     --toastify-icon-color-info: ${({ theme }) => theme.COLORS.WHITE} ;
@@ -21,17 +21,6 @@ export default createGlobalStyle`
     color: ${({ theme }) => theme.COLORS.GRAY_600};
 
     -webkit-font-smoothing: antialiased;
-  }
-
-  body,
-  input,
-  button,
-  select,
-  textarea,
-  fieldset legend{
-    font-family: 'Inter', sans-serif;
-    font-size: 1.6rem;
-    outline: none;
   }
 
   a {

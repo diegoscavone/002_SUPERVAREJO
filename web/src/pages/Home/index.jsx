@@ -15,7 +15,7 @@ import { useEffect, useState } from 'react'
 
 import { api, apiERP } from '../../services/api'
 import { Nav } from '../../components/Nav'
-import { PiCalendarDots, PiMagnifyingGlass } from 'react-icons/pi'
+import { PiCalendarDots, PiMagnifyingGlass, PiPower } from 'react-icons/pi'
 
 import { useCreatedPoster } from '../../hooks/createdPoster'
 
@@ -24,8 +24,18 @@ import 'react-toastify/dist/ReactToastify.css'
 import { PosterView } from '../../components/PosterView'
 import { toastError, toastInfo, toastSuccess } from '../../styles/toastConfig'
 import { useAuth } from '../../hooks/auth'
+import {
+  SidebarInset,
+  SidebarProvider,
+  SidebarTrigger
+} from '@/components/ui/sidebar'
+import { Separator } from '@/components/ui/separator'
+import { Notification } from '@/components/Notification'
+import { useNavigate } from 'react-router-dom'
 
 export function Home() {
+  const { signOut, user } = useAuth()
+  const navigate = useNavigate()
   const [priceClass, setPriceClass] = useState('')
   const [price, setPrice] = useState('')
   const [retailPrice, setRetailPrice] = useState('')
@@ -43,7 +53,6 @@ export function Home() {
   const [dateFinal, setDateFinally] = useState('')
 
   const [userUnit, setUserUnit] = useState(null)
-  const { user } = useAuth()
 
   const handleCreatePoster = useCreatedPoster()
 
@@ -395,198 +404,234 @@ export function Home() {
     setCampaignTypeSelected(value)
   }
 
+  function handleSignOut() {
+    console.log('Deslogando usuário...')
+    navigate('/')
+    signOut()
+  }
+
   return (
-    <Container>
-      <Header />
+    <SidebarProvider>
       <Nav />
-      <ToastContainer />
-      <Content>
-        <Form>
-          <Section title="Layout do Cartaz">
-            <InputWrapper>
-              <Label>Tipo de Campanha</Label>
-              <Select onChangeType={handleTypeSelectedChange}>
-                <option value={0}>Selecione</option>
-                {campaignsType.map(campaignType => (
-                  <option
-                    key={campaignType.id}
-                    value={campaignType.id}
-                    id={campaignType.id}
-                  >
-                    {campaignType.name}
-                  </option>
-                ))}
-              </Select>
-            </InputWrapper>
+      <SidebarInset className="bg-background">
+        <Container>
+          <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4 bg-white sticky top-0 z-50">
+            <div className="flex items-center gap-2">
+              <SidebarTrigger className="-ml-1 mr-2" />
+            </div>
+            <div className="flex items-center gap-4">
+              {/* Componente de Notificação que você já possui */}
+              <Notification />
 
-            <InputWrapper>
-              <Label>Campanha</Label>
-              <Select
-                onChangeImage={handleImageCampaign}
-                onChangeId={handleSelectedChange}
+              {/* Separador sutil entre notificação e logout */}
+              <Separator orientation="vertical" className="h-6" />
+
+              {/* Botão de Logout usando Shadcn/UI para manter o padrão */}
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleSignOut}
+                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                title="Sair"
               >
-                <option value={0}>Selecione</option>
-                {campaigns.map(campaign => (
-                  <option
-                    key={campaign.id}
-                    value={campaign.id}
-                    data-image={campaign.image}
-                    id={campaign.id}
+                <PiPower size={22} />
+              </Button>
+            </div>
+          </header>
+          <ToastContainer />
+          <Content>
+            <Form>
+              <Section title="Layout do Cartaz">
+                <InputWrapper>
+                  <Label>Tipo de Campanha</Label>
+                  <Select onChangeType={handleTypeSelectedChange}>
+                    <option value={0}>Selecione</option>
+                    {campaignsType.map(campaignType => (
+                      <option
+                        key={campaignType.id}
+                        value={campaignType.id}
+                        id={campaignType.id}
+                      >
+                        {campaignType.name}
+                      </option>
+                    ))}
+                  </Select>
+                </InputWrapper>
+
+                <InputWrapper>
+                  <Label>Campanha</Label>
+                  <Select
+                    onChangeImage={handleImageCampaign}
+                    onChangeId={handleSelectedChange}
                   >
-                    {campaign.name}
-                  </option>
-                ))}
-              </Select>
-            </InputWrapper>
-          </Section>
-
-          <Section title="Informações do Produto">
-            {campaignTypeSelected !== '1' ? (
-              <>
-                <InputWrapper style={{ width: '100%' }}>
-                  <Label>Código do Produto</Label>
-                  <Input
-                    type="number"
-                    onChange={e =>
-                      setProduct({ ...product, id: e.target.value })
-                    }
-                    icon={PiMagnifyingGlass}
-                    name="product_id"
-                    id="product_id"
-                    value={product.id ?? ''}
-                    onEnter={handleProduct}
-                  />
+                    <option value={0}>Selecione</option>
+                    {campaigns.map(campaign => (
+                      <option
+                        key={campaign.id}
+                        value={campaign.id}
+                        data-image={campaign.image}
+                        id={campaign.id}
+                      >
+                        {campaign.name}
+                      </option>
+                    ))}
+                  </Select>
                 </InputWrapper>
-              </>
-            ) : (
-              <>
-                <InputWrapper>
-                  <Label>Código do Produto</Label>
-                  <Input
-                    type="number"
-                    onChange={e =>
-                      setProduct({ ...product, id: e.target.value })
-                    }
-                    icon={PiMagnifyingGlass}
-                    name="product_id"
-                    id="product_id"
-                    value={product.id ?? ''}
-                    onEnter={handleProduct}
-                  />
-                </InputWrapper>
+              </Section>
+
+              <Section title="Informações do Produto">
+                {campaignTypeSelected !== '1' ? (
+                  <>
+                    <InputWrapper style={{ width: '100%' }}>
+                      <Label>Código do Produto</Label>
+                      <Input
+                        type="number"
+                        onChange={e =>
+                          setProduct({ ...product, id: e.target.value })
+                        }
+                        icon={PiMagnifyingGlass}
+                        name="product_id"
+                        id="product_id"
+                        value={product.id ?? ''}
+                        onEnter={handleProduct}
+                      />
+                    </InputWrapper>
+                  </>
+                ) : (
+                  <>
+                    <InputWrapper>
+                      <Label>Código do Produto</Label>
+                      <Input
+                        type="number"
+                        onChange={e =>
+                          setProduct({ ...product, id: e.target.value })
+                        }
+                        icon={PiMagnifyingGlass}
+                        name="product_id"
+                        id="product_id"
+                        value={product.id ?? ''}
+                        onEnter={handleProduct}
+                      />
+                    </InputWrapper>
+
+                    <InputWrapper>
+                      <Label>Preço de Venda</Label>
+                      <Input
+                        name="price"
+                        value={price}
+                        maxLength={11}
+                        onChange={handleInputChange}
+                        id="price"
+                      />
+                    </InputWrapper>
+                  </>
+                )}
 
                 <InputWrapper>
-                  <Label>Preço de Venda</Label>
-                  <Input
-                    name="price"
-                    value={price}
-                    maxLength={11}
-                    onChange={handleInputChange}
-                    id="price"
-                  />
-                </InputWrapper>
-              </>
-            )}
-
-            <InputWrapper>
-              <Label>Descrição Principal</Label>
-              <Textarea
-                name="description"
-                value={productInputs.description}
-                maxLength={30}
-                onChange={handleProductInputChange}
-              />
-            </InputWrapper>
-
-            <InputWrapper>
-              <Label>Complemento</Label>
-              <Textarea
-                name="complement"
-                value={productInputs.complement}
-                maxLength={19}
-                onChange={handleProductInputChange}
-              />
-            </InputWrapper>
-          </Section>
-
-          {campaignTypeSelected === '2' && (
-            <Section title="Atacarejo">
-              <InputWrapper>
-                <Label>Preço de Atacado</Label>
-                <Input
-                  name="wholesalePrice"
-                  value={wholesalePrice}
-                  maxLength={11}
-                  onChange={handleInputChange}
-                  id="wholesalePrice"
-                />
-              </InputWrapper>
-              <InputWrapper>
-                <Label>Preço de Varejo</Label>
-                <Input
-                  name="retailPrice"
-                  value={retailPrice}
-                  maxLength={11}
-                  onChange={handleInputChange}
-                  id="retailPrice"
-                />
-              </InputWrapper>
-            </Section>
-          )}
-          {campaignSelected !== '17' && campaignSelected !== '33' && (
-            <Section
-              title={
-                campaignSelected === '18'
-                  ? 'Validade do Produto'
-                  : 'Validade do Campanha'
-              }
-            >
-              {campaignSelected !== '18' && (
-                <InputWrapper>
-                  <Label>Data Inicial</Label>
-                  <InputMask
-                    mask="00/00/0000"
-                    placeholder="00/00/0000"
-                    type="text"
+                  <Label>Descrição Principal</Label>
+                  <Textarea
+                    name="description"
+                    value={productInputs.description}
+                    maxLength={30}
                     onChange={handleProductInputChange}
-                    name="initial_date"
-                    icon={PiCalendarDots}
-                    value={dateInitial || ''}
                   />
                 </InputWrapper>
+
+                <InputWrapper>
+                  <Label>Complemento</Label>
+                  <Textarea
+                    name="complement"
+                    value={productInputs.complement}
+                    maxLength={19}
+                    onChange={handleProductInputChange}
+                  />
+                </InputWrapper>
+              </Section>
+
+              {campaignTypeSelected === '2' && (
+                <Section title="Atacarejo">
+                  <InputWrapper>
+                    <Label>Preço de Atacado</Label>
+                    <Input
+                      name="wholesalePrice"
+                      value={wholesalePrice}
+                      maxLength={11}
+                      onChange={handleInputChange}
+                      id="wholesalePrice"
+                    />
+                  </InputWrapper>
+                  <InputWrapper>
+                    <Label>Preço de Varejo</Label>
+                    <Input
+                      name="retailPrice"
+                      value={retailPrice}
+                      maxLength={11}
+                      onChange={handleInputChange}
+                      id="retailPrice"
+                    />
+                  </InputWrapper>
+                </Section>
               )}
+              {campaignSelected !== '17' && campaignSelected !== '33' && (
+                <Section
+                  title={
+                    campaignSelected === '18'
+                      ? 'Validade do Produto'
+                      : 'Validade do Campanha'
+                  }
+                >
+                  {campaignSelected !== '18' && (
+                    <InputWrapper>
+                      <Label>Data Inicial</Label>
+                      <InputMask
+                        mask="00/00/0000"
+                        placeholder="00/00/0000"
+                        type="text"
+                        onChange={handleProductInputChange}
+                        name="initial_date"
+                        icon={PiCalendarDots}
+                        value={dateInitial || ''}
+                      />
+                    </InputWrapper>
+                  )}
 
-              <InputWrapper>
-                <Label>Data Final</Label>
-                <InputMask
-                  type="text"
-                  onChange={handleProductInputChange}
-                  name="final_date"
-                  mask="00/00/0000"
-                  placeholder="00/00/0000"
-                  icon={PiCalendarDots}
-                  value={dateFinal || ''}
+                  <InputWrapper>
+                    <Label>Data Final</Label>
+                    <InputMask
+                      type="text"
+                      onChange={handleProductInputChange}
+                      name="final_date"
+                      mask="00/00/0000"
+                      placeholder="00/00/0000"
+                      icon={PiCalendarDots}
+                      value={dateFinal || ''}
+                    />
+                  </InputWrapper>
+                </Section>
+              )}
+              <Section>
+                <Button
+                  title="Criar Cartaz"
+                  color="GREEN"
+                  onClick={createPoster}
                 />
-              </InputWrapper>
-            </Section>
-          )}
-          <Section>
-            <Button title="Criar Cartaz" color="GREEN" onClick={createPoster} />
-          </Section>
-        </Form>
+              </Section>
+            </Form>
 
-        {urlImageCampaigns && (
-          <PosterView
-            imageCampaign={urlImageCampaigns}
-            product={productInputs}
-            priceClass={priceClass}
-            campaignType={campaignTypeSelected}
-            campaignSelected={campaignSelected}
-          />
-        )}
-      </Content>
+            {urlImageCampaigns && (
+              <PosterView
+                imageCampaign={urlImageCampaigns}
+                product={productInputs}
+                priceClass={priceClass}
+                campaignType={campaignTypeSelected}
+                campaignSelected={campaignSelected}
+              />
+            )}
+          </Content>
 
-      <Footer />
-    </Container>
+          <Footer />
+        </Container>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

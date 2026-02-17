@@ -1,15 +1,21 @@
 import { useState } from 'react'
 import { useAuth } from '../../hooks/auth'
 
-import { Container, Form, Label } from './styles'
+import { Container } from './styles'
 
-import { Input } from '../../components/Input'
-import { Button } from '../../components/Button'
+import { Button } from '@/components/ui/button'
+import { Field, FieldLabel } from '@/components/ui/field'
 
 import brand from '../../assets/logo_princesa.svg'
 
-import { PiUser, PiLockKey } from 'react-icons/pi'
-import { toast, ToastContainer } from 'react-toastify'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput
+} from '@/components/ui/input-group'
+import { Lock, UserRound } from 'lucide-react'
+import { PiLockKey, PiUser } from 'react-icons/pi'
+import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { toastInfo } from '../../styles/toastConfig'
 
@@ -36,33 +42,50 @@ export function SignIn() {
   return (
     <Container>
       <ToastContainer />
-      <Form>
+      <Field className="w-96 bg-white rounded-3xl p-8 flex flex-col items-center">
         <img
           src={brand}
           alt="Logo Supermercados Princesa com as cores verde, vermelho e preto"
+          className="max-h-24 w-auto"
         />
-        <div className="input-wrapper">
-          <Label>Usuário</Label>
-          <Input
-            type="text"
-            onChange={e => setUsername(e.target.value)}
-            onKeyDown={handleKeyEnter}
-            icon={PiUser}
-          />
-        </div>
-        <div className="input-wrapper">
-          <Label>Senha</Label>
-          <Input
-            type="password"
-            onChange={e => setPassword(e.target.value)}
-            onKeyDown={handleKeyEnter}
-            icon={PiLockKey}
-          />
-        </div>
-        <div className="button-wrapper">
-          <Button title="Entrar" color="GREEN" onClick={handleSignIn} />
-        </div>
-      </Form>
+        <Field className="flex gap-1">
+          <FieldLabel htmlFor="username">Usuário</FieldLabel>
+          <InputGroup>
+            <InputGroupInput
+              id="username"
+              type="text"
+              onChange={e => setUsername(e.target.value)}
+              onKeyDown={handleKeyEnter}
+            />
+            <InputGroupAddon align="inline-start">
+              <UserRound className="text-muted-foreground" />
+            </InputGroupAddon>
+          </InputGroup>
+        </Field>
+        <Field className="flex gap-1">
+          <FieldLabel htmlFor="password">Senha</FieldLabel>
+          <InputGroup>
+            <InputGroupInput
+              id="password"
+              type="password"
+              onChange={e => setPassword(e.target.value)}
+              onKeyDown={handleKeyEnter}
+            />
+            <InputGroupAddon align="inline-start">
+              <Lock className="text-muted-foreground" />
+            </InputGroupAddon>
+          </InputGroup>
+        </Field>
+        <Field>
+          <Button
+            type="submit"
+            onClick={handleSignIn}
+            className="bg-green-600 hover:bg-green-700 text-white w-full"
+          >
+            Entrar
+          </Button>
+        </Field>
+      </Field>
     </Container>
   )
 }

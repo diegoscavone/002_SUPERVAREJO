@@ -1,6 +1,24 @@
 import { useEffect, useState } from 'react'
-import { Container, Divider, Profile } from './styles'
+import { Link, useLocation } from 'react-router-dom'
+import { useAuth } from '../../hooks/auth'
+import avatarPlaceHolder from '../../assets/avatar_placeholder.svg'
+import { api } from '../../services/api'
 
+// Importações do Shadcn UI
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarHeader,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarSeparator
+} from '@/components/ui/sidebar'
+
+// Ícones
 import {
   PiSealPercent,
   PiTag,
@@ -8,309 +26,151 @@ import {
   PiPrinter,
   PiFileImage,
   PiPlayCircle,
-  PiUserCirclePlus,
   PiUsers,
-  PiListBold,
   PiQrCode,
-  PiCaretDoubleLeft,
-  PiCaretDoubleRight
+  PiUserCircle
 } from 'react-icons/pi'
 
-import { CircleArrowLeft, CircleArrowRight } from 'lucide-react'
-
-import { Link, useNavigate } from 'react-router-dom'
-import { useAuth } from '../../hooks/auth'
-
-import avatarPlaceHolder from '../../assets/avatar_placeholder.svg'
-import { api } from '../../services/api'
-
 export function Nav() {
-  const [selectedMenu, setSelectedMenu] = useState('Criar Cartaz')
-  const [isCollapsed, setIsCollapsed] = useState(true)
-  const [isManualCollapsed, setIsManualCollapsed] = useState(false)
   const { user } = useAuth()
-  const navigate = useNavigate()
+  const location = useLocation()
 
   const avatarUrl = user.avatar
     ? `${api.defaults.baseURL}/tmp/uploads/${user.avatar}`
     : avatarPlaceHolder
 
-  useEffect(() => {
-    switch (location.pathname) {
-      case '/':
-        setSelectedMenu('Cartaz')
-        break
-      case '/print':
-        setSelectedMenu('Imprimir')
-        break
-      case '/campaigns':
-        setSelectedMenu('Campanhas')
-        break
-      case '/automate':
-        setSelectedMenu('Automação')
-        break
-      case '/users/new':
-        setSelectedMenu('Novo Usuário')
-        break
-      case '/users':
-        setSelectedMenu('Usuários')
-        break
-      case '/offers':
-        setSelectedMenu('Ofertas')
-        break
-      case '/offers/new':
-        setSelectedMenu('Nova Oferta')
-        break
-      case '/productsValidity':
-        setSelectedMenu('Validades')
-        break
-      default:
-        setSelectedMenu('')
+  // Definição dos menus por Role (Lógica mais limpa)
+  const menuGroups = [
+    {
+      label: 'Promoções',
+      roles: ['admin', 'offer_manager', 'print_only'],
+      items: [
+        {
+          title: 'Nova Oferta',
+          url: '/offers/new',
+          icon: PiSealPercent,
+          roles: ['offer_manager', 'print_only']
+        }, // admin usa a lista geral
+        {
+          title: 'Ofertas',
+          url: '/offers',
+          icon: PiTag,
+          roles: ['admin', 'offer_manager']
+        },
+        {
+          title: 'Validades',
+          url: '/productsValidity',
+          icon: PiQrCode,
+          roles: ['admin']
+        }
+      ]
+    },
+    {
+      label: 'Marketing',
+      roles: ['admin', 'offer_manager', 'print_only'],
+      items: [
+        {
+          title: 'Cartaz',
+          url: '/',
+          icon: PiIdentificationBadge,
+          roles: ['admin', 'offer_manager', 'print_only']
+        },
+        {
+          title: 'Imprimir',
+          url: '/print',
+          icon: PiPrinter,
+          roles: ['admin', 'offer_manager', 'print_only']
+        },
+        {
+          title: 'Campanhas',
+          url: '/campaigns',
+          icon: PiFileImage,
+          roles: ['admin', 'offer_manager']
+        },
+        {
+          title: 'Automação',
+          url: '/automate',
+          icon: PiPlayCircle,
+          roles: ['admin', 'offer_manager', 'print_only']
+        }
+      ]
+    },
+    {
+      label: 'Configurações',
+      roles: ['admin'],
+      items: [
+        { title: 'Usuários', url: '/users', icon: PiUsers, roles: ['admin'] }
+      ]
     }
-  }, [location.pathname])
-
-  function handleSelectMenu(menu) {
-    setSelectedMenu(menu)
-  }
-
-  function handleProfile() {
-    navigate(`/users/profile/${user.id}`)
-  }
-
-  function handleToggleCollapse() {
-    setIsManualCollapsed(prevState => {
-      const newState = !prevState
-      setIsCollapsed(newState) // Set isCollapsed based on the manual state
-      return newState
-    })
-  }
+  ]
 
   return (
-    <Container
-      $isCollapsed={isCollapsed}
-      onMouseEnter={() => !isManualCollapsed && setIsCollapsed(false)}
-      onMouseLeave={() => !isManualCollapsed && setIsCollapsed(true)}
-    >
-      <Profile $isCollapsed={isCollapsed}>
-        {/* {!isCollapsed && (
-          <a onClick={handleProfile}>
-            <img
-              className="profile-img"
-              src={avatarUrl}
-              alt="Foto do Usuário"
-            />
-          </a>
-        )}
-        {!isCollapsed && <span className="profile-welcome">Bem vindo</span>}
-        {!isCollapsed && <strong className="profile-name">{user.name}</strong>} */}
-        <button
-          className="collapse-button"
-          onClick={handleToggleCollapse}
-        >
-          {isCollapsed ? (
-            <CircleArrowRight size={18} />
-          ) : (
-            <CircleArrowLeft size={18} />
-          )}
-        </button>
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="flex items-center justify-center py-4">
+        <div className="flex items-center gap-2 px-2">
+          <img src="/logo_reduzida.svg" className="h-8 w-8" alt="Logo" />
+          <span className="font-bold truncate group-data-[collapsible=icon]:hidden">
+            Super Varejo
+          </span>
+        </div>
+      </SidebarHeader>
 
-      </Profile>
-      <ul className={isCollapsed ? 'collapsed' : ''}>
-        {user.role === 'admin' && (
-          <>
-            {/* <li
-              className={selectedMenu === 'Nova Oferta' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Nova Oferta')}
-            >
-              <Link to="/offers/new">
-                <PiSealPercent className='icon'/>
-                {!isCollapsed && 'Nova Oferta'}
-              </Link>
-            </li> */}
-            <li
-              className={selectedMenu === 'Ofertas' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Ofertas')}
-            >
-              <Link to="/offers">
-                <PiTag /> {!isCollapsed && 'Ofertas'}
-              </Link>
-            </li>
-            <li
-              className={selectedMenu === 'Validades' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Validades')}
-            >
-              <Link to="/productsValidity">
-                <PiQrCode />
-                {!isCollapsed && 'Validades'}
-              </Link>
-            </li>
-            <Divider className="divider" />
-            <li
-              className={selectedMenu === 'Cartaz' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Cartaz')}
-            >
-              <Link to="/">
-                <PiIdentificationBadge /> {!isCollapsed && 'Cartaz'}
-              </Link>
-            </li>
-            <li
-              className={selectedMenu === 'Imprimir' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Imprimir')}
-            >
-              <Link to="/print">
-                <PiPrinter />
-                {!isCollapsed && 'Imprimir'}
-              </Link>
-            </li>
-            <li
-              className={selectedMenu === 'Campanhas' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Campanhas')}
-            >
-              <Link to="/campaigns">
-                <PiFileImage />
-                {!isCollapsed && 'Campanhas'}
-              </Link>
-            </li>
-            <li
-              className={selectedMenu === 'Automação' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Automação')}
-            >
-              <Link to="/automate">
-                <PiPlayCircle />
-                {!isCollapsed && 'Automação'}
-              </Link>
-            </li>
-            <Divider className="divider" />
-            {/* <li
-              className={selectedMenu === 'Novo Usuário' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Novo Usuário')}
-            >
-              <Link to="/users/new">
-                <PiUserCirclePlus />
-                {!isCollapsed && 'Novo Usuário'}
-              </Link>
-            </li> */}
-            <li
-              className={selectedMenu === 'Usuários' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Usuários')}
-            >
-              <Link to="/users">
-                <PiUsers />
-                {!isCollapsed && 'Usuários'}
-              </Link>
-            </li>
-          </>
-        )}
-        {user.role === 'offer_manager' && (
-          <>
-            <li>
-              {!isCollapsed && <span className="section-title">Promoções</span>}
-            </li>
-            <li
-              className={selectedMenu === 'Nova Oferta' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Nova Oferta')}
-            >
-              <Link to="/offers/new">
-                <PiSealPercent />
-                {!isCollapsed && 'Nova Oferta'}
-              </Link>
-            </li>
-            <li
-              className={selectedMenu === 'Ofertas' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Ofertas')}
-            >
-              <Link to="/offers">
-                <PiTag />
-                {!isCollapsed && 'Ofertas'}
-              </Link>
-            </li>
-            <Divider className="divider" />
-            <li>
-              {!isCollapsed && <span className="section-title">Marketing</span>}
-            </li>
-            <li
-              className={selectedMenu === 'Criar Cartaz' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Criar Cartaz')}
-            >
-              <Link to="/">
-                <PiIdentificationBadge />
-                {!isCollapsed && 'Criar Cartaz'}
-              </Link>
-            </li>
-            <li
-              className={selectedMenu === 'Campanhas' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Campanhas')}
-            >
-              <Link to="/campaigns">
-                <PiFileImage />
-                {!isCollapsed && 'Campanhas'}
-              </Link>
-            </li>
-            <li
-              className={selectedMenu === 'Imprimir' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Imprimir')}
-            >
-              <Link to="/print">
-                <PiPrinter />
-                {!isCollapsed && 'Imprimir'}
-              </Link>
-            </li>
-            <li
-              className={selectedMenu === 'Automação' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Automação')}
-            >
-              <Link to="/automate">
-                <PiPlayCircle />
-                {!isCollapsed && 'Automação'}
-              </Link>
-            </li>
-          </>
-        )}
-        {user.role === 'print_only' && (
-          <>
-            <Divider className="divider" />
-            <li
-              className={selectedMenu === 'Nova Oferta' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Nova Oferta')}
-            >
-              <Link to="/offers/new">
-                <PiSealPercent />
-                {!isCollapsed && 'Nova Oferta'}
-              </Link>
-            </li>
-            <li>
-              {!isCollapsed && <span className="section-title">Marketing</span>}
-            </li>
-            <li
-              className={selectedMenu === 'Criar Cartaz' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Criar Cartaz')}
-            >
-              <Link to="/">
-                <PiIdentificationBadge />
-                {!isCollapsed && 'Criar Cartaz'}
-              </Link>
-            </li>
-            <li
-              className={selectedMenu === 'Imprimir' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Imprimir')}
-            >
-              <Link to="/print">
-                <PiPrinter />
-                {!isCollapsed && 'Imprimir'}
-              </Link>
-            </li>
-            <li
-              className={selectedMenu === 'Automação' ? 'active' : ''}
-              onClick={() => handleSelectMenu('Automação')}
-            >
-              <Link to="/automate">
-                <PiPlayCircle />
-                {!isCollapsed && 'Automação'}
-              </Link>
-            </li>
-          </>
-        )}
-      </ul>
-    </Container>
+      <SidebarContent>
+        {menuGroups.map((group, idx) => {
+          // Filtra se o grupo deve aparecer para o usuário
+          if (!group.roles.includes(user.role)) return null
+
+          return (
+            <SidebarGroup key={idx}>
+              <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+              <SidebarMenu>
+                {group.items.map(item => {
+                  // Filtra os itens internos por role
+                  if (!item.roles.includes(user.role)) return null
+
+                  const isActive = location.pathname === item.url
+
+                  return (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive}
+                        tooltip={item.title}
+                      >
+                        <Link to={item.url}>
+                          <item.icon size={20} />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )
+                })}
+              </SidebarMenu>
+            </SidebarGroup>
+          )
+        })}
+      </SidebarContent>
+
+      <SidebarFooter className="p-4">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg">
+              {/* Adicione w-8 h-8 fixo para o avatar não explodir na tela */}
+              <div className="flex aspect-square size-8 items-center justify-center overflow-hidden rounded-full">
+                <img
+                  src={avatarUrl}
+                  className="h-full w-full object-cover"
+                  alt="User"
+                />
+              </div>
+              <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
+                <span className="truncate font-semibold">{user.name}</span>
+                <span className="truncate text-xs opacity-70">{user.role}</span>
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </Sidebar>
   )
 }
