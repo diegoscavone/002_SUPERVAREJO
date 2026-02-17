@@ -34,6 +34,36 @@
       overflow: hidden !important;
     }
 
+    /* Reset Global de Sombras para Componentes de Formulário */
+    input, 
+  textarea, 
+  select, 
+  button,
+  [role="combobox"], /* Gatilhos de Select do Radix/Shadcn */
+  .shadow-sm {
+      box-shadow: none !important;
+    }
+
+input:focus-visible,
+textarea:focus-visible,
+[data-radix-select-trigger]:focus {
+  /* Força a cor da borda */
+  border-color: hsl(var(--ring)) !important;
+  
+  /* Usa um outline limpo sem offset para parecer uma borda natural */
+  /* outline: 1px solid hsl(var(--ring)) !important;
+  outline-offset: -1px;  */
+  
+  /* Remove o ring do Tailwind que usa box-shadow */
+  --tw-ring-offset-width: 0px !important;
+  box-shadow: none !important;
+}
+
+    /* Garante que o Textarea não seja redimensionado em lugar nenhum */
+    textarea {
+      resize: none !important;
+    }
+
     --background: 0 0% 100%;
 
     --foreground: 240 10% 3.9%;
@@ -68,7 +98,7 @@
 
     --border: 240 5.9% 90%;
 
-    --input: 240 5.9% 90%;
+    --input: 240 5.9% 75%;
 
     --ring: 142.1 76.2% 36.3%;
 

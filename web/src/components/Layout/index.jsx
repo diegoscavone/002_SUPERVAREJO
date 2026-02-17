@@ -1,23 +1,20 @@
-import React, { useState } from 'react'
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar.jsx'
+import { Footer } from '../Footer'
 import { Header } from '../Header'
 import { Nav } from '../Nav'
-import { LayoutContainer, MainContent } from './styles'
+import { Container } from './styles'
 
 export function Layout({ children }) {
-  const [isCollapsed, setIsCollapsed] = useState(false)
-
-  // This function will be passed to Nav to toggle the state
-  const handleToggleCollapse = () => {
-    setIsCollapsed(!isCollapsed)
-  }
-
   return (
-    <LayoutContainer $isCollapsed={isCollapsed}>
-      <Header />
+    <SidebarProvider>
       <Nav />
-      <MainContent $isCollapsed={isCollapsed}>
-        {children}
-      </MainContent>
-    </LayoutContainer>
+      <SidebarInset className="bg-background flex flex-col min-h-screen">
+        <Header />
+        <Container className="flex-1 flex flex-col w-full">
+          <main className="flex-1 w-full">{children}</main>
+          <Footer />
+        </Container>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

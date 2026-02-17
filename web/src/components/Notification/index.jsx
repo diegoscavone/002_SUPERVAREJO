@@ -4,6 +4,8 @@ import { useAuth } from '../../hooks/auth'
 import { api } from '../../services/api'
 import { USER_ROLE } from '../../utils/roles'
 import { Container, Dropdown, NotificationButton } from './styles'
+import { Button } from '../ui/button'
+import { Bell, SquareArrowOutUpRightIcon } from 'lucide-react'
 
 export function Notification() {
   const [products, setProducts] = useState([])
@@ -76,10 +78,15 @@ export function Notification() {
 
   return (
     <Container ref={dropdownRef}>
-      <NotificationButton onClick={() => setIsOpen(!isOpen)}>
-        <PiBell size={24}/>
+      <Button
+        variant="ghost"
+        size="icon"
+        className="text-muted-foreground hover:text-green-500 hover:bg-green-500/10 transition-colors"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <Bell/>
         {products.length > 0 && <span>{products.length}</span>}
-      </NotificationButton>
+      </Button>
       {isOpen && (
         <Dropdown>
           <ul>
@@ -90,7 +97,7 @@ export function Notification() {
                 <li key={product.id} className="productList">
                   <span>{product.description}</span>
                   <span className="validity">
-                    <PiCalendarBlank size={16}/>
+                    <PiCalendarBlank size={16} />
                     {product.validade.toLocaleDateString('pt-BR')}
                   </span>
                 </li>

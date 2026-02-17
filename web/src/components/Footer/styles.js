@@ -10,6 +10,6 @@ export const Container = styled.footer`
 
   > span{
     color: ${({ theme }) => theme.COLORS.GRAY_300};
-    font-size: 1.4rem;
+    font-size: 0.875rem;
   }
 `

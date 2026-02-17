@@ -40,6 +40,7 @@ import {
   endOfDay,
   parse
 } from 'date-fns'
+import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar.jsx'
 
 export function Offers() {
   const navigate = useNavigate()
@@ -316,50 +317,54 @@ export function Offers() {
   }
 
   return (
-    <Container>
-      <Header />
+    <SidebarProvider>
       <Nav />
-      <ToastContainer />
-      <Content>
-        <div className="content-header">
-          <Button
-            title="Nova Oferta"
-            icon={PiSealPercent}
-            color="ORANGE"
-            onClick={() => navigate('/offers/new')}
-          />
-        </div>
-        <TableSection title="Gestão de Ofertas">
-          {filteredOffers.length > 0 ? (
-            <PostersTable
-              data={filteredOffers}
-              columns={offerColumns}
-              selectedPosters={selectedOffers}
-              onRowSelect={handleCheckboxSelected}
-              showEditColumn={false}
-              showSelectColumn={true}
-            />
-          ) : (
-            <Message>
-              <p>Nenhuma oferta encontrada para os filtros selecionados.</p>
-            </Message>
-          )}
-        </TableSection>
+      <SidebarInset className="bg-background">
+        <Container>
+          <Header />
+          <ToastContainer />
+          <Content>
+            <div className="content-header">
+              <Button
+                title="Nova Oferta"
+                icon={PiSealPercent}
+                color="ORANGE"
+                onClick={() => navigate('/offers/new')}
+              />
+            </div>
+            <TableSection title="Gestão de Ofertas">
+              {filteredOffers.length > 0 ? (
+                <PostersTable
+                  data={filteredOffers}
+                  columns={offerColumns}
+                  selectedPosters={selectedOffers}
+                  onRowSelect={handleCheckboxSelected}
+                  showEditColumn={false}
+                  showSelectColumn={true}
+                />
+              ) : (
+                <Message>
+                  <p>Nenhuma oferta encontrada para os filtros selecionados.</p>
+                </Message>
+              )}
+            </TableSection>
 
-        <Section>
-          <ButtonWrapper>
-            <Button
-              title="Excluir"
-              icon={PiTrash}
-              color="RED"
-              onClick={deleteOffers}
-              disabled={loading}
-            />
-          </ButtonWrapper>
-        </Section>
-      </Content>
+            <Section>
+              <ButtonWrapper>
+                <Button
+                  title="Excluir"
+                  icon={PiTrash}
+                  color="RED"
+                  onClick={deleteOffers}
+                  disabled={loading}
+                />
+              </ButtonWrapper>
+            </Section>
+          </Content>
 
-      <Footer />
-    </Container>
+          <Footer />
+        </Container>
+      </SidebarInset>
+    </SidebarProvider>
   )
 }

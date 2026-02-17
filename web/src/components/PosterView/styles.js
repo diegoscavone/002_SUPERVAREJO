@@ -4,7 +4,7 @@ import { DEVICE_BREAKPOINTS } from '../../styles/devices'
 export const Container = styled.div`
   display: flex;
   justify-content: center;
-  padding: 3rem 0 0;
+  padding: 20px 20px 20px 0;
 
   > img {
     width: 550px;
@@ -43,25 +43,24 @@ export const DataView = styled.div`
   width: 490px;
   height: 490px;
 
-  margin-top: 23rem;
+  margin-top: 13rem;
 
   font-family: Arial, Helvetica, sans-serif, sans-serif;
 
   > .description {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+
+    border: 1px solid red;
 
     width: 100%;
     /* height: 150px; */
-    > h2 {
+    /* > h2 {
       font-size: 4.5rem;
       color: ${({ theme }) => theme.COLORS.DARK};
       text-align: center;
       text-transform: uppercase;
       line-height: 4.5rem;
       letter-spacing: -2px;
-    }
+    } */
     > span {
       font-size: 2.7rem;
       font-weight: bold;

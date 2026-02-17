@@ -1,37 +1,41 @@
-import { Container, Form, Label, Content, InputWrapper } from './styles'
+import { Container, Content, Form, InputWrapper, Label } from './styles'
 
 import { FormatCurrency } from '../../hooks/formatCurrency'
 
-import { Header } from '../../components/Header'
-import { Footer } from '../../components/Footer'
-import { Input } from '../../components/Input'
-import { Select } from '../../components/Select'
-import { Textarea } from '../../components/Textarea'
-import { Button } from '../../components/Button'
 import { InputMask } from '../../components/InputMask'
+import { Layout } from '../../components/Layout'
 import { Section } from '../../components/Section'
 
 import { useEffect, useState } from 'react'
 
+import { PiCalendarDots, PiMagnifyingGlass } from 'react-icons/pi'
 import { api, apiERP } from '../../services/api'
-import { Nav } from '../../components/Nav'
-import { PiCalendarDots, PiMagnifyingGlass, PiPower } from 'react-icons/pi'
 
 import { useCreatedPoster } from '../../hooks/createdPoster'
 
-import { toast, ToastContainer } from 'react-toastify'
+import { Field, FieldLabel } from '@/components/ui/field'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { useNavigate } from 'react-router-dom'
+import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { PosterView } from '../../components/PosterView'
-import { toastError, toastInfo, toastSuccess } from '../../styles/toastConfig'
 import { useAuth } from '../../hooks/auth'
+import { toastError, toastInfo, toastSuccess } from '../../styles/toastConfig'
 import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger
-} from '@/components/ui/sidebar'
-import { Separator } from '@/components/ui/separator'
-import { Notification } from '@/components/Notification'
-import { useNavigate } from 'react-router-dom'
+  InputGroup,
+  InputGroupAddon,
+  InputGroupInput
+} from '@/components/ui/input-group'
+import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
+import { Button } from '@/components/ui/button'
+import { CalendarDays, Newspaper, Search } from 'lucide-react'
 
 export function Home() {
   const { signOut, user } = useAuth()
@@ -405,233 +409,287 @@ export function Home() {
   }
 
   function handleSignOut() {
-    console.log('Deslogando usuário...')
     navigate('/')
     signOut()
   }
 
   return (
-    <SidebarProvider>
-      <Nav />
-      <SidebarInset className="bg-background">
-        <Container>
-          <header className="flex h-16 shrink-0 items-center justify-between gap-2 border-b px-4 bg-white sticky top-0 z-50">
-            <div className="flex items-center gap-2">
-              <SidebarTrigger className="-ml-1 mr-2" />
-            </div>
-            <div className="flex items-center gap-4">
-              {/* Componente de Notificação que você já possui */}
-              <Notification />
-
-              {/* Separador sutil entre notificação e logout */}
-              <Separator orientation="vertical" className="h-6" />
-
-              {/* Botão de Logout usando Shadcn/UI para manter o padrão */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleSignOut}
-                className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
-                title="Sair"
-              >
-                <PiPower size={22} />
-              </Button>
-            </div>
-          </header>
-          <ToastContainer />
-          <Content>
-            <Form>
-              <Section title="Layout do Cartaz">
-                <InputWrapper>
-                  <Label>Tipo de Campanha</Label>
-                  <Select onChangeType={handleTypeSelectedChange}>
-                    <option value={0}>Selecione</option>
-                    {campaignsType.map(campaignType => (
-                      <option
-                        key={campaignType.id}
-                        value={campaignType.id}
-                        id={campaignType.id}
-                      >
-                        {campaignType.name}
-                      </option>
-                    ))}
-                  </Select>
-                </InputWrapper>
-
-                <InputWrapper>
-                  <Label>Campanha</Label>
+    <Layout>
+      <ToastContainer />
+      <Container>
+        <Content>
+          <Form>
+            <Section title="Layout do Cartaz">
+              <div className="flex flex-row gap-4 w-full">
+                <Field className="flex flex-col gap-2 flex-1">
+                  <FieldLabel htmlFor="campaign-type">
+                    Tipo de Campanha
+                  </FieldLabel>
                   <Select
-                    onChangeImage={handleImageCampaign}
-                    onChangeId={handleSelectedChange}
+                    onValueChange={value => handleTypeSelectedChange(value)}
+                    defaultValue="0"
                   >
-                    <option value={0}>Selecione</option>
-                    {campaigns.map(campaign => (
-                      <option
-                        key={campaign.id}
-                        value={campaign.id}
-                        data-image={campaign.image}
-                        id={campaign.id}
-                      >
-                        {campaign.name}
-                      </option>
-                    ))}
+                    <SelectTrigger
+                      id="campaign-type"
+                      className="w-full shadow-none border-input transition-colors"
+                    >
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">Selecione</SelectItem>
+                      {campaignsType.map(campaignType => (
+                        <SelectItem
+                          key={campaignType.id}
+                          value={String(campaignType.id)}
+                          className="focus:bg-green-100 focus:text-green-600 transition-colors"
+                        >
+                          {campaignType.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
-                </InputWrapper>
-              </Section>
+                </Field>
 
-              <Section title="Informações do Produto">
+                <Field className="flex flex-col gap-2 flex-1">
+                  <FieldLabel htmlFor="campaign-select">Campanha</FieldLabel>
+                  <Select
+                    onValueChange={value => {
+                      handleSelectedChange(value)
+                      const selectedCampaign = campaigns.find(
+                        c => String(c.id) === value
+                      )
+                      if (selectedCampaign) {
+                        handleImageCampaign(selectedCampaign.image)
+                      }
+                    }}
+                  >
+                    <SelectTrigger
+                      id="campaign-select"
+                      className="w-full shadow-none"
+                    >
+                      <SelectValue placeholder="Selecione" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">Selecione</SelectItem>
+                      {campaigns.map(campaign => (
+                        <SelectItem
+                          key={campaign.id}
+                          value={String(campaign.id)}
+                          className="focus:bg-green-100 focus:text-green-600 transition-colors"
+                        >
+                          {campaign.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              </div>
+            </Section>
+
+            <Section title="Informações do Produto">
+              {/* Seção de Código e Preço */}
+              <div className="flex flex-col md:flex-row gap-4 w-full">
                 {campaignTypeSelected !== '1' ? (
-                  <>
-                    <InputWrapper style={{ width: '100%' }}>
-                      <Label>Código do Produto</Label>
-                      <Input
+                  <Field className="flex flex-col gap-2 w-full">
+                    <FieldLabel htmlFor="product_id">
+                      Código do Produto
+                    </FieldLabel>
+                    <InputGroup>
+                      <InputGroupInput
+                        id="product_id"
                         type="number"
+                        name="product_id"
+                        placeholder="Digite o código..."
+                        value={product.id ?? ''}
                         onChange={e =>
                           setProduct({ ...product, id: e.target.value })
                         }
-                        icon={PiMagnifyingGlass}
-                        name="product_id"
-                        id="product_id"
-                        value={product.id ?? ''}
-                        onEnter={handleProduct}
+                        onKeyDown={e => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            handleProduct()
+                          }
+                        }}
                       />
-                    </InputWrapper>
-                  </>
+                      <InputGroupAddon align="inline-start">
+                        <PiMagnifyingGlass />
+                      </InputGroupAddon>
+                    </InputGroup>
+                  </Field>
                 ) : (
                   <>
-                    <InputWrapper>
-                      <Label>Código do Produto</Label>
-                      <Input
-                        type="number"
-                        onChange={e =>
-                          setProduct({ ...product, id: e.target.value })
-                        }
-                        icon={PiMagnifyingGlass}
-                        name="product_id"
-                        id="product_id"
-                        value={product.id ?? ''}
-                        onEnter={handleProduct}
-                      />
-                    </InputWrapper>
+                    <Field className="flex flex-col gap-2 flex-1">
+                      <FieldLabel htmlFor="product_id">
+                        Código do Produto
+                      </FieldLabel>
+                      <InputGroup>
+                        <InputGroupInput
+                          id="product_id"
+                          type="number"
+                          name="product_id"
+                          value={product.id ?? ''}
+                          onChange={e =>
+                            setProduct({ ...product, id: e.target.value })
+                          }
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault()
+                              handleProduct()
+                            }
+                          }}
+                        />
+                        <InputGroupAddon align="inline-start">
+                          <Search />
+                        </InputGroupAddon>
+                      </InputGroup>
+                    </Field>
 
-                    <InputWrapper>
-                      <Label>Preço de Venda</Label>
+                    <Field className="flex flex-col gap-2 flex-1">
+                      <FieldLabel htmlFor="price">Preço de Venda</FieldLabel>
                       <Input
+                        id="price"
                         name="price"
                         value={price}
-                        maxLength={11}
                         onChange={handleInputChange}
-                        id="price"
+                        placeholder="R$ 0,00"
                       />
-                    </InputWrapper>
+                    </Field>
                   </>
                 )}
+              </div>
 
-                <InputWrapper>
-                  <Label>Descrição Principal</Label>
+              {/* Seção de Textos (Descrição e Complemento) */}
+              <div className="flex flex-col md:flex-row gap-4 w-full">
+                <Field className="flex flex-col gap-2 flex-1">
+                  <FieldLabel htmlFor="description">
+                    Descrição Principal
+                  </FieldLabel>
                   <Textarea
+                    id="description"
                     name="description"
                     value={productInputs.description}
                     maxLength={30}
                     onChange={handleProductInputChange}
+                    className="resize-none min-h-[60px]"
+                    placeholder="Ex: Arroz Tio João 5kg"
                   />
-                </InputWrapper>
+                </Field>
 
-                <InputWrapper>
-                  <Label>Complemento</Label>
+                <Field className="flex flex-col gap-2 flex-1">
+                  <FieldLabel htmlFor="complement">Complemento</FieldLabel>
                   <Textarea
+                    id="complement"
                     name="complement"
                     value={productInputs.complement}
                     maxLength={19}
                     onChange={handleProductInputChange}
+                    className="resize-none min-h-[60px]"
+                    placeholder="Ex: Tipo 1 Agulhinha"
                   />
-                </InputWrapper>
-              </Section>
+                </Field>
+              </div>
+            </Section>
 
-              {campaignTypeSelected === '2' && (
-                <Section title="Atacarejo">
-                  <InputWrapper>
-                    <Label>Preço de Atacado</Label>
+            {campaignTypeSelected === '2' && (
+              <Section title="Atacado">
+                <div className="flex flex-col md:flex-row gap-4 w-full">
+                  <Field className="flex flex-col gap-2 flex-1">
+                    <FieldLabel htmlFor="wholesalePrice">
+                      Preço de Atacado
+                    </FieldLabel>
                     <Input
+                      id="wholesalePrice"
                       name="wholesalePrice"
                       value={wholesalePrice}
                       maxLength={11}
                       onChange={handleInputChange}
-                      id="wholesalePrice"
+                      placeholder="R$ 0,00"
+                      className="shadow-none"
                     />
-                  </InputWrapper>
-                  <InputWrapper>
-                    <Label>Preço de Varejo</Label>
+                  </Field>
+
+                  <Field className="flex flex-col gap-2 flex-1">
+                    <FieldLabel htmlFor="retailPrice">
+                      Preço de Varejo
+                    </FieldLabel>
                     <Input
+                      id="retailPrice"
                       name="retailPrice"
                       value={retailPrice}
                       maxLength={11}
                       onChange={handleInputChange}
-                      id="retailPrice"
+                      placeholder="R$ 0,00"
+                      className="shadow-none"
                     />
-                  </InputWrapper>
-                </Section>
-              )}
-              {campaignSelected !== '17' && campaignSelected !== '33' && (
-                <Section
-                  title={
-                    campaignSelected === '18'
-                      ? 'Validade do Produto'
-                      : 'Validade do Campanha'
-                  }
-                >
+                  </Field>
+                </div>
+              </Section>
+            )}
+            {campaignSelected !== '17' && campaignSelected !== '33' && (
+              <Section
+                title={
+                  campaignSelected === '18'
+                    ? 'Validade do Produto'
+                    : 'Validade da Campanha'
+                }
+              >
+                <div className="flex flex-col md:flex-row gap-4 w-full mt-4">
                   {campaignSelected !== '18' && (
-                    <InputWrapper>
-                      <Label>Data Inicial</Label>
+                    <Field className="flex flex-col gap-2 flex-1">
+                      <FieldLabel htmlFor="initial_date">
+                        Data Inicial
+                      </FieldLabel>
                       <InputMask
+                        id="initial_date"
+                        name="initial_date"
                         mask="00/00/0000"
                         placeholder="00/00/0000"
                         type="text"
-                        onChange={handleProductInputChange}
-                        name="initial_date"
-                        icon={PiCalendarDots}
                         value={dateInitial || ''}
+                        onChange={handleProductInputChange}
+                        icon={CalendarDays}
                       />
-                    </InputWrapper>
+                    </Field>
                   )}
 
-                  <InputWrapper>
-                    <Label>Data Final</Label>
+                  <Field className="flex flex-col gap-2 flex-1">
+                    <FieldLabel htmlFor="final_date">Data Final</FieldLabel>
                     <InputMask
-                      type="text"
-                      onChange={handleProductInputChange}
+                      id="final_date"
                       name="final_date"
                       mask="00/00/0000"
                       placeholder="00/00/0000"
-                      icon={PiCalendarDots}
+                      type="text"
                       value={dateFinal || ''}
+                      onChange={handleProductInputChange}
+                      icon={CalendarDays}
                     />
-                  </InputWrapper>
-                </Section>
-              )}
-              <Section>
-                <Button
-                  title="Criar Cartaz"
-                  color="GREEN"
-                  onClick={createPoster}
-                />
+                  </Field>
+                </div>
               </Section>
-            </Form>
-
-            {urlImageCampaigns && (
-              <PosterView
-                imageCampaign={urlImageCampaigns}
-                product={productInputs}
-                priceClass={priceClass}
-                campaignType={campaignTypeSelected}
-                campaignSelected={campaignSelected}
-              />
             )}
-          </Content>
+            <Section>
+              <Button
+                type="button"
+                onClick={createPoster}
+                className="bg-green-600 hover:bg-green-700 text-white transition-colors self-end"
+              >
+                <Newspaper /> Criar Cartaz
+              </Button>
+            </Section>
+          </Form>
 
-          <Footer />
-        </Container>
-      </SidebarInset>
-    </SidebarProvider>
+          {urlImageCampaigns && (
+            <PosterView
+              imageCampaign={urlImageCampaigns}
+              product={productInputs}
+              priceClass={priceClass}
+              campaignType={campaignTypeSelected}
+              campaignSelected={campaignSelected}
+            />
+          )}
+        </Content>
+      </Container>
+    </Layout>
   )
 }

@@ -6,18 +6,18 @@ export const Container = styled.div`
   width: 100%;
 
   background-color: ${({ theme }) => theme.COLORS.BACKGROUND_100};
-  padding: 1.5rem 2rem;
+  padding: 1rem;
   border-radius: 1rem;
 
   > fieldset {
     display: flex;
     flex-wrap: wrap;
-    gap: 1.6rem;
+    gap: 8px;
     width: 100%;
     border: none;
   }
   fieldset legend {
-    margin-bottom: 1.5rem;
+    margin-bottom: 10px;
     font-weight: 700;
   }
 
