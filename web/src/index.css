@@ -18,6 +18,21 @@
       font-size: 1rem;
       outline: none;
     }
+    /* Remove o scroll visual durante qualquer transição da sidebar */
+    [data-sidebar='sidebar'] * {
+      -ms-overflow-style: none; /* IE and Edge */
+      scrollbar-width: none; /* Firefox */
+    }
+
+    [data-sidebar='sidebar'] *::-webkit-scrollbar {
+      display: none; /* Chrome, Safari and Opera */
+    }
+
+    /* Garante que o container de animação não vaze conteúdo */
+    .sidebar-content-wrapper,
+    [data-sidebar='footer'] {
+      overflow: hidden !important;
+    }
 
     --background: 0 0% 100%;
 
@@ -68,6 +83,8 @@
     --chart-5: 27 87% 67%;
 
     --radius: 0.5rem;
+
+    --sidebar-width-icon: 4.5rem;
 
     --sidebar-background: 0 0% 98%;
 
