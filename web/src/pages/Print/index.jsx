@@ -26,7 +26,7 @@ import 'react-toastify/dist/ReactToastify.css'
 import { useNavigate } from 'react-router-dom'
 import { Select } from '../../components/Select'
 import { Input } from '../../components/Input'
-import { PostersTable } from '../../components/PostersTable'
+import { DataTable } from '../../components/DataTable'
 import { toastError, toastInfo, toastSuccess } from '../../styles/toastConfig'
 
 import {
@@ -597,7 +597,7 @@ export function Print() {
         </Section>
         <Section>
           {filteredPosters.length > 0 ? (
-            <PostersTable
+            <Table
               data={filteredPosters}
               columns={columns}
               selectedPosters={selectedPosters}

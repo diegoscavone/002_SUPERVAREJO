@@ -14,7 +14,7 @@ import { Select } from '../../components/Select'
 import { Button } from '../../components/Button'
 import { InputMask } from '../../components/InputMask'
 import { Section } from '../../components/Section'
-import { PostersTable } from '../../components/PostersTable'
+import { DataTable } from '../../components/DataTable'
 
 import { useEffect, useState } from 'react'
 
@@ -215,7 +215,7 @@ export function Automate() {
               <p>Você ainda não pesquisou nenhum produto em oferta.</p>
             </Message>
           ) : (
-            <PostersTable
+            <Table
               data={sale.map(saleItem => ({
                 id: saleItem.prod_codigo,
                 product_id: saleItem.prod_codigo,

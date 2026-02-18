@@ -9,7 +9,7 @@ export const Container = styled.div`
   background-color: ${({ theme }) => theme.COLORS.BACKGROUND_100};
   ${({ theme }) => theme.COLORS.GRAY_300};
 
-  border-radius: 10px;
+  border-radius: 6px;
   /* margin-bottom: 8px; */
 
   border: 1px solid ${({ theme }) => theme.COLORS.GRAY_300};

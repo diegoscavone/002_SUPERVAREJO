@@ -9,7 +9,7 @@ import { useNavigate } from 'react-router-dom'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { Layout } from '../../components/Layout'
-import { PostersTable } from '../../components/PostersTable'
+import { DataTable } from '../../components/DataTable'
 import { api } from '../../services/api'
 import { toastError, toastInfo, toastSuccess } from '../../styles/toastConfig'
 
@@ -269,11 +269,13 @@ export function Offers() {
         <Content className="flex flex-col gap-6 p-6">
           {/* Cabeçalho de Ações */}
           <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-none">
-            <h1 className="text-base font-bold text-neutral-600">Gestão de Ofertas</h1>
+            <h1 className="text-base font-bold text-neutral-600">
+              Gestão de Ofertas
+            </h1>
             <Button
               type="button"
               onClick={() => navigate('/offers/new')}
-              className="bg-orange-500 hover:bg-orange-600 text-white gap-2 shadow-none"
+              className="bg-orange-500 hover:bg-orange-600 transition-colors duration-300 text-white gap-2 shadow-none"
             >
               <Tag size={18} /> Nova Oferta
             </Button>
@@ -283,10 +285,10 @@ export function Offers() {
           <Section>
             <div className="bg-white rounded-md">
               {filteredOffers.length > 0 ? (
-                <PostersTable
+                <DataTable
                   data={filteredOffers}
                   columns={offerColumns}
-                  onRowSelect={setSelectedOffers} // Sincroniza seleção com DataTable
+                  onRowSelect={setSelectedOffers} // Sincroniza seleção com {DataTable}
                   showSelectColumn={true}
                   showEditColumn={true} // Se quiser habilitar o lápis
                   handleEdit={id => navigate(`/offers/edit/${id}`)}

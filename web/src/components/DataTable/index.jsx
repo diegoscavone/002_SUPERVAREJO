@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import {
   flexRender,
   getCoreRowModel,
@@ -33,18 +33,28 @@ import {
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge' // Importe o Badge do shadcn
 import { ArrowDownUp, ArrowUpAZ, ArrowUpDown, ArrowUpZA } from 'lucide-react'
-// import { Pencil } from 'lucide-react' // Comentado conforme solicitado
 
-export function PostersTable({
+export function DataTable({
   data = [],
   columns = [],
   onRowSelect,
+  onRowUpdate,
+  rowSelection: externalRowSelection,
   showEditColumn = false,
   showSelectColumn = true,
-  handleEdit
+  enableRowSelection = true,
+  handleEdit,
+  defaultPageSize = 10
 }) {
   const [sorting, setSorting] = useState([])
   const [rowSelection, setRowSelection] = useState({})
+  const [activeIndex, setActiveIndex] = useState(-1)
+
+  useEffect(() => {
+    if (externalRowSelection !== undefined) {
+      setRowSelection(externalRowSelection)
+    }
+  }, [externalRowSelection])
 
   const tableColumns = React.useMemo(() => {
     const cols = [...columns].map(col => {
@@ -77,10 +87,10 @@ export function PostersTable({
       return col
     })
 
-    if (showSelectColumn) {
+    if (showSelectColumn && enableRowSelection) {
       cols.unshift({
         id: 'select',
-        header: ({ table }) => (
+        header: DataTable => (
           <div
             className="flex items-center justify-center w-8"
             onClick={e => e.stopPropagation()}
@@ -136,11 +146,12 @@ export function PostersTable({
     */
 
     return cols
-  }, [columns, showSelectColumn]) // showEditColumn e handleEdit removidos das dependências por enquanto
+  }, [columns, showSelectColumn, enableRowSelection]) // showEditColumn e handleEdit removidos das dependências por enquanto
 
   const table = useReactTable({
     data,
     columns: tableColumns,
+    getRowId: row => String(row.id || row.prod_codigo || row.codigo), // Assegura que cada linha tenha um ID único
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     onSortingChange: setSorting,
@@ -151,19 +162,85 @@ export function PostersTable({
       setRowSelection(nextSelection)
       if (onRowSelect) onRowSelect(nextSelection)
     },
+    meta: {
+      // Adicionamos isso para que as células possam chamar o pai
+      updateData: (rowIndex, columnId, value) => {
+        onRowUpdate?.(rowIndex, columnId, value)
+      }
+    },
+    initialState: {
+      pagination: {
+        pageSize: defaultPageSize
+      }
+    },
     state: {
       sorting,
       rowSelection
-    },
-    getRowId: row => row.id
+    }
   })
 
+  const rows = table.getRowModel().rows
+
+  const handleKeyDown = useCallback(
+    e => {
+      if (rows.length === 0) return
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault()
+          setActiveIndex(prev => (prev < rows.length - 1 ? prev + 1 : prev))
+          break
+        case 'ArrowUp':
+          e.preventDefault()
+          setActiveIndex(prev => (prev > 0 ? prev - 1 : prev))
+          break
+        case ' ': // ESPAÇO: Seleciona/Desseleciona
+          e.preventDefault()
+          if (activeIndex !== -1) {
+            rows[activeIndex].toggleSelected()
+          }
+          break
+        case 'Enter': // ENTER: Pode ser usado para inserir (o pai decide)
+          e.preventDefault()
+          // Se houver uma função de "onConfirm" passada por props, execute-a
+          // Caso contrário, apenas seleciona (comportamento padrão)
+          if (activeIndex !== -1) {
+            // rows[activeIndex].toggleSelected() // opcional se quiser que enter selecione também
+          }
+          break
+        default:
+          break
+      }
+    },
+    [rows, activeIndex]
+  )
+
+  useEffect(() => {
+    setActiveIndex(-1)
+  }, [table.getState().pagination.pageIndex])
+
+  useEffect(() => {
+    // Se a prop externa de seleção for limpa (objeto vazio), resetamos o índice ativo do teclado
+    if (Object.keys(rowSelection).length === 0) {
+      setActiveIndex(-1)
+    }
+  }, [rowSelection])
+
   return (
-    <div className="w-full flex flex-col gap-3">
-      <div className="flex items-center px-1">
+    <div
+      className="w-full flex flex-col gap-3 focus:outline-none ring-0 outline-none"
+      onKeyDown={handleKeyDown}
+      tabIndex={0}
+    >
+      <div className="flex items-center justify-between px-1">
+        {enableRowSelection && (
         <span className="text-sm font-medium text-neutral-600 ">
           {table.getFilteredSelectedRowModel().rows.length} de{' '}
           {table.getFilteredRowModel().rows.length} selecionados
+        </span>
+        )}
+        <span className="text-[10px] text-muted-foreground uppercase italic">
+          Use as setas ↑↓ e Enter para selecionar
         </span>
       </div>
 
@@ -195,11 +272,11 @@ export function PostersTable({
                         {isSortable && (
                           <div className="flex-shrink-0">
                             {sortedState === 'asc' ? (
-                              <ArrowUpZA className="h-4 w-4 text-green-600" />
+                              <ArrowUpAZ className="h-3 w-3 text-green-600" />
                             ) : sortedState === 'desc' ? (
-                              <ArrowUpAZ className="h-4 w-4 text-green-600" />
+                              <ArrowUpZA className="h-3 w-3 text-green-600" />
                             ) : (
-                              <ArrowDownUp className="h-4 w-4 text-green-600" />
+                              <ArrowUpDown className="h-3 w-3 opacity-20" />
                             )}
                           </div>
                         )}
@@ -211,26 +288,32 @@ export function PostersTable({
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map(row => (
+            {rows.length ? (
+              rows.map((row, index) => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && 'selected'}
-                  onClick={() => row.toggleSelected()}
+                  onClick={() => {
+                    setActiveIndex(index) // Sincroniza o índice ao clicar com mouse
+                    if (enableRowSelection) {
+                      row.toggleSelected()
+                    }
+                  }}
+                  /* LÓGICA DE DESTAQUE: bg-green-100 para navegação por teclado */
                   className={`
-          group cursor-pointer border-b last:border-0 transition-colors 
-          /* Efeito de Hover: Verde muito claro */
-          hover:bg-green-50 
-          /* Quando Selecionada: Verde claro persistente */
-          data-[state=selected]:bg-green-100/70 
-          /* Hover sobre uma linha já selecionada */
-          data-[state=selected]:hover:bg-green-100
-        `}
+                    group cursor-pointer last:border-0 transition-all relative
+                    ${
+                      activeIndex === index
+                        ? 'bg-green-100'
+                        : 'hover:bg-green-50/50'
+                    }
+                    data-[state=selected]:bg-green-100/70
+                  `}
                 >
                   {row.getVisibleCells().map(cell => (
                     <TableCell
                       key={cell.id}
-                      className="px-4 py-1.5 text-sm text-neutral-600"
+                      className={`px-4 py-1.5 text-sm transition-colors ${activeIndex === index ? 'text-green-900 font-medium' : 'text-neutral-600'}`}
                     >
                       {flexRender(
                         cell.column.columnDef.cell,
@@ -265,7 +348,7 @@ export function PostersTable({
               <SelectValue />
             </SelectTrigger>
             <SelectContent side="top">
-              {[10, 20, 30, 40, 50].map(pageSize => (
+              {[10, 20, 30, 40, 50, 80].map(pageSize => (
                 <SelectItem
                   key={pageSize}
                   value={`${pageSize}`}

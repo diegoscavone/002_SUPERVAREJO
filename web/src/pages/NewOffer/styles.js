@@ -4,28 +4,18 @@ import { DEVICE_BREAKPOINTS } from '../../styles/devices'
 // Estilos do componente original
 export const Container = styled.div`
   width: 100%;
-  height: 100%;
-
-  display: grid;
-  grid-template-columns: 50px auto;
-  grid-template-areas:
-    'header header'
-    'nav content'
-    'nav footer';
-
+  min-height: 100vh;
+  display: flex; /* Mudamos de Grid para Flex */
+  flex-direction: column;
   background-color: ${({ theme }) => theme.COLORS.BACKGROUND_200};
-
-  @media (max-width: ${DEVICE_BREAKPOINTS.LG}) {
-    grid-template-columns: 35px auto;
-  }
 `
 
 export const Content = styled.div`
-  grid-area: content;
-  padding: 3rem;
+  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 2rem;
+  gap: 16px;
+  overflow-y: auto;
 
   .content-header {
     display: flex;
@@ -99,33 +89,6 @@ export const CardBody = styled.div`
   .empty-result {
     text-align: center;
     padding: 20px 0;
-    color: ${({ theme }) => theme.COLORS.GRAY_300};
-  }
-`
-
-export const SearchContainer = styled.div`
-  display: flex;
-  width: 100%;
-  gap: 10px;
-  margin-bottom: 20px;
-`
-
-export const SearchInput = styled.input`
-  flex: 1;
-  padding: 10px 15px;
-  border: 1px solid ${({ theme }) => theme.COLORS.GRAY_300};
-  border-radius: 10px;
-  /* font-size: 14px; */
-  color: ${({ theme }) => theme.COLORS.GRAY_600};
-  text-transform: capitalize;
-  background-color: ${({ theme }) => theme.COLORS.BACKGROUND_200};
-
-  &:focus {
-    outline: none;
-    border-color: ${({ theme }) => theme.COLORS.GREEN};
-  }
-
-  &::placeholder {
     color: ${({ theme }) => theme.COLORS.GRAY_300};
   }
 `

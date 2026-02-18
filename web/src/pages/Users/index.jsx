@@ -28,7 +28,7 @@ import 'react-toastify/dist/ReactToastify.css'
 import { useNavigate } from 'react-router-dom'
 import { Input } from '../../components/Input'
 import { toastError } from '../../styles/toastConfig'
-import { PostersTable } from '../../components/PostersTable'
+import { DataTable } from '../../components/DataTable'
 
 export function Users() {
   const [users, setUsers] = useState([])
@@ -118,7 +118,7 @@ export function Users() {
         </Section>
         <Section>
           {filteredUsers.length > 0 ? (
-            <PostersTable
+            <Table
               data={filteredUsers.map(user => ({
                 id: user.id,
                 name: user.name,

@@ -1,11 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ActionButton,
-  ActionButtons,
-  Card,
-  CardBody,
-  CardHeader,
-  CloseButton,
   ConfirmationModalBody,
   ConfirmationModalContainer,
   ConfirmationModalContent,
@@ -13,50 +7,37 @@ import {
   ConfirmationModalHeader,
   ConfirmationModalTitle,
   Container,
-  Content,
-  Form,
-  InputWrapper,
-  Label,
-  Modal,
-  ModalBody,
-  ModalContainer,
-  ModalFooter,
-  ModalHeader,
-  ModalTitle,
-  OfferPriceInput,
-  PageButton,
-  Pagination,
-  ProductCounter,
-  ProfitIndicator,
-  SearchContainer,
-  SearchInput,
-  Table,
-  TableCell,
-  TableCheckbox,
-  TableHeader,
-  TableRow,
-  MobileLabel
+  Content
 } from './styles'
 
 // Componentes originais mantidos
-import { Button } from '../../components/Button'
-import { Footer } from '../../components/Footer'
-import { Header } from '../../components/Header'
-import { Nav } from '../../components/Nav'
+import { Button } from '@/components/ui/button'
 import { Section } from '../../components/Section'
 
 // Imports adicionais
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
 import { PiBarcode, PiCalendarDots, PiTrash } from 'react-icons/pi'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { InputMask } from '../../components/InputMask/index.jsx'
-import { Select } from '../../components/Select/index.jsx'
+import { Layout } from '../../components/Layout/index'
 import { useAuth } from '../../hooks/auth'
 import { api, apiERP } from '../../services/api.js'
 import { toastError, toastSuccess } from '../../styles/toastConfig.js'
 
-import { PiPlayCircle } from 'react-icons/pi'
+import { DataTable } from '@/components/DataTable'
+import { Badge } from '@/components/ui/badge'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Barcode, Tag } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { ProductSearchModal } from '../../components/ProductsSearchModal'
 import { useCreatedPoster } from '../../hooks/createdPoster'
 
 // Constantes para configuração do cache
@@ -122,6 +103,78 @@ function useLocalStorage(key, initialValue) {
   return [storedValue, setValue, clearValue]
 }
 
+const PriceCell = React.memo(({ getValue, row, column, table }) => {
+  const initialValue = getValue()
+  const [value, setValue] = useState(initialValue || '0,00') // Valor padrão inicial
+
+  useEffect(() => {
+    // Sincroniza apenas se o valor for diferente e consistente
+    if (
+      initialValue !== undefined &&
+      initialValue !== value &&
+      initialValue !== ''
+    ) {
+      setValue(initialValue)
+    }
+  }, [initialValue])
+
+  const updateParent = val => {
+    // REDE DE SEGURANÇA: Se o valor for vazio ou apenas espaços, envia 0,00
+    const finalValue = val.trim() === '' ? '0,00' : val
+
+    // Se o valor foi corrigido para 0,00, atualiza o estado local também
+    if (val.trim() === '') setValue('0,00')
+
+    console.log(
+      `[PriceCell Row ${row.index}] Tentando atualizar pai com:`,
+      finalValue
+    )
+    table.options.meta?.updateData(row.index, column.id, finalValue)
+  }
+
+  const handleKeyDown = e => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+
+      // Valida o valor atual antes de pular de linha
+      const valToSave = value.trim() === '' ? '0,00' : value
+      if (value.trim() === '') setValue('0,00')
+
+      updateParent(valToSave)
+
+      const allInputs = Array.from(
+        document.querySelectorAll('input.offer-price-input')
+      )
+      const currentIndex = allInputs.indexOf(e.currentTarget)
+
+      if (currentIndex !== -1 && currentIndex < allInputs.length - 1) {
+        setTimeout(() => {
+          allInputs[currentIndex + 1].focus()
+          allInputs[currentIndex + 1].select()
+        }, 10)
+      }
+    }
+  }
+
+  return (
+    <Input
+      type="text"
+      className="w-24 h-8 text-center font-bold border-green-200 focus:ring-green-600 offer-price-input"
+      value={value}
+      onChange={e => {
+        setValue(e.target.value)
+        // Opcional: atualização em tempo real para a margem
+        // Se quiser que a margem mude para 0% enquanto apaga, envie o valor vazio
+        updateParent(e.target.value)
+      }}
+      // Quando o usuário sai do campo, o 0,00 é forçado
+      onBlur={() => updateParent(value)}
+      onKeyDown={handleKeyDown}
+      onFocus={e => e.target.select()}
+    />
+  )
+})
+
 export function NewOffer() {
   const navigate = useNavigate()
   const handleCreatePoster = useCreatedPoster()
@@ -137,8 +190,11 @@ export function NewOffer() {
   const debouncedSearchTerm = useDebounce(searchTerm, 500)
   const [products, setProducts] = useState([])
 
-  const [selectedProducts, setSelectedProducts, clearSelectedProducts] =
-    useLocalStorage(CURRENT_OFFER_KEY, [])
+  const [selectedProducts, setSelectedProducts] = useState(() => {
+    // Tenta carregar do localStorage apenas UMA VEZ na montagem
+    const saved = localStorage.getItem(CURRENT_OFFER_KEY)
+    return saved ? JSON.parse(saved) : []
+  })
 
   const [selectedProductId, setSelectedProductId, clearSelectedProductId] =
     useLocalStorage(SELECTED_PRODUCT_ID_KEY, null)
@@ -176,27 +232,24 @@ export function NewOffer() {
   const [showClearConfirmation, setShowClearConfirmation] = useState(false)
 
   const { user } = useAuth()
-  const [isMobile, setIsMobile] = useState(false) // Estado para controlar se é mobile
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      localStorage.setItem(CURRENT_OFFER_KEY, JSON.stringify(selectedProducts))
+      console.log('[Backup] Lista salva no LocalStorage')
+    }, 1000) // Salva no disco apenas após 1 segundo sem digitação
+
+    return () => clearTimeout(handler)
+  }, [selectedProducts])
 
   // Definir o componente como montado
   useEffect(() => {
     isMountedRef.current = true
-
-    // Função para verificar o tamanho da tela
-    const checkIsMobile = () => {
-      setIsMobile(window.matchMedia('(max-width: 768px)').matches)
-    }
-
-    // Executar na montagem e adicionar listener para resize
-    checkIsMobile()
-    window.addEventListener('resize', checkIsMobile)
-
     return () => {
       isMountedRef.current = false
       if (abortControllerRef.current) {
         abortControllerRef.current.abort()
       }
-      window.removeEventListener('resize', checkIsMobile) // Limpar listener
     }
   }, [])
 
@@ -218,109 +271,6 @@ export function NewOffer() {
     fetchCampaign()
   }, [])
 
-  const generatePosters = useCallback(async () => {
-    // Validar se há produtos selecionados
-    if (selectedProducts.length === 0) {
-      toastError('Adicione produtos à lista')
-      return
-    }
-
-    // Validar se existe uma campanha selecionada
-    if (!campaignSelected || campaignSelected === '0') {
-      toastError('Selecione uma campanha')
-      return
-    }
-
-    // Validar preços de oferta
-    const invalidProducts = selectedProducts.filter(
-      p => isNaN(p.offerPrice) || p.offerPrice <= 0
-    )
-
-    if (invalidProducts.length > 0) {
-      toastError('Defina preços válidos para todos os produtos')
-      return
-    }
-
-    try {
-      setGeneratingPosters(true)
-
-      // Formato esperado das datas: DD/MM/YYYY
-      const formatDateForPosters = dateString => {
-        if (
-          !dateString ||
-          typeof dateString !== 'string' ||
-          !dateString.includes('/')
-        ) {
-          return null
-        }
-        return dateString // Já está no formato correto DD/MM/YYYY para o hook
-      }
-
-      const formattedInitialDate = formatDateForPosters(initialDate)
-      const formattedFinalDate = formatDateForPosters(finalDate)
-
-      if (!formattedInitialDate || !formattedFinalDate) {
-        toastError('Formato de data inválido')
-        setGeneratingPosters(false)
-        return
-      }
-
-      // Tipo de campanha padrão (1)
-      const campaignTypeSelected = 1
-
-      // Processar cada produto
-      for (const product of selectedProducts) {
-        const productInputs = {
-          product_id: product.prod_codigo,
-          description: product.prod_descricao,
-          complement: product.prod_complemento || '',
-          packaging: product.embalagem || '',
-          price: product.offerPrice, // Usar o preço de oferta definido
-          initial_date: formattedInitialDate,
-          final_date: formattedFinalDate,
-          campaignsSelected: campaignSelected,
-          campaignTypeSelected: campaignTypeSelected,
-          unit: product.unidade || userUnit,
-          campaignName: campaignName
-        }
-
-        await handleCreatePoster(
-          productInputs,
-          formattedInitialDate,
-          formattedFinalDate,
-          campaignSelected,
-          campaignTypeSelected
-        )
-      }
-
-      toastSuccess('Cartazes criados com sucesso!')
-
-      // Redirecionar para a página de impressão após 2 segundos
-      setTimeout(() => {
-        navigate('/print')
-      }, 2000)
-    } catch (error) {
-      console.error('Erro ao gerar cartazes:', error)
-      toastError(
-        'Não foi possível criar os cartazes: ' +
-          (error.message || 'Erro desconhecido')
-      )
-    } finally {
-      setGeneratingPosters(false)
-    }
-  }, [
-    selectedProducts,
-    campaignSelected,
-    campaignName,
-    initialDate,
-    finalDate,
-    userUnit,
-    handleCreatePoster,
-    navigate,
-    toastError,
-    toastSuccess
-  ])
-
   const clearForm = useCallback(
     (clearAll = true, confirmed = false) => {
       if (!confirmed) {
@@ -330,7 +280,7 @@ export function NewOffer() {
       }
 
       // Se foi confirmado, executa a limpeza
-      clearSelectedProducts()
+      // clearSelectedProducts()
       clearSelectedProductId()
 
       if (clearAll) {
@@ -346,7 +296,7 @@ export function NewOffer() {
       setShowClearConfirmation(false)
     },
     [
-      clearSelectedProducts,
+      // clearSelectedProducts,
       clearSelectedProductId,
       clearOfferName,
       clearInitialDate,
@@ -379,156 +329,11 @@ export function NewOffer() {
     [setFinalDate]
   )
 
-  const exportToPDF = useCallback(() => {
-    return new Promise((resolve, reject) => {
-      try {
-        // 1. Validação inicial dos dados
-        if (selectedProducts.length === 0) {
-          return reject(
-            new Error('Adicione pelo menos um produto para exportar')
-          )
-        }
-
-        // 2. Verificar se os preços de oferta são válidos
-        const produtosInvalidos = selectedProducts.filter(
-          p => isNaN(p.offerPrice) || p.offerPrice <= 0
-        )
-
-        if (produtosInvalidos.length > 0) {
-          return reject(
-            new Error(
-              'Defina preços válidos para todos os produtos antes de exportar'
-            )
-          )
-        }
-
-        // 3. Criar o documento PDF
-        console.log('Iniciando criação do PDF...')
-        const doc = new jsPDF('l', 'mm', 'a4')
-
-        // 4. Definir cores para a tabela
-        const tableColors = {
-          header: [22, 160, 33], // Verde para cabeçalho
-          odd: [240, 255, 240], // Verde claro para linhas alternadas
-          even: [255, 255, 255] // Branco para as outras linhas
-        }
-
-        // 5. Preparar dados de forma segura
-        const headers = [
-          ['RP', 'Código', 'Descrição', 'PMZ', 'Venda', 'R$', '%']
-        ]
-
-        const data = selectedProducts.map(product => {
-          // Calcular a porcentagem de margem de lucro de forma segura
-          const custo = parseFloat(product.prod_preco_custo) || 0
-          const preco = parseFloat(product.offerPrice) || 0
-          const margin =
-            preco > 0 ? (((preco - custo) / preco) * 100).toFixed(2) : '0.00'
-
-          return [
-            product.prod_codigo || 'N/A',
-            product.prod_cod_barras || 'N/A',
-            product.prod_descricao || 'Sem descrição',
-            custo.toFixed(2),
-            (parseFloat(product.prod_preco_venda) || 0).toFixed(2),
-            preco.toFixed(2),
-            margin + '%'
-          ]
-        })
-
-        console.log('Dados preparados para a tabela:', {
-          headers,
-          linhas: data.length
-        })
-
-        // 6. Gerar a tabela com try/catch específico
-        try {
-          console.log('Gerando tabela com autoTable...')
-          doc.autoTable({
-            head: headers,
-            body: data,
-            startY: 20,
-            theme: 'grid',
-            headStyles: {
-              fillColor: tableColors.header,
-              textColor: [255, 255, 255],
-              fontStyle: 'bold',
-              halign: 'center'
-            },
-            alternateRowStyles: {
-              fillColor: tableColors.odd
-            },
-            styles: {
-              overflow: 'linebreak',
-              cellWidth: 'wrap',
-              fontSize: 9,
-              cellPadding: 3
-            },
-            columnStyles: {
-              0: { cellWidth: 20 }, // RP
-              1: { cellWidth: 35 }, // Código
-              2: { cellWidth: 80 }, // Descrição
-              3: { cellWidth: 20, halign: 'right' }, // PMZ
-              4: { cellWidth: 20, halign: 'right' }, // Venda
-              5: {
-                cellWidth: 20,
-                halign: 'right',
-                fontStyle: 'bold',
-                textColor: [255, 0, 0]
-              }, // R$
-              6: { cellWidth: 20, halign: 'right' } // %
-            }
-          })
-          console.log('Tabela gerada com sucesso')
-        } catch (tableError) {
-          console.error('Erro na geração da tabela:', tableError)
-          return reject(new Error(`Erro na tabela: ${tableError.message}`))
-        }
-
-        // 7. Adicionar rodapé
-        try {
-          console.log('Adicionando rodapé...')
-          const validityDate = new Date()
-          validityDate.setDate(validityDate.getDate() + 30) // Validade de 30 dias
-
-          // Formatar data de validade
-          const month = new Intl.DateTimeFormat('pt-BR', { month: 'long' })
-            .format(validityDate)
-            .toUpperCase()
-          const validityText = `VALIDADE ${validityDate.getDate()} DE ${month} DE ${validityDate.getFullYear()}`
-
-          const finalY = doc.autoTable.previous.finalY + 10
-          const pageWidth = doc.internal.pageSize.getWidth()
-
-          doc.setTextColor(255, 0, 0)
-          doc.setFontSize(10)
-          doc.text(validityText, pageWidth / 2, finalY, { align: 'center' })
-          console.log('Rodapé adicionado com sucesso')
-        } catch (footerError) {
-          console.error('Erro ao adicionar rodapé:', footerError)
-          // Não rejeitar por erro no rodapé, apenas logar
-        }
-
-        // 8. Salvar o PDF com try/catch específico
-        try {
-          console.log('Salvando PDF...')
-          doc.save('tabela-ofertas.pdf')
-          console.log('PDF salvo com sucesso')
-          resolve(true)
-        } catch (saveError) {
-          console.error('Erro ao salvar o PDF:', saveError)
-          reject(new Error(`Erro ao salvar: ${saveError.message}`))
-        }
-      } catch (generalError) {
-        console.error('Erro geral na geração do PDF:', generalError)
-        reject(new Error(`Erro na geração: ${generalError.message}`))
-      }
-    })
-  }, [selectedProducts])
-
   const calculateProfit = useCallback((cost, price) => {
-    if (!cost || !price || price <= 0) return 0
-    return (((price - cost) / price) * 100).toFixed(1)
+    const nCost = parseFloat(cost) || 0
+    const nPrice = parseFloat(price) || 0
+    if (nPrice <= 0) return 0
+    return (((nPrice - nCost) / nPrice) * 100).toFixed(1)
   }, [])
 
   const formatCurrency = useCallback(value => {
@@ -676,15 +481,6 @@ export function NewOffer() {
     }
   }, [debouncedSearchTerm, fetchProducts, isModalOpen])
 
-  const handlePageChange = useCallback(
-    newPage => {
-      if (newPage >= 1 && newPage <= totalPages && newPage !== currentPage) {
-        fetchProducts('', newPage)
-      }
-    },
-    [currentPage, totalPages, fetchProducts]
-  )
-
   const openModal = useCallback(() => {
     setIsModalOpen(true)
     setSelectedProductId(null)
@@ -709,97 +505,50 @@ export function NewOffer() {
     }
   }, [])
 
-  const selectProduct = useCallback(
-    productId => {
-      // Se o produto já estiver selecionado, deseleciona
-      if (selectedProductId === productId) {
-        setSelectedProductId(null)
-      } else {
-        // Caso contrário, seleciona apenas este produto
-        setSelectedProductId(productId)
-      }
-    },
-    [selectedProductId, setSelectedProductId]
-  )
-
   const addSelectedProduct = useCallback(() => {
     if (!selectedProductId) {
       toastError('Selecione um produto')
       return
     }
 
-    // Encontrar o produto na lista atual
-    const product = products.find(p => p.id === selectedProductId)
+    const product = products.find(
+      p => String(p.id) === String(selectedProductId)
+    )
 
-    if (!product) {
-      toastError('Produto não encontrado')
-      return
-    }
-
-    // Verificar se o produto já está na lista
-    const productExists = selectedProducts.some(p => p.id === selectedProductId)
-
-    if (productExists) {
-      toastError('Este produto já está na lista')
-      return
-    }
-
-    // Adicionar o produto com os dados de oferta - preço inicial definido como 0
-    const productToAdd = {
-      ...product,
-      offerPrice: 0, // Inicializa com 0 conforme solicitado
-      profit: calculateProfit(
-        product.prod_preco_custo,
-        0 // Cálculo inicial com preço 0
+    if (product) {
+      const productExists = selectedProducts.some(
+        p => String(p.id) === String(selectedProductId)
       )
+
+      if (productExists) {
+        toastError('Este produto já está na lista')
+        return
+      }
+
+      const productToAdd = {
+        ...product,
+        offerPrice: '0,00',
+        profit: calculateProfit(product.prod_preco_custo, 0)
+      }
+
+      setSelectedProducts(prev => [...prev, productToAdd])
+      toastSuccess('Produto adicionado!')
+
+      // --- AQUI ESTÁ A CHAVE ---
+      setSelectedProductId(null) // Limpa o estado no pai
+      // -------------------------
+
+      if (searchInputRef.current) {
+        searchInputRef.current.focus()
+      }
     }
-
-    setSelectedProducts(prevProducts => [...prevProducts, productToAdd])
-    toastSuccess('Produto adicionado!')
-
-    // Resetar seleção e fechar modal
-    setSelectedProductId(null)
-
-    preventRefetchOnAdd.current = true
-    setSearchTerm('')
-    if (searchInputRef.current) {
-      searchInputRef.current.focus()
-    }
-    // closeModal()
   }, [
     selectedProductId,
     products,
     selectedProducts,
-    calculateProfit,
     setSelectedProducts,
-    setSelectedProductId,
-    closeModal
+    setSelectedProductId
   ])
-
-  const handleProductKeyDown = useCallback(
-    (event, productId) => {
-      if (event.key === ' ') {
-        event.preventDefault()
-        selectProduct(productId)
-      } else if (event.key === 'Enter') {
-        event.preventDefault()
-        addSelectedProduct()
-      } else if (event.key === 'ArrowDown') {
-        event.preventDefault()
-        const nextRow = event.currentTarget.nextElementSibling
-        if (nextRow) {
-          nextRow.focus()
-        }
-      } else if (event.key === 'ArrowUp') {
-        event.preventDefault()
-        const prevRow = event.currentTarget.previousElementSibling
-        if (prevRow) {
-          prevRow.focus()
-        }
-      }
-    },
-    [selectProduct, addSelectedProduct]
-  )
 
   const removeProduct = useCallback(
     productId => {
@@ -810,139 +559,6 @@ export function NewOffer() {
     },
     [setSelectedProducts]
   )
-
-  const getProfitClass = useCallback(profit => {
-    const profitNum = parseFloat(profit)
-    if (profitNum < 15) return 'negative'
-    if (profitNum < 30) return 'warning'
-    return 'positive'
-  }, [])
-
-  const updateOfferPrice = useCallback(
-    (productId, newPrice) => {
-      setSelectedProducts(prevProducts =>
-        prevProducts.map(product => {
-          if (product.id === productId) {
-            if (newPrice === '') {
-              return {
-                ...product,
-                offerPrice: '',
-                profit: calculateProfit(product.prod_preco_custo, 0)
-              }
-            }
-
-            const offerPrice = parseFloat(newPrice)
-            return {
-              ...product,
-              offerPrice,
-              profit: calculateProfit(product.prod_preco_custo, offerPrice)
-            }
-          }
-          return product
-        })
-      )
-    },
-    [calculateProfit, setSelectedProducts]
-  )
-
-  const handleGeneratePosters = useCallback(async () => {
-    if (!savedOfferData) {
-      toastError('Dados da oferta não disponíveis')
-      return
-    }
-
-    setShowPostersConfirmation(false) // Fechar o modal
-
-    try {
-      setGeneratingPosters(true)
-
-      const { products, initialDate, finalDate, campaignId, campaignName } =
-        savedOfferData
-
-      // Formato esperado das datas: DD/MM/YYYY
-      const formatDateForPosters = dateString => {
-        if (
-          !dateString ||
-          typeof dateString !== 'string' ||
-          !dateString.includes('/')
-        ) {
-          return null
-        }
-        return dateString
-      }
-
-      const formattedInitialDate = formatDateForPosters(initialDate)
-      const formattedFinalDate = formatDateForPosters(finalDate)
-
-      if (!formattedInitialDate || !formattedFinalDate) {
-        toastError('Formato de data inválido')
-        return
-      }
-
-      // Validar se existe uma campanha selecionada
-      if (!campaignId || campaignId === '0') {
-        toastError('Selecione uma campanha para gerar os cartazes')
-        return
-      }
-
-      // Tipo de campanha padrão (1)
-      const campaignTypeSelected = 1
-
-      // Processar cada produto
-      for (const product of products) {
-        const productInputs = {
-          product_id: product.prod_codigo,
-          description: product.prod_descricao,
-          complement: product.prod_complemento || '',
-          packaging: product.embalagem || '',
-          price: product.offerPrice,
-          initial_date: formattedInitialDate,
-          final_date: formattedFinalDate,
-          campaignsSelected: campaignId,
-          campaignTypeSelected: campaignTypeSelected,
-          unit: product.unidade || userUnit,
-          campaignName: campaignName
-        }
-
-        await handleCreatePoster(
-          productInputs,
-          formattedInitialDate,
-          formattedFinalDate,
-          campaignId,
-          campaignTypeSelected
-        )
-      }
-
-      toastSuccess('Cartazes criados com sucesso!')
-
-      // Redirecionar para a página de impressão após 2 segundos
-      setTimeout(() => {
-        clearForm(true) // Limpar o formulário
-        navigate('/print')
-      }, 2000)
-    } catch (error) {
-      console.error('Erro ao gerar cartazes:', error)
-      toastError(
-        'Não foi possível criar os cartazes: ' +
-          (error.message || 'Erro desconhecido')
-      )
-    } finally {
-      setGeneratingPosters(false)
-    }
-  }, [
-    savedOfferData,
-    userUnit,
-    handleCreatePoster,
-    navigate,
-    clearForm,
-    toastError,
-    toastSuccess
-  ])
-
-  const handleCancelPosters = useCallback(() => {
-    setShowPostersConfirmation(false)
-    clearForm(true) // Limpar o formulário após fechar o modal
-  }, [clearForm])
 
   const saveOffer = useCallback(async () => {
     // Validações dos produtos
@@ -956,12 +572,20 @@ export function NewOffer() {
     }
 
     // Verificar se os preços de oferta são válidos
-    const produtosInvalidos = selectedProducts.filter(
-      p => isNaN(p.offerPrice) || p.offerPrice <= 0
-    )
+    const produtosInvalidos = selectedProducts.filter(p => {
+      // Converte "2,99" para "2.99" e remove caracteres não numéricos exceto o ponto
+      const priceValue =
+        typeof p.offerPrice === 'string'
+          ? parseFloat(p.offerPrice.replace(',', '.'))
+          : p.offerPrice
+
+      return isNaN(priceValue) || priceValue <= 0
+    })
 
     if (produtosInvalidos.length > 0) {
-      toastError('Defina preços válidos para todos os produtos antes de salvar')
+      toastError(
+        'Defina preços válidos (maiores que R$ 0,00) para todos os produtos antes de salvar'
+      )
       return
     }
 
@@ -970,8 +594,8 @@ export function NewOffer() {
       offerName && offerName.trim()
         ? offerName.trim()
         : campaignName && campaignName.trim()
-        ? campaignName.trim()
-        : ''
+          ? campaignName.trim()
+          : ''
 
     if (!finalOfferName) {
       toastError('Digite um nome para a oferta ou selecione uma campanha')
@@ -1210,113 +834,10 @@ export function NewOffer() {
     }
   }, [])
 
-  const paginationComponent = useMemo(() => {
-    if (isSearching || products.length === 0 || totalPages <= 1) return null
-
-    return (
-      <Pagination>
-        <PageButton
-          onClick={() => handlePageChange(currentPage - 1)}
-          disabled={currentPage === 1 || isLoading}
-        >
-          &lt;
-        </PageButton>
-
-        {totalPages <= 7 ? (
-          // Se tiver poucas páginas, mostra todas
-          [...Array(totalPages)].map((_, i) => (
-            <PageButton
-              key={i + 1}
-              className={currentPage === i + 1 ? 'active' : ''}
-              onClick={() => handlePageChange(i + 1)}
-              disabled={isLoading}
-            >
-              {i + 1}
-            </PageButton>
-          ))
-        ) : (
-          // Se tiver muitas páginas, mostra apenas algumas
-          <>
-            {/* Primeiros 3 números */}
-            {[...Array(Math.min(3, totalPages))].map((_, i) => (
-              <PageButton
-                key={i + 1}
-                className={currentPage === i + 1 ? 'active' : ''}
-                onClick={() => handlePageChange(i + 1)}
-                disabled={isLoading}
-              >
-                {i + 1}
-              </PageButton>
-            ))}
-
-            {/* Indicador de mais páginas */}
-            {currentPage > 4 && currentPage < totalPages - 3 && (
-              <PageButton className="dots" disabled>
-                ...
-              </PageButton>
-            )}
-
-            {/* Página atual se estiver no meio */}
-            {currentPage > 3 && currentPage < totalPages - 2 && (
-              <PageButton className="active" disabled={isLoading}>
-                {currentPage}
-              </PageButton>
-            )}
-
-            {/* Indicador de mais páginas */}
-            {currentPage < totalPages - 3 && (
-              <PageButton className="dots" disabled>
-                ...
-              </PageButton>
-            )}
-
-            {/* Últimos 3 números */}
-            {totalPages > 3 &&
-              [
-                ...Array(
-                  Math.min(
-                    3,
-                    totalPages - Math.max(0, currentPage - totalPages + 3)
-                  )
-                )
-              ].map((_, i) => {
-                const pageNum = totalPages - 2 + i
-                return (
-                  <PageButton
-                    key={pageNum}
-                    className={currentPage === pageNum ? 'active' : ''}
-                    onClick={() => handlePageChange(pageNum)}
-                    disabled={isLoading}
-                  >
-                    {pageNum}
-                  </PageButton>
-                )
-              })}
-          </>
-        )}
-
-        <PageButton
-          onClick={() => handlePageChange(currentPage + 1)}
-          disabled={currentPage === totalPages || isLoading}
-        >
-          &gt;
-        </PageButton>
-      </Pagination>
-    )
-  }, [
-    currentPage,
-    totalPages,
-    isLoading,
-    handlePageChange,
-    products.length,
-    isSearching
-  ])
-
-  function handleCampaignsChange(event) {
-    const campaignId = event.target.value
+  function handleCampaignsChange(value) {
+    const campaignId = value // Agora 'value' já é o ID diretamente
     setCampaignSelected(campaignId)
 
-    // Encontrar o nome da campanha selecionada
     if (campaignId && campaignId !== '0') {
       const selectedCampaign = campaigns.find(
         c => c.id.toString() === campaignId.toString()
@@ -1331,327 +852,328 @@ export function NewOffer() {
     }
   }
 
+  // Use o padrão de atualização funcional para evitar dependência de selectedProducts
+  // const updateOfferPrice = useCallback((productId, newPrice) => {
+  //   setSelectedProducts(prev => {
+  //     // 1. Achar o produto
+  //     const index = prev.findIndex(p => p.id === productId);
+  //     if (index === -1 || prev[index].offerPrice === newPrice) return prev;
+
+  //     // 2. Criar nova lista
+  //     const updatedList = [...prev];
+  //     const item = { ...updatedList[index] };
+
+  //     // 3. Calcular margem
+  //     const sanitized = String(newPrice).replace(',', '.').replace(/[^\d.]/g, '');
+  //     const validNumber = parseFloat(sanitized) || 0;
+
+  //     item.offerPrice = newPrice;
+  //     item.profit = calculateProfit(item.prod_preco_custo, validNumber);
+
+  //     updatedList[index] = item;
+  //     return updatedList;
+  //   });
+  // }, [calculateProfit]); // APENAS calculateProfit como dependência
+
+  const MARGIN_THEME = {
+    CRITICAL: {
+      min: -Infinity,
+      max: 14.9,
+      colorClass:
+        'bg-red-600 hover:bg-red-600 text-white border-none shadow-none',
+      variant: 'destructive'
+    },
+    WARNING: {
+      min: 15,
+      max: 25,
+      colorClass:
+        'bg-yellow-500 hover:bg-yellow-500 text-white border-none shadow-none',
+      variant: 'outline'
+    },
+    SUCCESS: {
+      min: 25.1,
+      max: Infinity,
+      colorClass:
+        'bg-green-600 hover:bg-green-600 text-white border-none shadow-none',
+      variant: 'success'
+    }
+  }
+
+  const tableColumns = useMemo(
+    () => [
+      { accessorKey: 'prod_codigo', header: 'Código' },
+      { accessorKey: 'prod_descricao', header: 'Descrição' },
+      { accessorKey: 'prod_complemento', header: 'Complemento' },
+      {
+        accessorKey: 'prod_preco_custo',
+        header: 'Custo (R$)',
+        cell: ({ getValue }) => formatCurrency(getValue())
+      },
+      {
+        accessorKey: 'prod_preco_venda',
+        header: 'Preço Venda (R$)',
+        cell: ({ getValue }) => formatCurrency(getValue())
+      },
+      {
+        accessorKey: 'offerPrice',
+        header: 'Preço Oferta (R$)',
+        cell: PriceCell
+      },
+      {
+        accessorKey: 'profit',
+        header: 'Margem (%)',
+        cell: ({ row }) => {
+          const custo = parseFloat(row.original.prod_preco_custo) || 0
+          const preco =
+            parseFloat(String(row.original.offerPrice).replace(',', '.')) || 0
+          const margemNum = preco > 0 ? ((preco - custo) / preco) * 100 : 0
+          const margemFormatada = margemNum.toFixed(1)
+
+          // Lógica Dinâmica de Cores
+          let config = MARGIN_THEME.SUCCESS // Default
+
+          if (margemNum <= MARGIN_THEME.CRITICAL.max) {
+            config = MARGIN_THEME.CRITICAL
+          } else if (margemNum <= MARGIN_THEME.WARNING.max) {
+            config = MARGIN_THEME.WARNING
+          }
+
+          return (
+            <Badge
+              variant={config.variant}
+              className={`font-bold rounded-md px-2 py-0.5 transition-colors ${config.colorClass}`}
+            >
+              {margemFormatada}%
+            </Badge>
+          )
+        }
+      },
+      {
+        id: 'actions',
+        header: '',
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-red-500 h-8 w-8"
+            onClick={() => removeProduct(row.original.id)}
+          >
+            <PiTrash size={18} />
+          </Button>
+        )
+      }
+    ],
+    [formatCurrency] // REMOVIDO selectedProducts e updateOfferPrice daqui
+  )
+
+  const handleRowUpdate = useCallback(
+    (rowIndex, columnId, value) => {
+      // LOG DE SEGURANÇA
+      if (value === undefined) {
+        console.error('[BUG] Tentativa de atualizar com valor undefined!')
+        return
+      }
+
+      setSelectedProducts(prev => {
+        // 1. Criamos uma cópia profunda da lista para não mutar o estado anterior
+        const newData = Array.from(prev)
+
+        if (!newData[rowIndex]) return prev
+
+        // 2. Criamos uma cópia do item específico
+        const item = { ...newData[rowIndex] }
+
+        // 3. Só atualizamos se o valor for realmente diferente
+        if (item[columnId] === value) return prev
+
+        item[columnId] = value
+
+        // 4. Recalcula a margem se for o preço
+        if (columnId === 'offerPrice') {
+          const sanitized = String(value)
+            .replace(',', '.')
+            .replace(/[^\d.]/g, '')
+          const validNumber = parseFloat(sanitized) || 0
+          const cost = parseFloat(item.prod_preco_custo) || 0
+          item.profit = calculateProfit(cost, validNumber)
+        }
+
+        newData[rowIndex] = item
+        return newData
+      })
+    },
+    [calculateProfit]
+  )
+
   // Renderização principal
   return (
-    <Container>
-      <Header />
-      <Nav />
+    <Layout>
       <ToastContainer />
-      <Content>
-        <div className="content-header">
-          <Button
-            title="Produtos"
-            icon={PiBarcode}
-            color="ORANGE"
-            onClick={openModal}
-          />
-        </div>
+      <Container>
+        <Content className="flex flex-col gap-6 p-6">
+          <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-none">
+            <h1 className="text-base font-bold text-neutral-600">
+              Gestão de Ofertas
+            </h1>
+            <Button
+              onClick={openModal}
+              className="bg-orange-500 hover:bg-orange-600 transition-colors duration-300 text-white gap-2 shadow-none"
+            >
+              <Barcode /> Produtos
+            </Button>
+          </div>
 
-        <Section title="Gestão de Ofertas">
-          <Card>
-            <CardHeader>
-              <Form>
-                <InputWrapper>
-                  <Label>Campanha</Label>
+          <Section>
+            <div className="flex flex-col gap-6">
+              {/* Formulário de Configuração - Padrão Shadcn */}
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end bg-white  rounded-xl">
+                {/* Campo 1: Campanha */}
+                <Field className="md:col-span-1 flex flex-col gap-2">
+                  <FieldLabel>Campanha</FieldLabel>
                   <Select
-                    onChange={handleCampaignsChange}
-                    value={campaignSelected}
+                    onValueChange={handleCampaignsChange}
+                    value={String(campaignSelected)}
                   >
-                    <option value="0">Selecione</option>
-                    {campaigns.map(campaign => (
-                      <option
-                        key={campaign.id}
-                        value={campaign.id}
-                        data-image={campaign.image}
-                      >
-                        {campaign.name}
-                      </option>
-                    ))}
+                    <SelectTrigger className="shadow-none w-full">
+                      <SelectValue placeholder="Selecione uma campanha" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0">Selecione</SelectItem>
+                      {campaigns.map(campaign => (
+                        <SelectItem
+                          key={campaign.id}
+                          value={String(campaign.id)}
+                          className="focus:bg-green-100 focus:text-green-600 transition-colors"
+                        >
+                          {campaign.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
                   </Select>
-                </InputWrapper>
+                </Field>
 
-                <InputWrapper>
-                  <Label>Data Inicial</Label>
+                {/* Campo 2: Data Inicial */}
+                <Field className="md:col-span-1 flex flex-col gap-2">
+                  <FieldLabel>Data Inicial</FieldLabel>
                   <InputMask
                     mask="00/00/0000"
                     placeholder="00/00/0000"
-                    type="text"
                     onChange={handleInitialDateChange}
                     name="initial_date"
                     icon={PiCalendarDots}
                     value={initialDate}
                   />
-                </InputWrapper>
+                </Field>
 
-                <InputWrapper>
-                  <Label>Data Final</Label>
+                {/* Campo 3: Data Final */}
+                <Field className="md:col-span-1 flex flex-col gap-2">
+                  <FieldLabel>Data Final</FieldLabel>
                   <InputMask
                     mask="00/00/0000"
                     placeholder="00/00/0000"
-                    type="text"
                     onChange={handleFinalDateChange}
                     name="final_date"
                     icon={PiCalendarDots}
                     value={finalDate}
                   />
-                </InputWrapper>
+                </Field>
 
-                <ActionButtons>
+                {/* Botão 2: Salvar */}
+                <Field className="md:col-span-1 flex flex-row gap-2">
                   <Button
-                    title="Limpar"
-                    icon={PiTrash}
-                    color="RED"
+                    onClick={saveOffer}
+                    className="bg-green-600 hover:bg-green-700 text-white h-10 px-4 w-fit md:w-fit"
+                  >
+                    <Tag /> Salvar Oferta
+                  </Button>
+                  {/* Botão 1: Limpar */}
+                  <Button
+                    variant="outline"
                     onClick={() => clearForm(true)}
-                  />
-                  <Button title="Salvar" color="GREEN" onClick={saveOffer} />
-                </ActionButtons>
-              </Form>
-            </CardHeader>
-            <CardBody>
-              {selectedProducts.length === 0 ? (
-                <div className="empty-state">
-                  Nenhum produto selecionado para oferta. Clique em "Produtos"
-                  para começar.
-                </div>
-              ) : (
-                <>
-                  {/* Contador de produtos */}
-                  <ProductCounter>
-                    <span>
-                      {selectedProducts.length} produto
-                      {selectedProducts.length !== 1 ? 's' : ''} adicionado
-                      {selectedProducts.length !== 1 ? 's' : ''}
-                    </span>
-                  </ProductCounter>
-
-                  <Table>
-                    <thead>
-                      <tr>
-                        <TableHeader>Código</TableHeader>
-                        <TableHeader>Descrição</TableHeader>
-                        {!isMobile && <TableHeader>Custo (R$)</TableHeader>}
-                        {!isMobile && <TableHeader>Preço Atual (R$)</TableHeader>}
-                        <TableHeader className="column-price">
-                          Preço Oferta (R$)
-                        </TableHeader>
-                        {!isMobile && (
-                          <TableHeader className="column-profit">
-                            Margem (%)
-                          </TableHeader>
-                        )}
-                        <TableHeader></TableHeader>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedProducts.map((product, index) => (
-                        <TableRow key={product.id}>
-                          <TableCell>{product.prod_codigo}</TableCell>
-                          <TableCell>{product.prod_descricao}</TableCell>
-                          {!isMobile && (
-                            <TableCell>
-                              {formatCurrency(product.prod_preco_custo)}
-                            </TableCell>
-                          )}
-                          {!isMobile && (
-                            <TableCell>
-                              {formatCurrency(product.prod_preco_venda)}
-                            </TableCell>
-                          )}
-                          <TableCell>
-                            <OfferPriceInput
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              className="offer-price-input"
-                              value={product.offerPrice}
-                              onChange={e =>
-                                updateOfferPrice(product.id, e.target.value)
-                              }
-                              onKeyDown={e => handleKeyDown(e, index)}
-                            />
-                          </TableCell>
-                          {!isMobile && (
-                            <TableCell>
-                              <ProfitIndicator
-                                className={getProfitClass(product.profit)}
-                              >
-                                {product.profit}%
-                              </ProfitIndicator>
-                            </TableCell>
-                          )}
-                          <TableCell>
-                            <ActionButton
-                              onClick={() => removeProduct(product.id)}
-                            >
-                              <PiTrash />
-                            </ActionButton>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </tbody>
-                  </Table>
-                </>
-              )}
-            </CardBody>
-          </Card>
-        </Section>
-      </Content>
-
-      {showClearConfirmation && (
-        <ConfirmationModalContainer>
-          <ConfirmationModalContent>
-            <ConfirmationModalHeader>
-              <ConfirmationModalTitle>Confirmar Limpeza</ConfirmationModalTitle>
-            </ConfirmationModalHeader>
-            <ConfirmationModalBody>
-              <p>
-                Tem certeza que deseja limpar todo o formulário? Esta ação irá
-                remover todos os produtos selecionados e limpar todos os campos.
-              </p>
-            </ConfirmationModalBody>
-            <ConfirmationModalFooter>
-              <Button
-                title="Cancelar"
-                color="GRAY"
-                onClick={handleCancelClear}
-              />
-              <Button
-                title="Sim, Limpar Tudo"
-                icon={PiTrash}
-                color="RED"
-                onClick={handleConfirmClear}
-              />
-            </ConfirmationModalFooter>
-          </ConfirmationModalContent>
-        </ConfirmationModalContainer>
-      )}
-
-      {/* Modal de pesquisa de produtos (renderização condicional) */}
-      {isModalOpen && (
-        <ModalContainer
-          onClick={e => {
-            if (e.target === e.currentTarget) closeModal()
-          }}
-        >
-          <Modal>
-            <ModalHeader>
-              <ModalTitle>Pesquisar Produtos</ModalTitle>
-              <CloseButton onClick={closeModal}>&times;</CloseButton>
-            </ModalHeader>
-            <ModalBody>
-              <SearchContainer>
-                <SearchInput
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Buscar por código, descrição ou código de barras..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </SearchContainer>
-              <Table>
-                <thead>
-                  <tr>
-                    <TableHeader></TableHeader>
-                    <TableHeader>Código</TableHeader>
-                    {!isMobile && <TableHeader>Código de Barras</TableHeader>}
-                    <TableHeader>Descrição</TableHeader>
-                    {!isMobile && <TableHeader>Complemento</TableHeader>}
-                    {!isMobile && <TableHeader>Custo (R$)</TableHeader>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={isMobile ? '3' : '6'} className="empty-result">
-                        Nenhum produto encontrado. Tente outro termo de busca.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    products.map(product => (
-                      <TableRow
-                        key={product.id}
-                        className={
-                          selectedProductId === product.id ? 'selected-row' : ''
-                        }
-                        tabIndex={0}
-                        onClick={() => selectProduct(product.id)}
-                        onKeyDown={e => handleProductKeyDown(e, product.id)}
-                      >
-                        <TableCell>
-                          <TableCheckbox>
-                            <input
-                              type="radio"
-                              checked={selectedProductId === product.id}
-                              onChange={() => selectProduct(product.id)}
-                            />
-                            <span className="radio-custom"></span>
-                          </TableCheckbox>
-                        </TableCell>
-                        <TableCell>{product.prod_codigo}</TableCell>
-                        {!isMobile && (
-                          <TableCell>{product.prod_cod_barras}</TableCell>
-                        )}
-                        <TableCell>{product.prod_descricao}</TableCell>
-                        {!isMobile && (
-                          <TableCell>{product.prod_complemento}</TableCell>
-                        )}
-                        {!isMobile && (
-                          <TableCell>
-                            {formatCurrency(product.prod_preco_custo)}
-                          </TableCell>
-                        )}
-                      </TableRow>
-                    ))
-                  )}
-                </tbody>
-              </Table>
-
-              {/* Componente de paginação - só aparece quando não está em busca */}
-              {paginationComponent}
-            </ModalBody>
-            <ModalFooter>
-              <div className="selection-info">
-                <span>
-                  {selectedProductId
-                    ? '1 item selecionado'
-                    : 'Nenhum item selecionado'}
-                </span>
+                    className="text-red-500 hover:bg-red-50 hover:text-red-500 border-red-200 h-10 px-4 w-fit md:w-fit"
+                  >
+                    <PiTrash size={18} /> Limpar
+                  </Button>
+                </Field>
               </div>
-              <Button
-                title="Inserir"
-                onClick={addSelectedProduct}
-                color="GREEN"
-                disabled={!selectedProductId}
-              />
-            </ModalFooter>
-          </Modal>
-        </ModalContainer>
-      )}
-      <Footer />
-      {/* {showPostersConfirmation && (
-        <ConfirmationModalContainer>
-          <ConfirmationModalContent>
-            <ConfirmationModalHeader>
-              <ConfirmationModalTitle>Gerar Cartazes</ConfirmationModalTitle>
-            </ConfirmationModalHeader>
-            <ConfirmationModalBody>
-              <p>
-                A oferta foi salva com sucesso.
-              </p>
-            </ConfirmationModalBody>
-            <ConfirmationModalFooter>
-              <Button title="Não" color="GRAY" onClick={handleCancelPosters} />
-              <Button
-                title={generatingPosters ? 'Gerando...' : 'Sim, Gerar Cartazes'}
-                icon={PiPlayCircle}
-                color="ORANGE"
-                onClick={handleGeneratePosters}
-                disabled={generatingPosters}
-              />
-            </ConfirmationModalFooter>
-          </ConfirmationModalContent>
-        </ConfirmationModalContainer>
-      )} */}
-    </Container>
+
+              {/* Ações do Formulário */}
+
+              {/* Tabela de Produtos Selecionados */}
+              <div className="bg-white rounded-xl overflow-hidden">
+                {selectedProducts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center p-12 text-muted-foreground gap-2">
+                    <PiBarcode size={48} className="opacity-20" />
+                    <p className="text-sm">
+                      Nenhum produto selecionado para oferta.
+                    </p>
+                    <p className="text-xs">
+                      Clique em "Produtos" no topo para começar.
+                    </p>
+                  </div>
+                ) : (
+                  <DataTable
+                    data={selectedProducts}
+                    showSelectColumn={false}
+                    enableRowSelection={false}
+                    columns={tableColumns}
+                    onRowUpdate={handleRowUpdate}
+                    defaultPageSize={80}
+                  />
+                )}
+              </div>
+            </div>
+          </Section>
+        </Content>
+
+        {showClearConfirmation && (
+          <ConfirmationModalContainer>
+            <ConfirmationModalContent>
+              <ConfirmationModalHeader>
+                <ConfirmationModalTitle>
+                  Confirmar Limpeza
+                </ConfirmationModalTitle>
+              </ConfirmationModalHeader>
+              <ConfirmationModalBody>
+                <p>
+                  Tem certeza que deseja limpar todo o formulário? Esta ação irá
+                  remover todos os produtos selecionados e limpar todos os
+                  campos.
+                </p>
+              </ConfirmationModalBody>
+              <ConfirmationModalFooter>
+                <Button
+                  title="Cancelar"
+                  color="GRAY"
+                  onClick={handleCancelClear}
+                />
+                <Button
+                  title="Sim, Limpar Tudo"
+                  icon={PiTrash}
+                  color="RED"
+                  onClick={handleConfirmClear}
+                />
+              </ConfirmationModalFooter>
+            </ConfirmationModalContent>
+          </ConfirmationModalContainer>
+        )}
+
+        {/* Modal de pesquisa de produtos (renderização condicional) */}
+        {isModalOpen && (
+          <ProductSearchModal
+            isOpen={isModalOpen}
+            onClose={closeModal}
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            products={products}
+            isLoading={isLoading}
+            selectedProductId={selectedProductId}
+            onSelectProduct={setSelectedProductId}
+            onConfirm={addSelectedProduct}
+            formatCurrency={formatCurrency}
+          />
+        )}
+      </Container>
+    </Layout>
   )
 }
