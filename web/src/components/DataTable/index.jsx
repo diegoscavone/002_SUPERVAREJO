@@ -166,6 +166,9 @@ export function DataTable({
       // Adicionamos isso para que as células possam chamar o pai
       updateData: (rowIndex, columnId, value) => {
         onRowUpdate?.(rowIndex, columnId, value)
+      },
+      setActiveRowIndex: (index) => {
+        setActiveIndex(index);
       }
     },
     initialState: {
@@ -233,11 +236,23 @@ export function DataTable({
       tabIndex={0}
     >
       <div className="flex items-center justify-between px-1">
-        {enableRowSelection && (
-        <span className="text-sm font-medium text-neutral-600 ">
-          {table.getFilteredSelectedRowModel().rows.length} de{' '}
-          {table.getFilteredRowModel().rows.length} selecionados
-        </span>
+        {enableRowSelection ? (
+          <span className="text-sm font-medium text-neutral-600 ">
+            {table.getFilteredSelectedRowModel().rows.length} de{' '}
+            {table.getFilteredRowModel().rows.length} selecionados
+          </span>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-neutral-600">
+              Total de itens:{' '}
+              <Badge
+                variant="secondary"
+                className="ml-1 bg-slate-100 text-slate-700 shadow-none"
+              >
+                {data.length}
+              </Badge>
+            </span>
+          </div>
         )}
         <span className="text-[10px] text-muted-foreground uppercase italic">
           Use as setas ↑↓ e Enter para selecionar

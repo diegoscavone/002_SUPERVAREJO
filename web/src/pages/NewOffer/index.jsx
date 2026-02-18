@@ -1,20 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ConfirmationModalBody,
   ConfirmationModalContainer,
   ConfirmationModalContent,
-  ConfirmationModalFooter,
-  ConfirmationModalHeader,
-  ConfirmationModalTitle,
   Container,
   Content
 } from './styles'
 
-// Componentes originais mantidos
 import { Button } from '@/components/ui/button'
 import { Section } from '../../components/Section'
 
-// Imports adicionais
 import {
   Select,
   SelectContent,
@@ -22,7 +16,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@/components/ui/select'
-import { PiBarcode, PiCalendarDots, PiTrash } from 'react-icons/pi'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
 import { InputMask } from '../../components/InputMask/index.jsx'
@@ -35,18 +28,21 @@ import { DataTable } from '@/components/DataTable'
 import { Badge } from '@/components/ui/badge'
 import { Field, FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
-import { Barcode, Tag } from 'lucide-react'
+import {
+  Barcode,
+  BarcodeIcon,
+  CalendarDays,
+  CloudAlert,
+  CloudCheck,
+  CloudUpload,
+  Loader2,
+  Tag,
+  Trash2
+} from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { ConfirmModal } from '../../components/ConfirmModal'
 import { ProductSearchModal } from '../../components/ProductsSearchModal'
 import { useCreatedPoster } from '../../hooks/createdPoster'
-
-// Constantes para configuração do cache
-const CURRENT_OFFER_KEY = 'currentOffer'
-const OFFER_NAME_KEY = 'offerName'
-const SELECTED_PRODUCT_ID_KEY = 'selectedProductId'
-const CAMPAIGN_NAME_KEY = 'campaignName'
-const INITIAL_DATE_KEY = 'initialDate'
-const FINAL_DATE_KEY = 'finalDate'
 
 // Custom hook para debounce de pesquisa
 function useDebounce(value, delay) {
@@ -65,82 +61,25 @@ function useDebounce(value, delay) {
   return debouncedValue
 }
 
-// Custom hook para localStorage - Simplificado para salvar apenas produtos da oferta
-function useLocalStorage(key, initialValue) {
-  const [storedValue, setStoredValue] = useState(() => {
-    try {
-      const item = localStorage.getItem(key)
-      return item ? JSON.parse(item) : initialValue
-    } catch (error) {
-      return initialValue
-    }
-  })
-
-  const setValue = useCallback(
-    value => {
-      try {
-        const valueToStore =
-          value instanceof Function ? value(storedValue) : value
-        setStoredValue(valueToStore)
-        localStorage.setItem(key, JSON.stringify(valueToStore))
-      } catch (error) {
-        // Erro silencioso, sem logs
-      }
-    },
-    [key, storedValue]
-  )
-
-  // Função para limpar o valor específico
-  const clearValue = useCallback(() => {
-    try {
-      localStorage.removeItem(key)
-      setStoredValue(initialValue)
-    } catch (error) {
-      // Erro silencioso, sem logs
-    }
-  }, [key, initialValue])
-
-  return [storedValue, setValue, clearValue]
-}
-
 const PriceCell = React.memo(({ getValue, row, column, table }) => {
   const initialValue = getValue()
-  const [value, setValue] = useState(initialValue || '0,00') // Valor padrão inicial
+  const [value, setValue] = useState(initialValue === '0,00' ? '' : initialValue)
 
-  useEffect(() => {
-    // Sincroniza apenas se o valor for diferente e consistente
-    if (
-      initialValue !== undefined &&
-      initialValue !== value &&
-      initialValue !== ''
-    ) {
-      setValue(initialValue)
+ useEffect(() => {
+    if (initialValue !== undefined && initialValue !== value) {
+      setValue(initialValue === '0,00' ? '' : initialValue)
     }
   }, [initialValue])
 
-  const updateParent = val => {
-    // REDE DE SEGURANÇA: Se o valor for vazio ou apenas espaços, envia 0,00
+ const updateParent = val => {
     const finalValue = val.trim() === '' ? '0,00' : val
-
-    // Se o valor foi corrigido para 0,00, atualiza o estado local também
-    if (val.trim() === '') setValue('0,00')
-
-    console.log(
-      `[PriceCell Row ${row.index}] Tentando atualizar pai com:`,
-      finalValue
-    )
     table.options.meta?.updateData(row.index, column.id, finalValue)
   }
 
   const handleKeyDown = e => {
     if (e.key === 'Enter') {
       e.preventDefault()
-
-      // Valida o valor atual antes de pular de linha
-      const valToSave = value.trim() === '' ? '0,00' : value
-      if (value.trim() === '') setValue('0,00')
-
-      updateParent(valToSave)
+      updateParent(value)
 
       const allInputs = Array.from(
         document.querySelectorAll('input.offer-price-input')
@@ -161,16 +100,17 @@ const PriceCell = React.memo(({ getValue, row, column, table }) => {
       type="text"
       className="w-24 h-8 text-center font-bold border-green-200 focus:ring-green-600 offer-price-input"
       value={value}
+      placeholder="0,00"
       onChange={e => {
         setValue(e.target.value)
-        // Opcional: atualização em tempo real para a margem
-        // Se quiser que a margem mude para 0% enquanto apaga, envie o valor vazio
         updateParent(e.target.value)
       }}
-      // Quando o usuário sai do campo, o 0,00 é forçado
       onBlur={() => updateParent(value)}
       onKeyDown={handleKeyDown}
-      onFocus={e => e.target.select()}
+      onFocus={e => {
+        e.target.select();
+        table.options.meta?.setActiveRowIndex?.(row.index);
+      }}
     />
   )
 })
@@ -178,41 +118,25 @@ const PriceCell = React.memo(({ getValue, row, column, table }) => {
 export function NewOffer() {
   const navigate = useNavigate()
   const handleCreatePoster = useCreatedPoster()
-  const [generatingPosters, setGeneratingPosters] = useState(false)
+
   // Refs para otimização
   const searchInputRef = useRef(null)
   const abortControllerRef = useRef(null)
   const isMountedRef = useRef(false)
   const preventRefetchOnAdd = useRef(false)
+  const syncTimeoutRef = useRef({})
 
   // Estados para gerenciar produtos
   const [searchTerm, setSearchTerm] = useState('')
   const debouncedSearchTerm = useDebounce(searchTerm, 500)
   const [products, setProducts] = useState([])
 
-  const [selectedProducts, setSelectedProducts] = useState(() => {
-    // Tenta carregar do localStorage apenas UMA VEZ na montagem
-    const saved = localStorage.getItem(CURRENT_OFFER_KEY)
-    return saved ? JSON.parse(saved) : []
-  })
-
-  const [selectedProductId, setSelectedProductId, clearSelectedProductId] =
-    useLocalStorage(SELECTED_PRODUCT_ID_KEY, null)
-
-  const [offerName, setOfferName, clearOfferName] = useLocalStorage(
-    OFFER_NAME_KEY,
-    ''
-  )
-
-  const [initialDate, setInitialDate, clearInitialDate] = useLocalStorage(
-    INITIAL_DATE_KEY,
-    ''
-  )
-
-  const [finalDate, setFinalDate, clearFinalDate] = useLocalStorage(
-    FINAL_DATE_KEY,
-    ''
-  )
+  const [selectedProducts, setSelectedProducts] = useState([])
+  const [selectedProductId, setSelectedProductId] = useState(null)
+  const [offerName, setOfferName] = useState('')
+  const [initialDate, setInitialDate] = useState('')
+  const [finalDate, setFinalDate] = useState('')
+  const [campaignName, setCampaignName] = useState('')
 
   // Estados do modal de busca
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -225,22 +149,15 @@ export function NewOffer() {
   const [campaignSelected, setCampaignSelected] = useState('')
   const [showPostersConfirmation, setShowPostersConfirmation] = useState(false)
   const [savedOfferData, setSavedOfferData] = useState(null)
-  const [campaignName, setCampaignName, clearCampaignName] = useLocalStorage(
-    CAMPAIGN_NAME_KEY,
-    ''
-  )
+
   const [showClearConfirmation, setShowClearConfirmation] = useState(false)
 
+  // Estados para controle de sincronia e carregamento
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [syncError, setSyncError] = useState(false)
+  const [isSavingOffer, setIsSavingOffer] = useState(false) // Modal de salvamento global
+
   const { user } = useAuth()
-
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      localStorage.setItem(CURRENT_OFFER_KEY, JSON.stringify(selectedProducts))
-      console.log('[Backup] Lista salva no LocalStorage')
-    }, 1000) // Salva no disco apenas após 1 segundo sem digitação
-
-    return () => clearTimeout(handler)
-  }, [selectedProducts])
 
   // Definir o componente como montado
   useEffect(() => {
@@ -274,42 +191,54 @@ export function NewOffer() {
   const clearForm = useCallback(
     (clearAll = true, confirmed = false) => {
       if (!confirmed) {
-        // Se não foi confirmado, apenas mostra o modal
         setShowClearConfirmation(true)
         return
       }
 
-      // Se foi confirmado, executa a limpeza
-      // clearSelectedProducts()
-      clearSelectedProductId()
+      // Usamos diretamente as funções de 'set' do useState
+      setSelectedProductId(null)
 
       if (clearAll) {
-        clearOfferName()
-        clearInitialDate()
-        clearFinalDate()
-        clearCampaignName()
+        setOfferName('')
+        setInitialDate('')
+        setFinalDate('')
+        setCampaignName('')
         setCampaignSelected('0')
-      } else {
-        toastSuccess('Lista de produtos limpa')
       }
 
+      // Fecha o modal de confirmação após a limpeza
       setShowClearConfirmation(false)
     },
     [
-      // clearSelectedProducts,
-      clearSelectedProductId,
-      clearOfferName,
-      clearInitialDate,
-      clearFinalDate,
-      clearCampaignName,
+      // Aqui incluímos apenas as funções de set que o componente usa
+      setSelectedProductId,
+      setOfferName,
+      setInitialDate,
+      setFinalDate,
+      setCampaignName,
       setCampaignSelected
     ]
   )
 
-  const handleConfirmClear = useCallback(() => {
-    clearForm(true, true) // Executa a limpeza com confirmação
-    toastSuccess('Formulário limpo com sucesso')
-  }, [clearForm])
+  const handleConfirmClear = useCallback(async () => {
+    try {
+      // 1. Limpa o rascunho no Banco de Dados (API)
+      if (userUnit) {
+        await api.delete(`/offers/draft/all/${userUnit}`)
+      }
+
+      // 2. Limpa o estado local no Front-end
+      clearForm(true, true) // Executa a limpeza dos campos e produtos
+      setSelectedProducts([]) // Garante que a lista de produtos fique vazia
+
+      toastSuccess('Rascunho e formulário limpos com sucesso')
+    } catch (error) {
+      console.error('Erro ao limpar rascunho:', error)
+      toastError('Erro ao limpar rascunho no servidor. Verifique sua conexão.')
+    } finally {
+      setShowClearConfirmation(false)
+    }
+  }, [clearForm, userUnit])
 
   const handleCancelClear = useCallback(() => {
     setShowClearConfirmation(false)
@@ -505,12 +434,47 @@ export function NewOffer() {
     }
   }, [])
 
-  const addSelectedProduct = useCallback(() => {
+  const syncItemToDatabase = useCallback(
+    async product => {
+      if (!userUnit || !user?.id) return
+
+      setIsSyncing(true)
+      setSyncError(false)
+
+      try {
+        const sanitizedPrice =
+          typeof product.offerPrice === 'string'
+            ? parseFloat(product.offerPrice.replace(',', '.'))
+            : product.offerPrice
+
+        await api.post('/offers/draft', {
+          product_id: String(product.prod_codigo),
+          description: product.prod_descricao,
+          barcode: product.prod_cod_barras,
+          unit: userUnit,
+          cost_price: parseFloat(product.prod_preco_custo) || 0,
+          sale_price: parseFloat(product.prod_preco_venda) || 0,
+          offer_price: sanitizedPrice || 0,
+          user_id: user.id
+        })
+
+        setIsSyncing(false)
+      } catch (error) {
+        setIsSyncing(false)
+        setSyncError(true)
+        console.error('Erro na sincronia:', error)
+      }
+    },
+    [userUnit, user]
+  )
+
+  const addSelectedProduct = useCallback(async () => {
     if (!selectedProductId) {
       toastError('Selecione um produto')
       return
     }
 
+    // Busca o produto no array de resultados da pesquisa do modal
     const product = products.find(
       p => String(p.id) === String(selectedProductId)
     )
@@ -525,165 +489,158 @@ export function NewOffer() {
         return
       }
 
+      // Preparamos o objeto com valores padrão
       const productToAdd = {
         ...product,
-        offerPrice: '0,00',
+        offerPrice: '',
         profit: calculateProfit(product.prod_preco_custo, 0)
       }
 
-      setSelectedProducts(prev => [...prev, productToAdd])
-      toastSuccess('Produto adicionado!')
+      try {
+        // Sincronização IMEDIATA com o banco de rascunhos
+        await syncItemToDatabase(productToAdd)
 
-      // --- AQUI ESTÁ A CHAVE ---
-      setSelectedProductId(null) // Limpa o estado no pai
-      // -------------------------
+        // Só atualizamos o estado local após o sucesso na API
+        setSelectedProducts(prev => [...prev, productToAdd])
+        toastSuccess('Produto adicionado ao rascunho!')
 
-      if (searchInputRef.current) {
-        searchInputRef.current.focus()
+        // Limpa a seleção para o próximo bip/busca
+        setSelectedProductId(null)
+
+        if (searchInputRef.current) {
+          searchInputRef.current.focus()
+        }
+      } catch (error) {
+        console.error('Erro ao salvar rascunho:', error)
+        toastError(
+          'Falha de rede: Não foi possível adicionar o produto ao rascunho.'
+        )
       }
     }
   }, [
     selectedProductId,
     products,
     selectedProducts,
-    setSelectedProducts,
+    calculateProfit,
+    syncItemToDatabase,
     setSelectedProductId
   ])
 
   const removeProduct = useCallback(
-    productId => {
-      setSelectedProducts(prevProducts =>
-        prevProducts.filter(product => product.id !== productId)
-      )
-      toastSuccess('Produto removido da lista')
+    async productId => {
+      try {
+        // Remove visualmente primeiro (UX mais rápida)
+        setSelectedProducts(prev => prev.filter(p => p.id !== productId))
+
+        // Remove do banco (passando unit para o controller saber de qual loja é)
+        await api.delete(`/offers/draft/${productId}?unit=${userUnit}`)
+
+        toastSuccess('Produto removido do rascunho')
+      } catch (error) {
+        toastError('Erro ao sincronizar remoção com o servidor.')
+      }
     },
-    [setSelectedProducts]
+    [userUnit]
   )
 
-  const saveOffer = useCallback(async () => {
-    // Validações dos produtos
-    if (
-      !selectedProducts ||
-      !Array.isArray(selectedProducts) ||
-      selectedProducts.length === 0
-    ) {
-      toastError('Adicione pelo menos um produto para salvar a oferta')
-      return
-    }
+  const handleGeneratePDF = useCallback(async data => {
+    const {
+      products,
+      unit,
+      name,
+      initialDate,
+      finalDate,
+      campaignId,
+      campaignName
+    } = data
 
-    // Verificar se os preços de oferta são válidos
+    // Formatação específica para o PDF
+    const produtosPDF = products.map(product => ({
+      produto_id: product.prod_codigo || '',
+      descricao: product.prod_descricao || '',
+      custo: parseFloat(product.prod_preco_custo) || 0,
+      preco_original: parseFloat(product.prod_preco_venda) || 0,
+      preco_oferta:
+        parseFloat(String(product.offerPrice).replace(',', '.')) || 0
+    }))
+
+    try {
+      const pdfResponse = await api.post(
+        '/offers/pdf',
+        {
+          produtos: produtosPDF,
+          unidade: unit || '',
+          name: name,
+          initialDate,
+          finalDate,
+          campaign_id: campaignId || null,
+          campaign_name: campaignName || null
+        },
+        { responseType: 'blob' }
+      )
+
+      const blob = new Blob([pdfResponse.data], { type: 'application/pdf' })
+      const url = window.URL.createObjectURL(blob)
+      const printWindow = window.open(url, '_blank')
+
+      if (!printWindow) {
+        toastError(
+          'PDF gerado, mas o bloqueador de pop-ups impediu a abertura.'
+        )
+      }
+
+      return true
+    } catch (error) {
+      console.error('Erro ao gerar PDF:', error)
+      toastError('Erro ao gerar o PDF da oferta.')
+      return false
+    }
+  }, [])
+
+  const saveOffer = useCallback(async () => {
+    // --- VALIDAÇÕES (Mantidas) ---
+    if (!selectedProducts?.length)
+      return toastError('Adicione pelo menos um produto')
+
     const produtosInvalidos = selectedProducts.filter(p => {
-      // Converte "2,99" para "2.99" e remove caracteres não numéricos exceto o ponto
       const priceValue =
         typeof p.offerPrice === 'string'
           ? parseFloat(p.offerPrice.replace(',', '.'))
           : p.offerPrice
-
       return isNaN(priceValue) || priceValue <= 0
     })
 
-    if (produtosInvalidos.length > 0) {
-      toastError(
-        'Defina preços válidos (maiores que R$ 0,00) para todos os produtos antes de salvar'
-      )
-      return
-    }
+    if (produtosInvalidos.length > 0)
+      return toastError('Defina preços válidos antes de salvar')
 
-    // Validar nome da oferta - usar o nome da campanha se offerName estiver vazio
-    const finalOfferName =
-      offerName && offerName.trim()
-        ? offerName.trim()
-        : campaignName && campaignName.trim()
-          ? campaignName.trim()
-          : ''
+    const finalOfferName = offerName?.trim() || campaignName?.trim()
+    if (!finalOfferName) return toastError('Informe um nome ou campanha')
 
-    if (!finalOfferName) {
-      toastError('Digite um nome para a oferta ou selecione uma campanha')
-      return
-    }
+    if (!initialDate || !finalDate) return toastError('Informe as datas')
 
-    // Validar datas
-    if (!initialDate || !finalDate) {
-      toastError('Informe as datas inicial e final da oferta')
-      return
-    }
-
-    // Atualizar o nome da oferta no localStorage se estiver usando o nome da campanha
-    if (!offerName && campaignName) {
-      setOfferName(campaignName)
-    }
-
-    // Validar formato das datas (DD/MM/YYYY para YYYY-MM-DD)
-    const formatDateForAPI = dateString => {
-      if (
-        !dateString ||
-        typeof dateString !== 'string' ||
-        !dateString.includes('/')
-      ) {
-        return null
-      }
-      const parts = dateString.split('/')
-      if (parts.length !== 3) {
-        return null
-      }
-      const [day, month, year] = parts
-      return `${year}-${month}-${day}`
-    }
-
+    const formatDateForAPI = d => d.split('/').reverse().join('-')
     const formattedInitialDate = formatDateForAPI(initialDate)
     const formattedFinalDate = formatDateForAPI(finalDate)
 
-    if (!formattedInitialDate || !formattedFinalDate) {
-      toastError('Formato de data inválido. Use DD/MM/AAAA')
-      return
-    }
-
-    // Validar que a data final é posterior à inicial
-    const initialDateObj = new Date(formattedInitialDate)
-    const finalDateObj = new Date(formattedFinalDate)
-
-    if (initialDateObj > finalDateObj) {
-      toastError('A data final deve ser posterior à data inicial')
-      return
-    }
+    // --- EXECUÇÃO ---
+    setIsSavingOffer(true)
 
     try {
-      // Garantir que temos um array válido
-      if (!Array.isArray(selectedProducts) || selectedProducts.length === 0) {
-        throw new Error('Lista de produtos inválida')
-      }
+      // 1. Formatar dados para a API principal
+      const productsFormatted = selectedProducts.map(product => ({
+        product_id: product.prod_codigo || '',
+        description: product.prod_descricao || '',
+        cost: (parseFloat(product.prod_preco_custo) || 0).toString(),
+        price: (parseFloat(product.prod_preco_venda) || 0).toString(),
+        offer: parseFloat(
+          String(product.offerPrice).replace(',', '.')
+        ).toString(),
+        profit: (parseFloat(product.profit) || 0).toString(),
+        unit: product.unidade || userUnit || ''
+      }))
 
-      // 1. Preparar os dados para salvar a oferta - com verificação adicional de segurança
-      const productsFormatted = []
-
-      // Processar cada produto individualmente para evitar erros em lote
-      for (let i = 0; i < selectedProducts.length; i++) {
-        const product = selectedProducts[i]
-
-        // Verificação detalhada para depuração
-        if (!product || typeof product !== 'object') {
-          console.error(`Produto ${i} inválido:`, product)
-          continue // Pula este produto em vez de falhar completamente
-        }
-
-        productsFormatted.push({
-          product_id: product.prod_codigo || '',
-          description: product.prod_descricao || '',
-          cost: (parseFloat(product.prod_preco_custo) || 0).toString(),
-          price: (parseFloat(product.prod_preco_venda) || 0).toString(),
-          offer: (parseFloat(product.offerPrice) || 0).toString(),
-          profit: (parseFloat(product.profit) || 0).toString(),
-          unit: product.unidade || userUnit || ''
-        })
-      }
-
-      // Verificar se temos produtos após filtragem
-      if (productsFormatted.length === 0) {
-        throw new Error('Nenhum produto válido para salvar')
-      }
-
-      // 2. Enviar requisição para criar a oferta e seus produtos
-      const response = await api.post('/offers', {
+      // 2. Enviar para o banco
+      await api.post('/offers', {
         name: finalOfferName,
         initial_date: formattedInitialDate,
         final_date: formattedFinalDate,
@@ -693,115 +650,43 @@ export function NewOffer() {
         campaign_name: campaignName || null
       })
 
-      // Capturar o ID da oferta criada
-      const offerId = response.data.offer_id
+      // 3. Limpeza Atômica (Importante: limpa rascunho antes de abrir o PDF)
+      await api.delete(`/offers/draft/all/${userUnit}`)
 
-      // 3. Agora gerar o PDF usando o controlador específico de PDF
-      // Formatar os produtos para o formato esperado pelo gerador de PDF
-      const produtosPDF = []
+      // 4. Gerar PDF usando a nova função
+      await handleGeneratePDF({
+        products: selectedProducts,
+        unit: userUnit,
+        name: finalOfferName,
+        initialDate: formattedInitialDate,
+        finalDate: formattedFinalDate,
+        campaignId: campaignSelected,
+        campaignName: campaignName
+      })
 
-      // Novamente, verificação produto a produto
-      for (const product of selectedProducts) {
-        if (product && typeof product === 'object') {
-          produtosPDF.push({
-            produto_id: product.prod_codigo || '',
-            descricao: product.prod_descricao || '',
-            custo: parseFloat(product.prod_preco_custo) || 0,
-            preco_original: parseFloat(product.prod_preco_venda) || 0,
-            preco_oferta: parseFloat(product.offerPrice) || 0
-          })
-        }
-      }
-
-      // Verificar novamente se temos produtos válidos para o PDF
-      if (produtosPDF.length === 0) {
-        throw new Error('Nenhum produto válido para gerar o PDF')
-      }
-
-      // Requisição separada para o gerador de PDF
-      const pdfResponse = await api.post(
-        '/offers/pdf',
-        {
-          produtos: produtosPDF,
-          unidade: userUnit || '',
-          name: finalOfferName,
-          initialDate: formattedInitialDate,
-          finalDate: formattedFinalDate,
-          campaign_id: campaignSelected || null,
-          campaign_name: campaignName || null
-        },
-        {
-          responseType: 'blob' // Importante para receber dados binários
-        }
-      )
-
-      // 4. Processar o PDF recebido
-      const blob = new Blob([pdfResponse.data], { type: 'application/pdf' })
-      const url = window.URL.createObjectURL(blob)
-
-      // 5. Abrir o PDF em uma nova janela
-      const printWindow = window.open(url, '_blank')
-
-      if (printWindow) {
-        printWindow.document.title = `Oferta: ${finalOfferName}`
-        printWindow.onload = function () {
-          printWindow.focus()
-          setTimeout(() => {
-            printWindow.print()
-          }, 1000)
-        }
-
-        // Armazenar os dados relevantes para geração de cartazes
-        setSavedOfferData({
-          products: selectedProducts,
-          initialDate: initialDate,
-          finalDate: finalDate,
-          campaignId: campaignSelected,
-          campaignName: campaignName,
-          offerName: finalOfferName
-        })
-
-        toastSuccess('Oferta salva com sucesso e PDF gerado!')
-        setShowPostersConfirmation(true) // Mostrar o modal de confirmação
-        clearForm(true, true)
-      } else {
-        // Armazenar os dados relevantes para geração de cartazes
-        setSavedOfferData({
-          products: selectedProducts,
-          initialDate: initialDate,
-          finalDate: finalDate,
-          campaignId: campaignSelected,
-          campaignName: campaignName,
-          offerName: finalOfferName
-        })
-
-        toastSuccess('Oferta salva com sucesso!')
-        setShowPostersConfirmation(true) // Mostrar o modal de confirmação
-        clearForm(true, true)
-
-        toastError(
-          'Não foi possível abrir o PDF. Verifique se o bloqueador de pop-ups está desativado.'
-        )
-      }
+      // 5. Reset do Estado Local
+      toastSuccess('Oferta finalizada com sucesso!')
+      setSelectedProducts([])
+      setShowPostersConfirmation(true)
+      clearForm(true, true)
     } catch (error) {
       console.error('Erro ao salvar oferta:', error)
       toastError(
         'Erro ao salvar a oferta: ' + (error.message || 'Erro desconhecido')
       )
+    } finally {
+      setIsSavingOffer(false)
     }
   }, [
     selectedProducts,
     userUnit,
-    api,
     offerName,
     campaignName,
     campaignSelected,
     initialDate,
     finalDate,
-    setOfferName,
-    clearForm,
-    toastError,
-    toastSuccess
+    handleGeneratePDF,
+    clearForm
   ])
 
   const handleKeyDown = useCallback((event, index) => {
@@ -851,29 +736,6 @@ export function NewOffer() {
       setCampaignName('')
     }
   }
-
-  // Use o padrão de atualização funcional para evitar dependência de selectedProducts
-  // const updateOfferPrice = useCallback((productId, newPrice) => {
-  //   setSelectedProducts(prev => {
-  //     // 1. Achar o produto
-  //     const index = prev.findIndex(p => p.id === productId);
-  //     if (index === -1 || prev[index].offerPrice === newPrice) return prev;
-
-  //     // 2. Criar nova lista
-  //     const updatedList = [...prev];
-  //     const item = { ...updatedList[index] };
-
-  //     // 3. Calcular margem
-  //     const sanitized = String(newPrice).replace(',', '.').replace(/[^\d.]/g, '');
-  //     const validNumber = parseFloat(sanitized) || 0;
-
-  //     item.offerPrice = newPrice;
-  //     item.profit = calculateProfit(item.prod_preco_custo, validNumber);
-
-  //     updatedList[index] = item;
-  //     return updatedList;
-  //   });
-  // }, [calculateProfit]); // APENAS calculateProfit como dependência
 
   const MARGIN_THEME = {
     CRITICAL: {
@@ -958,7 +820,7 @@ export function NewOffer() {
             className="text-red-500 h-8 w-8"
             onClick={() => removeProduct(row.original.id)}
           >
-            <PiTrash size={18} />
+            <Trash2 size={18} />
           </Button>
         )
       }
@@ -968,42 +830,73 @@ export function NewOffer() {
 
   const handleRowUpdate = useCallback(
     (rowIndex, columnId, value) => {
-      // LOG DE SEGURANÇA
-      if (value === undefined) {
-        console.error('[BUG] Tentativa de atualizar com valor undefined!')
-        return
-      }
-
       setSelectedProducts(prev => {
-        // 1. Criamos uma cópia profunda da lista para não mutar o estado anterior
-        const newData = Array.from(prev)
-
-        if (!newData[rowIndex]) return prev
-
-        // 2. Criamos uma cópia do item específico
+        const newData = [...prev]
         const item = { ...newData[rowIndex] }
 
-        // 3. Só atualizamos se o valor for realmente diferente
-        if (item[columnId] === value) return prev
+        if (item[columnId] === value) return prev // Evita renders inúteis
 
         item[columnId] = value
 
-        // 4. Recalcula a margem se for o preço
         if (columnId === 'offerPrice') {
           const sanitized = String(value)
             .replace(',', '.')
             .replace(/[^\d.]/g, '')
           const validNumber = parseFloat(sanitized) || 0
-          const cost = parseFloat(item.prod_preco_custo) || 0
-          item.profit = calculateProfit(cost, validNumber)
+          item.profit = calculateProfit(item.prod_preco_custo, validNumber)
+
+          // Lógica de Debounce
+          const productId = item.prod_codigo
+          if (syncTimeoutRef.current[productId]) {
+            clearTimeout(syncTimeoutRef.current[productId])
+          }
+
+          syncTimeoutRef.current[productId] = setTimeout(async () => {
+            try {
+              await syncItemToDatabase(item)
+            } catch (err) {
+              console.error('Falha ao sincronizar preço:', err)
+            }
+          }, 800)
         }
 
         newData[rowIndex] = item
         return newData
       })
     },
-    [calculateProfit]
+    [calculateProfit, syncItemToDatabase]
   )
+
+  useEffect(() => {
+    async function loadDraft() {
+      if (!userUnit) return
+
+      try {
+        setIsLoading(true)
+        const response = await api.get(`/offers/draft/${userUnit}`)
+
+        // Mapeia de volta para o formato que sua DataTable espera
+        const mappedProducts = response.data.map(item => ({
+          id: item.product_id, // Usamos o código como ID
+          prod_codigo: item.product_id,
+          prod_descricao: item.description,
+          prod_cod_barras: item.barcode,
+          prod_preco_custo: item.cost_price,
+          prod_preco_venda: item.sale_price,
+          offerPrice: item.offer_price === 0 ? '' : String(item.offer_price).replace('.', ','),
+          profit: calculateProfit(item.cost_price, item.offer_price)
+        }))
+
+        setSelectedProducts(mappedProducts)
+      } catch (error) {
+        toastError('Não foi possível recuperar o rascunho da rede.')
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadDraft()
+  }, [userUnit, calculateProfit])
 
   // Renderização principal
   return (
@@ -1015,12 +908,49 @@ export function NewOffer() {
             <h1 className="text-base font-bold text-neutral-600">
               Gestão de Ofertas
             </h1>
-            <Button
-              onClick={openModal}
-              className="bg-orange-500 hover:bg-orange-600 transition-colors duration-300 text-white gap-2 shadow-none"
-            >
-              <Barcode /> Produtos
-            </Button>
+            <div className="flex gap-2">
+              <div className="flex items-center gap-2 px-3 py-1 rounded-md border bg-white shadow-sm">
+                {syncError ? (
+                  <div className="flex items-center gap-2 text-red-600 animate-pulse">
+                    <span className="text-xs font-medium uppercase tracking-tighter italic">
+                      Erro de Conexão
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-red-600 hover:bg-red-50"
+                      onClick={() => {
+                        // Força a sincronização de todos os itens atuais
+                        setSyncError(false)
+                        selectedProducts.forEach(p => syncItemToDatabase(p))
+                      }}
+                    >
+                      <CloudAlert />
+                    </Button>
+                  </div>
+                ) : isSyncing ? (
+                  <div className="flex items-center gap-2 text-blue-500">
+                    <span className="text-[10px] uppercase font-bold tracking-widest">
+                      Sincronizando...
+                    </span>
+                    <CloudUpload size={20} className="animate-bounce" />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-green-600">
+                    <span className="text-[10px] uppercase font-bold tracking-widest text-neutral-400">
+                      Salvo na nuvem
+                    </span>
+                    <CloudCheck size={20} />
+                  </div>
+                )}
+              </div>
+              <Button
+                onClick={openModal}
+                className="bg-orange-500 hover:bg-orange-600 transition-colors duration-300 text-white gap-2 shadow-none"
+              >
+                <Barcode /> Produtos
+              </Button>
+            </div>
           </div>
 
           <Section>
@@ -1060,7 +990,7 @@ export function NewOffer() {
                     placeholder="00/00/0000"
                     onChange={handleInitialDateChange}
                     name="initial_date"
-                    icon={PiCalendarDots}
+                    icon={CalendarDays}
                     value={initialDate}
                   />
                 </Field>
@@ -1073,7 +1003,7 @@ export function NewOffer() {
                     placeholder="00/00/0000"
                     onChange={handleFinalDateChange}
                     name="final_date"
-                    icon={PiCalendarDots}
+                    icon={CalendarDays}
                     value={finalDate}
                   />
                 </Field>
@@ -1092,7 +1022,7 @@ export function NewOffer() {
                     onClick={() => clearForm(true)}
                     className="text-red-500 hover:bg-red-50 hover:text-red-500 border-red-200 h-10 px-4 w-fit md:w-fit"
                   >
-                    <PiTrash size={18} /> Limpar
+                    <Trash2 size={18} /> Limpar
                   </Button>
                 </Field>
               </div>
@@ -1103,7 +1033,7 @@ export function NewOffer() {
               <div className="bg-white rounded-xl overflow-hidden">
                 {selectedProducts.length === 0 ? (
                   <div className="flex flex-col items-center justify-center p-12 text-muted-foreground gap-2">
-                    <PiBarcode size={48} className="opacity-20" />
+                    <BarcodeIcon size={48} className="opacity-20" />
                     <p className="text-sm">
                       Nenhum produto selecionado para oferta.
                     </p>
@@ -1127,35 +1057,21 @@ export function NewOffer() {
         </Content>
 
         {showClearConfirmation && (
-          <ConfirmationModalContainer>
-            <ConfirmationModalContent>
-              <ConfirmationModalHeader>
-                <ConfirmationModalTitle>
-                  Confirmar Limpeza
-                </ConfirmationModalTitle>
-              </ConfirmationModalHeader>
-              <ConfirmationModalBody>
-                <p>
-                  Tem certeza que deseja limpar todo o formulário? Esta ação irá
-                  remover todos os produtos selecionados e limpar todos os
-                  campos.
-                </p>
-              </ConfirmationModalBody>
-              <ConfirmationModalFooter>
-                <Button
-                  title="Cancelar"
-                  color="GRAY"
-                  onClick={handleCancelClear}
-                />
-                <Button
-                  title="Sim, Limpar Tudo"
-                  icon={PiTrash}
-                  color="RED"
-                  onClick={handleConfirmClear}
-                />
-              </ConfirmationModalFooter>
-            </ConfirmationModalContent>
-          </ConfirmationModalContainer>
+          <ConfirmModal
+            isOpen={showClearConfirmation}
+            onClose={handleCancelClear}
+            onConfirm={handleConfirmClear}
+            title="Confirmar Limpeza"
+            content="Tem certeza que deseja limpar todo o formulário? Esta ação irá remover todos os produtos e resetar os campos."
+            icon={Trash2}
+            variant="destructive"
+            confirmButtonText={
+              <div className="flex items-center gap-2">
+                <Trash2 size={18} />
+                <span>Sim, Limpar Tudo</span>
+              </div>
+            }
+          />
         )}
 
         {/* Modal de pesquisa de produtos (renderização condicional) */}
@@ -1171,6 +1087,29 @@ export function NewOffer() {
             onSelectProduct={setSelectedProductId}
             onConfirm={addSelectedProduct}
             formatCurrency={formatCurrency}
+          />
+        )}
+
+        {isSavingOffer && (
+          <ConfirmModal
+            isOpen={isSavingOffer}
+            title="Processando Oferta"
+            content={
+              <div className="flex flex-col gap-2">
+                <p>
+                  Estamos salvando no banco de dados, limpando rascunhos e
+                  gerando seu PDF.
+                </p>
+                <p className="font-medium text-green-600">
+                  Por favor, aguarde um instante...
+                </p>
+              </div>
+            }
+            icon={() => (
+              <Loader2 className="h-6 w-6 animate-spin text-green-600" />
+            )}
+            variant="success"
+            isLoading={true}
           />
         )}
       </Container>
