@@ -23,7 +23,7 @@ import { Layout } from '@/components/Layout/index.jsx'
 import { Button } from '@/components/ui/button'
 import { Field, FieldLabel } from '@/components/ui/field.jsx'
 import { Input } from '@/components/ui/input'
-import { Loader2, Printer, Trash2 } from 'lucide-react'
+import { Loader2, Pencil, Printer, Trash2 } from 'lucide-react'
 import { ConfirmModal } from '@/components/ConfirmModal/index.jsx'
 
 export function Print() {
@@ -51,6 +51,7 @@ export function Print() {
   const [campaignType, setCampaignType] = useState('all')
 
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   const columns = [
     { id: 'id', accessorKey: 'id', header: 'ID', sortable: true },
@@ -88,7 +89,26 @@ export function Print() {
       sortable: true,
       cell: ({ row }) => formatDate(row.original.final_date)
     },
-    { id: 'price', accessorKey: 'price', header: 'Oferta (R$)', sortable: true }
+    {
+      id: 'price',
+      accessorKey: 'price',
+      header: 'Oferta (R$)',
+      sortable: true
+    },
+    {
+      id: 'actions',
+      header: '',
+      cell: ({ row }) => (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="bg-blue-50 text-blue-500 hover:bg-blue-100 hover:text-blue-500 h-8 w-8"
+          onClick={() => navigate(`/details/${row.original.id}`)}
+        >
+          <Pencil size={18} />
+        </Button>
+      )
+    }
   ]
 
   useEffect(() => {
@@ -476,8 +496,6 @@ export function Print() {
                 onRowSelect={handleCheckboxSelected}
                 showSelectColumn={true}
                 enableRowSelection={true}
-                actionType="edit" // OU "edit"
-                handleAction={data => console.log('Ação disparada para:', data)}
               />
             ) : (
               <Message>
@@ -505,7 +523,7 @@ export function Print() {
 
             <Button
               variant="outline"
-              onClick={deletePosters}
+              onClick={() => setShowDeleteConfirm(true)}
               disabled={loading || filteredPosters.length === 0}
               className="text-red-500 hover:bg-red-50 hover:text-red-600 border-red-200"
             >
@@ -532,6 +550,20 @@ export function Print() {
               isLoading={true}
             />
           )}
+
+          <ConfirmModal
+            isOpen={showDeleteConfirm}
+            onClose={() => setShowDeleteConfirm(false)}
+            onConfirm={() => {
+              deletePosters()
+              setShowDeleteConfirm(false)
+            }}
+            title="Excluir Cartazes"
+            content="Tem certeza que deseja excluir os cartazes selecionados? Esta ação não pode ser desfeita."
+            icon={Trash2}
+            variant="destructive"
+            confirmButtonText="Sim, Excluir"
+          />
         </Content>
       </Container>
     </Layout>

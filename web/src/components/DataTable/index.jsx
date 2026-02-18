@@ -49,8 +49,6 @@ export function DataTable({
   showEditColumn = false,
   showSelectColumn = true,
   enableRowSelection = true,
-  actionType = null, // "edit" ou "print"
-  handleAction, // Função que será disparada ao clicar
   defaultPageSize = 10
 }) {
   const [sorting, setSorting] = useState([])
@@ -65,7 +63,6 @@ export function DataTable({
 
   const tableColumns = React.useMemo(() => {
     const cols = [...columns].map(col => {
-// ... dentro de cols.map
 if (col.accessorKey === 'status') {
   return {
     ...col,
@@ -144,40 +141,8 @@ if (col.accessorKey === 'status') {
       })
     }
 
-    // NOVA COLUNA DE AÇÕES DINÂMICA
-    if (actionType) {
-      cols.push({
-        id: 'actions',
-        header: () => <div className="text-center">Ações</div>,
-        cell: ({ row }) => {
-          const isEdit = actionType === 'edit'
-          return (
-            <div
-              className="flex justify-center"
-              onClick={e => e.stopPropagation()}
-            >
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => handleAction?.(row.original)}
-                className={`h-8 w-8 transition-colors ${
-                  isEdit
-                    ? 'hover:text-blue-600 hover:bg-blue-50'
-                    : 'hover:text-orange-600 hover:bg-orange-100 text-orange-500'
-                }`}
-              >
-                {/* Lucide icons: ArrowUpAZ para ordenação, mas usamos Pencil para Edit */}
-                {isEdit ? <Pencil size={16} /> : <Printer size={16} />}
-              </Button>
-            </div>
-          )
-        },
-        enableSorting: false
-      })
-    }
-
     return cols
-  }, [columns, showSelectColumn, enableRowSelection, actionType, handleAction])
+  }, [columns, showSelectColumn, enableRowSelection])
 
   const table = useReactTable({
     data,

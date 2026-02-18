@@ -43,6 +43,7 @@ import { useNavigate } from 'react-router-dom'
 import { ConfirmModal } from '../../components/ConfirmModal'
 import { ProductSearchModal } from '../../components/ProductsSearchModal'
 import { useCreatedPoster } from '../../hooks/createdPoster'
+import { PriceCell } from '../../components/PriceCell'
 
 // Custom hook para debounce de pesquisa
 function useDebounce(value, delay) {
@@ -61,59 +62,59 @@ function useDebounce(value, delay) {
   return debouncedValue
 }
 
-const PriceCell = React.memo(({ getValue, row, column, table }) => {
-  const initialValue = getValue()
-  const [value, setValue] = useState(initialValue === '0,00' ? '' : initialValue)
+// const PriceCell = React.memo(({ getValue, row, column, table }) => {
+//   const initialValue = getValue()
+//   const [value, setValue] = useState(initialValue === '0,00' ? '' : initialValue)
 
- useEffect(() => {
-    if (initialValue !== undefined && initialValue !== value) {
-      setValue(initialValue === '0,00' ? '' : initialValue)
-    }
-  }, [initialValue])
+//  useEffect(() => {
+//     if (initialValue !== undefined && initialValue !== value) {
+//       setValue(initialValue === '0,00' ? '' : initialValue)
+//     }
+//   }, [initialValue])
 
- const updateParent = val => {
-    const finalValue = val.trim() === '' ? '0,00' : val
-    table.options.meta?.updateData(row.index, column.id, finalValue)
-  }
+//  const updateParent = val => {
+//     const finalValue = val.trim() === '' ? '0,00' : val
+//     table.options.meta?.updateData(row.index, column.id, finalValue)
+//   }
 
-  const handleKeyDown = e => {
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      updateParent(value)
+//   const handleKeyDown = e => {
+//     if (e.key === 'Enter') {
+//       e.preventDefault()
+//       updateParent(value)
 
-      const allInputs = Array.from(
-        document.querySelectorAll('input.offer-price-input')
-      )
-      const currentIndex = allInputs.indexOf(e.currentTarget)
+//       const allInputs = Array.from(
+//         document.querySelectorAll('input.offer-price-input')
+//       )
+//       const currentIndex = allInputs.indexOf(e.currentTarget)
 
-      if (currentIndex !== -1 && currentIndex < allInputs.length - 1) {
-        setTimeout(() => {
-          allInputs[currentIndex + 1].focus()
-          allInputs[currentIndex + 1].select()
-        }, 10)
-      }
-    }
-  }
+//       if (currentIndex !== -1 && currentIndex < allInputs.length - 1) {
+//         setTimeout(() => {
+//           allInputs[currentIndex + 1].focus()
+//           allInputs[currentIndex + 1].select()
+//         }, 10)
+//       }
+//     }
+//   }
 
-  return (
-    <Input
-      type="text"
-      className="w-24 h-8 text-center font-bold border-green-200 focus:ring-green-600 offer-price-input"
-      value={value}
-      placeholder="0,00"
-      onChange={e => {
-        setValue(e.target.value)
-        updateParent(e.target.value)
-      }}
-      onBlur={() => updateParent(value)}
-      onKeyDown={handleKeyDown}
-      onFocus={e => {
-        e.target.select();
-        table.options.meta?.setActiveRowIndex?.(row.index);
-      }}
-    />
-  )
-})
+//   return (
+//     <Input
+//       type="text"
+//       className="w-24 h-8 text-center font-bold border-green-200 focus:ring-green-600 offer-price-input"
+//       value={value}
+//       placeholder="0,00"
+//       onChange={e => {
+//         setValue(e.target.value)
+//         updateParent(e.target.value)
+//       }}
+//       onBlur={() => updateParent(value)}
+//       onKeyDown={handleKeyDown}
+//       onFocus={e => {
+//         e.target.select();
+//         table.options.meta?.setActiveRowIndex?.(row.index);
+//       }}
+//     />
+//   )
+// })
 
 export function NewOffer() {
   const navigate = useNavigate()
@@ -737,6 +738,45 @@ export function NewOffer() {
     }
   }
 
+   const handleRowUpdate = useCallback(
+    (rowIndex, columnId, value) => {
+      setSelectedProducts(prev => {
+        const newData = [...prev]
+        const item = { ...newData[rowIndex] }
+
+        if (item[columnId] === value) return prev // Evita renders inúteis
+
+        item[columnId] = value
+
+        if (columnId === 'offerPrice') {
+          const sanitized = String(value)
+            .replace(',', '.')
+            .replace(/[^\d.]/g, '')
+          const validNumber = parseFloat(sanitized) || 0
+          item.profit = calculateProfit(item.prod_preco_custo, validNumber)
+
+          // Lógica de Debounce
+          const productId = item.prod_codigo
+          if (syncTimeoutRef.current[productId]) {
+            clearTimeout(syncTimeoutRef.current[productId])
+          }
+
+          syncTimeoutRef.current[productId] = setTimeout(async () => {
+            try {
+              await syncItemToDatabase(item)
+            } catch (err) {
+              console.error('Falha ao sincronizar preço:', err)
+            }
+          }, 800)
+        }
+
+        newData[rowIndex] = item
+        return newData
+      })
+    },
+    [calculateProfit, syncItemToDatabase]
+  )
+
   const MARGIN_THEME = {
     CRITICAL: {
       min: -Infinity,
@@ -779,7 +819,13 @@ export function NewOffer() {
       {
         accessorKey: 'offerPrice',
         header: 'Preço Oferta (R$)',
-        cell: PriceCell
+        cell: ({ row }) => (
+          <PriceCell
+            value={row.original.offerPrice}
+            index={row.index} // <--- Passando o índice da linha da tabela
+            onUpdate={newValue => handleRowUpdate(row.index, 'offerPrice', newValue)}
+          />
+        )
       },
       {
         accessorKey: 'profit',
@@ -825,47 +871,10 @@ export function NewOffer() {
         )
       }
     ],
-    [formatCurrency] // REMOVIDO selectedProducts e updateOfferPrice daqui
+    [formatCurrency, handleRowUpdate] // REMOVIDO selectedProducts e updateOfferPrice daqui
   )
 
-  const handleRowUpdate = useCallback(
-    (rowIndex, columnId, value) => {
-      setSelectedProducts(prev => {
-        const newData = [...prev]
-        const item = { ...newData[rowIndex] }
-
-        if (item[columnId] === value) return prev // Evita renders inúteis
-
-        item[columnId] = value
-
-        if (columnId === 'offerPrice') {
-          const sanitized = String(value)
-            .replace(',', '.')
-            .replace(/[^\d.]/g, '')
-          const validNumber = parseFloat(sanitized) || 0
-          item.profit = calculateProfit(item.prod_preco_custo, validNumber)
-
-          // Lógica de Debounce
-          const productId = item.prod_codigo
-          if (syncTimeoutRef.current[productId]) {
-            clearTimeout(syncTimeoutRef.current[productId])
-          }
-
-          syncTimeoutRef.current[productId] = setTimeout(async () => {
-            try {
-              await syncItemToDatabase(item)
-            } catch (err) {
-              console.error('Falha ao sincronizar preço:', err)
-            }
-          }, 800)
-        }
-
-        newData[rowIndex] = item
-        return newData
-      })
-    },
-    [calculateProfit, syncItemToDatabase]
-  )
+ 
 
   useEffect(() => {
     async function loadDraft() {
@@ -883,7 +892,10 @@ export function NewOffer() {
           prod_cod_barras: item.barcode,
           prod_preco_custo: item.cost_price,
           prod_preco_venda: item.sale_price,
-          offerPrice: item.offer_price === 0 ? '' : String(item.offer_price).replace('.', ','),
+          offerPrice:
+            item.offer_price === 0
+              ? ''
+              : String(item.offer_price).replace('.', ','),
           profit: calculateProfit(item.cost_price, item.offer_price)
         }))
 
