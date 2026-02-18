@@ -6,7 +6,11 @@ class PostersPdfController {
   async create(request, response) {
     const { selectedPosterIds, campaignImages, campaignId } = request.body
 
-    console.log('campanha:', campaignId)
+    console.log('IDs recebidos:', selectedPosterIds)
+    console.log(
+      'Imagens recebidas (chaves):',
+      Object.keys(campaignImages || {})
+    )
 
     //Função para formatar a data dd/mm/yyyy
     function formatDate(date) {
@@ -95,7 +99,7 @@ class PostersPdfController {
 
       const browser = await puppeteer.launch({
         executablePath:
-          process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
+          process.env.CHROME_PATH || '/usr/bin/chromium-browser',
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',

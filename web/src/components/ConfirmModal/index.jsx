@@ -21,9 +21,9 @@ export function ConfirmModal({
 }) {
   // Mapeamento de cores baseado na variante
   const variants = {
-    destructive: 'bg-red-50 text-red-900 confirm-button-red',
-    success: 'bg-green-50 text-green-900 confirm-button-green',
-    default: 'bg-blue-50 text-blue-900 confirm-button-blue'
+    destructive: 'bg-red-50 text-red-600 confirm-button-red',
+    success: 'bg-green-50 text-green-600 confirm-button-green',
+    default: 'bg-blue-50 text-blue-600 confirm-button-blue'
   }
 
   const btnColors = {
@@ -45,7 +45,7 @@ export function ConfirmModal({
         </DialogHeader>
 
         <div className="p-6">
-          <div className="text-neutral-600 text-sm leading-relaxed">
+          <div className="text-neutral-600 text-base leading-relaxed">
             {content}
           </div>
         </div>

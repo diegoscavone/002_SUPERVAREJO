@@ -1,42 +1,30 @@
-import {
-  Container,
-  Content,
-  ButtonWrapper,
-  InputWrapper,
-  Label,
-  Form,
-  ButtonSearch,
-  Message,
-  SelectWrapper
-} from './styles.js'
+import { Container, Content, Message } from './styles.js'
 
-import { PiFunnel, PiPrinter, PiTrash } from 'react-icons/pi'
-
-import { Header } from '../../components/Header'
-import { Nav } from '../../components/Nav'
-import { Footer } from '../../components/Footer'
-import { Button } from '../../components/Button'
 import { Section } from '../../components/Section'
 
 import { useEffect, useState } from 'react'
 
-import { api, apiERP } from '../../services/api'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+import { useNavigate } from 'react-router-dom'
 import { ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
-import { useNavigate } from 'react-router-dom'
-import { Select } from '../../components/Select'
-import { Input } from '../../components/Input'
 import { DataTable } from '../../components/DataTable'
+
+import { api, apiERP } from '../../services/api'
 import { toastError, toastInfo, toastSuccess } from '../../styles/toastConfig'
 
-import {
-  parseISO,
-  isAfter,
-  isBefore,
-  startOfDay,
-  endOfDay,
-  parse
-} from 'date-fns'
+import { Layout } from '@/components/Layout/index.jsx'
+import { Button } from '@/components/ui/button'
+import { Field, FieldLabel } from '@/components/ui/field.jsx'
+import { Input } from '@/components/ui/input'
+import { Loader2, Printer, Trash2 } from 'lucide-react'
+import { ConfirmModal } from '@/components/ConfirmModal/index.jsx'
 
 export function Print() {
   const navigate = useNavigate()
@@ -52,47 +40,20 @@ export function Print() {
 
   const [filteredPosters, setFilteredPosters] = useState([])
 
-  const [initialDate, setInitialDate] = useState('')
-  const [finalDate, setFinalDate] = useState('')
+  // const [initialDate, setInitialDate] = useState('')
+  // const [finalDate, setFinalDate] = useState('')
   const [statusFilter, setStatusFilter] = useState('0')
-  const [campaignFilter, setCampaignFilter] = useState('')
+  const [campaignFilter, setCampaignFilter] = useState('all')
   const [descriptionFilter, setDescriptionFilter] = useState('')
   const [units, setUnits] = useState([])
-  const [unitsFilter, setUnitsFilter] = useState('')
+  const [unitsFilter, setUnitsFilter] = useState('all')
   const [campaigns, setCampaigns] = useState([])
-  const [campaignType, setCampaignType] = useState('')
+  const [campaignType, setCampaignType] = useState('all')
 
-  // const posterColumns = [
-  //   { accessorKey: 'id', header: 'ID', enableSorting: true },
-  //   { accessorKey: 'product_id', header: 'Código', enableSorting: true },
-  //   { accessorKey: 'description', header: 'Descrição', enableSorting: true },
-  //   // { accessorKey: 'complement', header: 'Comp.', enableSorting: true },
-  //   { accessorKey: 'campaign_id', header: 'Campanha', enableSorting: true },
-  //   // { accessorKey: 'packaging', header: 'Emb', enableSorting: true },
-  //   {
-  //     accessorKey: 'initial_date',
-  //     header: 'Data Inicial',
-  //     cell: ({ getValue }) => formatDate(getValue()),
-  //     enableSorting: true
-  //   },
-  //   {
-  //     accessorKey: 'final_date',
-  //     header: 'Data Final',
-  //     cell: ({ getValue }) => formatDate(getValue()),
-  //     enableSorting: true
-  //   },
-  //   { accessorKey: 'price', header: 'Preço' }
-  // ]
-
-  // ]
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
 
   const columns = [
-    {
-      id: 'id',
-      accessorKey: 'id',
-      header: 'ID',
-      sortable: true
-    },
+    { id: 'id', accessorKey: 'id', header: 'ID', sortable: true },
     {
       id: 'product_id',
       accessorKey: 'product_id',
@@ -105,6 +66,7 @@ export function Print() {
       header: 'Descrição',
       sortable: true
     },
+    { id: 'unit', accessorKey: 'unit', header: 'Loja', sortable: true },
     {
       id: 'campaign_id',
       accessorKey: 'campaign_id',
@@ -126,71 +88,55 @@ export function Print() {
       sortable: true,
       cell: ({ row }) => formatDate(row.original.final_date)
     },
-    {
-      id: 'price',
-      accessorKey: 'price',
-      header: 'Preço',
-      sortable: true
-    }
+    { id: 'price', accessorKey: 'price', header: 'Oferta (R$)', sortable: true }
   ]
 
-  function applyFilters() {
-    let filtered = posters
-
-    // Parse dates to compare
-    const parsedInitialDate = initialDate
-      ? parse(initialDate, 'dd/MM/yyyy', new Date())
-      : null
-    const parsedFinalDate = finalDate
-      ? parse(finalDate, 'dd/MM/yyyy', new Date())
-      : null
-
-    if (parsedInitialDate) {
-      filtered = filtered.filter(poster => {
-        const posterDate = parseISO(poster.initial_date)
-        return isAfter(posterDate, startOfDay(parsedInitialDate))
-      })
+  useEffect(() => {
+    if (!posters || posters.length === 0) {
+      setFilteredPosters([])
+      return
     }
+    const isDescriptionValid =
+      descriptionFilter.length === 0 || descriptionFilter.length >= 3
+    if (isDescriptionValid) {
+      let result = [...posters]
 
-    if (parsedFinalDate) {
-      filtered = filtered.filter(poster => {
-        const posterDate = parseISO(poster.final_date)
-        return isBefore(posterDate, endOfDay(parsedFinalDate))
-      })
-    }
+      if (statusFilter && statusFilter !== 'all') {
+        result = result.filter(p => String(p.status) === statusFilter)
+      }
 
-    if (statusFilter === '0') {
-      filtered = filtered.filter(poster => poster.status === 0)
-    } else if (statusFilter === '1') {
-      filtered = filtered.filter(poster => poster.status === 1)
-    }
+      // Filtro de Unidade
+      if (unitsFilter && unitsFilter !== 'all') {
+        result = result.filter(p => String(p.unit) === unitsFilter)
+      }
 
-    if (campaignFilter) {
-      filtered = filtered.filter(
-        poster => poster.campaign_id === parseInt(campaignFilter)
-      )
-    }
+      // Filtro de Campanha
+      if (campaignFilter && campaignFilter !== 'all') {
+        result = result.filter(p => String(p.campaign_id) === campaignFilter)
+      }
 
-    if (descriptionFilter) {
-      filtered = filtered.filter(poster =>
-        poster.description
-          .toLowerCase()
-          .includes(descriptionFilter.toLowerCase())
-      )
-    }
+      // Filtro de Tipo de Campanha
+      if (campaignType && campaignType !== 'all') {
+        result = result.filter(p => String(p.campaign_type_id) === campaignType)
+      }
 
-    if (unitsFilter) {
-      filtered = filtered.filter(poster => poster.unit === unitsFilter)
+      // Filtro de Descrição
+      if (descriptionFilter.length >= 3) {
+        result = result.filter(p =>
+          p.description.toLowerCase().includes(descriptionFilter.toLowerCase())
+        )
+      }
+
+      setFilteredPosters(result)
     }
-    if (campaignType) {
-      filtered = filtered.filter(poster => {
-        // Supondo que o objeto poster tenha uma propriedade campaign_type_id
-        // Se tiver um nome de propriedade diferente, ajuste de acordo
-        return poster.campaign_type_id === parseInt(campaignType)
-      })
-    }
-    setFilteredPosters(filtered)
-  }
+  }, [
+    statusFilter,
+    descriptionFilter,
+    unitsFilter,
+    campaignFilter,
+    campaignType,
+    posters
+  ])
 
   //Verifica qual checkbox está selecionado
   function handleCheckboxSelected(rowSelection) {
@@ -204,40 +150,24 @@ export function Print() {
     } catch (error) {}
   }
 
-  // async function fetchPosters() {
-  //   try {
-  //     const response = await api.get('/posters')
-  //     setPosters(response.data)
-  //     setFilteredPosters(response.data.filter(poster => poster.status === 0))
-
-  //     response.data.forEach(async poster => {
-  //       const responseCampaign = await api.get(
-  //         `campaigns/${poster.campaign_id}`,
-  //         { responseType: 'blob' }
-  //       )
-
-  //       const reader = new FileReader()
-  //       reader.onload = () => {
-  //         setCampaignImages(prevImages => ({
-  //           ...prevImages,
-  //           [poster.campaign_id]: reader.result
-  //         }))
-  //       }
-  //       reader.readAsDataURL(responseCampaign.data)
-  //     })
-  //   } catch (error) {
-  //     console.error('Erro ao buscar cartazes:', error)
-  //   }
-  // }
-
   async function fetchPosters() {
     try {
+      setLoading(true)
       const response = await api.get('/posters')
+
       setPosters(response.data)
-      setFilteredPosters(response.data.filter(poster => poster.status === 0))
-      // Não buscar imagens aqui - buscar sob demanda
+
+      // Sincronização inicial:
+      // Se você quer que ao carregar já mostre os status '0' (Não impressos)
+      const initialFiltered = response.data.filter(
+        poster => String(poster.status) === statusFilter
+      )
+      setFilteredPosters(initialFiltered)
     } catch (error) {
       console.error('Erro ao buscar cartazes:', error)
+      toastError('Erro ao carregar cartazes.')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -341,79 +271,6 @@ export function Print() {
     }
   }
 
-  //Função que gera o pdf do poster
-  // async function printPoster() {
-  //   const newStatus = 1
-  //   const selectedIds = Object.keys(selectedPosters).filter(
-  //     id => selectedPosters[id]
-  //   )
-
-  //   if (selectedIds.length === 0) {
-  //     toastInfo('Selecione pelo menos um cartaz.')
-  //     return
-  //   }
-
-  //   try {
-  //     setLoading(true)
-  //     const selectedPosterIds = selectedIds.map(id => Number(id))
-
-  //     const selectedPostersData = posters.filter(poster =>
-  //       selectedPosterIds.includes(poster.id)
-  //     )
-
-  //     const selectedCampaignImages = selectedPostersData.reduce(
-  //       (acc, poster) => {
-  //         if (
-  //           poster &&
-  //           poster.campaign_id &&
-  //           campaignImages[poster.campaign_id]
-  //         ) {
-  //           acc[poster.campaign_id] = campaignImages[poster.campaign_id]
-  //         }
-  //         return acc
-  //       },
-  //       {}
-  //     )
-
-  //     const campaignId = campaignsSelect.find(
-  //       campaign => campaign.id === selectedPostersData[0].campaign_id
-  //     )
-
-  //     const response = await api.post(
-  //       '/posters-pdf',
-  //       {
-  //         selectedPosterIds,
-  //         campaignImages: selectedCampaignImages,
-  //         campaignId
-  //       },
-  //       {
-  //         responseType: 'blob'
-  //       }
-  //     )
-
-  //     const blob = new Blob([response.data], { type: 'application/pdf' })
-  //     const url = window.URL.createObjectURL(blob)
-
-  //     const printWindow = window.open(url, '_blank')
-  //     if (printWindow) {
-  //       printWindow.document.title = 'Impressão de Cartaz'
-  //       printWindow.onload = function () {
-  //         printWindow.focus()
-  //         printWindow.print() // Disparar a impressão do PDF
-  //       }
-  //       await alterStatusPoster(selectedPosterIds, newStatus)
-  //     } else {
-  //       // Caso não consiga abrir a nova aba
-  //       toastError('Falha ao abrir a nova aba para visualização do PDF.')
-  //     }
-  //   } catch (error) {
-  //     console.error('Erro:', error.response || error)
-  //     toastError('Erro ao gerar cartaz.')
-  //   } finally {
-  //     setLoading(false)
-  //   }
-  // }
-
   async function printPoster() {
     const newStatus = 1
     const selectedIds = Object.keys(selectedPosters).filter(
@@ -426,21 +283,20 @@ export function Print() {
     }
 
     try {
+      // 1. Inicia o loading e abre o Modal de Processamento
       setLoading(true)
-      const selectedPosterIds = selectedIds.map(id => Number(id))
+      setIsGeneratingPDF(true)
 
+      const selectedPosterIds = selectedIds.map(id => Number(id))
       const selectedPostersData = posters.filter(poster =>
         selectedPosterIds.includes(poster.id)
       )
 
-      // Buscar apenas as imagens necessárias
       const uniqueCampaignIds = [
         ...new Set(selectedPostersData.map(poster => poster.campaign_id))
       ]
-
       const selectedCampaignImages = {}
 
-      // Buscar imagens uma por vez para não sobrecarregar
       for (const campaignId of uniqueCampaignIds) {
         const imageData = await fetchCampaignImage(campaignId)
         if (imageData) {
@@ -459,31 +315,28 @@ export function Print() {
           campaignImages: selectedCampaignImages,
           campaignId
         },
-        {
-          responseType: 'blob'
-        }
+        { responseType: 'blob' }
       )
 
-      // Resto do código permanece igual...
       const blob = new Blob([response.data], { type: 'application/pdf' })
       const url = window.URL.createObjectURL(blob)
 
       const printWindow = window.open(url, '_blank')
+
       if (printWindow) {
         printWindow.document.title = 'Impressão de Cartaz'
-        printWindow.onload = function () {
-          printWindow.focus()
-          printWindow.print()
-        }
         await alterStatusPoster(selectedPosterIds, newStatus)
+        toastSuccess('Cartazes gerados com sucesso!')
       } else {
-        toastError('Falha ao abrir a nova aba para visualização do PDF.')
+        toastError('O bloqueador de pop-ups impediu a abertura do PDF.')
       }
     } catch (error) {
       console.error('Erro:', error.response || error)
       toastError('Erro ao gerar cartaz.')
     } finally {
       setLoading(false)
+      setIsGeneratingPDF(false)
+      setSelectedPosters({})
     }
   }
 
@@ -515,124 +368,172 @@ export function Print() {
   }
 
   return (
-    <Container>
-      <Header />
-      <Nav />
+    <Layout>
       <ToastContainer />
-      <Content>
-        <Section title="Gestão de Cartazes">
-          <Form>
-            <SelectWrapper>
-              <Label>Situação</Label>
-              <Select
-                value={statusFilter}
-                onChange={e => setStatusFilter(e.target.value)}
-              >
-                <option value="">Todos</option>
-                <option value="1">Impressos</option>
-                <option value="0">Não Impressos</option>
-              </Select>
-            </SelectWrapper>
-            <SelectWrapper>
-              <Label>Campanha</Label>
-              <Select
-                value={campaignFilter}
-                onChange={e => setCampaignFilter(e.target.value)}
-              >
-                <option value="">Todas</option>
-                {campaignsSelect.map(campaign => (
-                  <option key={campaign.id} value={campaign.id}>
-                    {campaign.name}
-                  </option>
-                ))}
-              </Select>
-            </SelectWrapper>
-            <SelectWrapper>
-              <Label>Unidade</Label>
-              <Select
-                value={unitsFilter}
-                onChange={e => setUnitsFilter(e.target.value)}
-              >
-                <option value="">Todas</option>
-                {units.map(unit => (
-                  <option key={unit.unid_codigo} value={unit.unid_codigo}>
-                    {unit.unid_reduzido}
-                  </option>
-                ))}
-              </Select>
-            </SelectWrapper>
-            <SelectWrapper>
-              <Label>Tipo de Campanha</Label>
-              <Select
-                value={campaignType}
-                onChange={e => setCampaignType(e.target.value)}
-              >
-                <option value="">Todas</option>
-                {campaigns.map(campaignType => (
-                  <option key={campaignType.id} value={campaignType.id}>
-                    {campaignType.name}
-                  </option>
-                ))}
-              </Select>
-            </SelectWrapper>
-            <InputWrapper>
-              <Label>Descrição</Label>
-              <Input
-                id="descriptionFilter"
-                placeholder="Digite a descrição do produto"
-                type="text"
-                value={descriptionFilter}
-                onChange={e => setDescriptionFilter(e.target.value)}
+      <Container>
+        <Content>
+          <Section title="Gestão de Cartazes">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 bg-white rounded-xl">
+              <Field className="flex flex-col gap-2">
+                <FieldLabel>Situação</FieldLabel>
+                <Select onValueChange={setStatusFilter} value={statusFilter}>
+                  <SelectTrigger className="shadow-none focus:ring-green-600">
+                    <SelectValue placeholder="Selecione" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos</SelectItem>
+                    <SelectItem value="1">Impressos</SelectItem>
+                    <SelectItem value="0">Não Impressos</SelectItem>
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              {/* Filtro: Tipo de Campanha */}
+              <Field className="flex flex-col gap-2">
+                <FieldLabel>Tipo de Campanha</FieldLabel>
+                <Select onValueChange={setCampaignType} value={campaignType}>
+                  <SelectTrigger className="shadow-none focus:ring-green-600">
+                    <SelectValue placeholder="Todos" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os tipos</SelectItem>
+                    {campaigns?.map(type => (
+                      <SelectItem key={type.id} value={String(type.id)}>
+                        {type.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              {/* Filtro: Campanha */}
+              <Field className="flex flex-col gap-2">
+                <FieldLabel>Campanha</FieldLabel>
+                <Select
+                  onValueChange={setCampaignFilter}
+                  value={campaignFilter}
+                >
+                  <SelectTrigger className="shadow-none focus:ring-green-600">
+                    <SelectValue placeholder="Todas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as campanhas</SelectItem>
+                    {campaignsSelect?.map(camp => (
+                      <SelectItem key={camp.id} value={String(camp.id)}>
+                        {camp.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              {/* Filtro: Unidade */}
+              <Field className="flex flex-col gap-2">
+                <FieldLabel>Unidade</FieldLabel>
+                <Select onValueChange={setUnitsFilter} value={unitsFilter}>
+                  <SelectTrigger className="shadow-none focus:ring-green-600">
+                    <SelectValue placeholder="Todas" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todas as unidades</SelectItem>
+                    {units?.map(unit => (
+                      <SelectItem
+                        key={unit.unid_codigo}
+                        value={String(unit.unid_codigo)}
+                      >
+                        {unit.unid_reduzido}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </Field>
+
+              {/* Filtro: Descrição */}
+              <Field className="flex flex-col gap-2">
+                <FieldLabel>Descrição</FieldLabel>
+                <Input
+                  placeholder="Digite um produto para pesquisar..."
+                  value={descriptionFilter}
+                  onChange={e => setDescriptionFilter(e.target.value)}
+                  className="shadow-none focus:ring-green-600"
+                />
+              </Field>
+            </div>
+          </Section>
+
+          <Section>
+            {loading ? (
+              <div className="flex flex-col items-center justify-center p-20 gap-4">
+                <Loader2 className="h-10 w-10 animate-spin text-green-600" />
+                <p className="text-slate-500 animate-pulse">
+                  Carregando cartazes...
+                </p>
+              </div>
+            ) : filteredPosters.length > 0 ? (
+              <DataTable
+                data={filteredPosters}
+                columns={columns}
+                onRowSelect={handleCheckboxSelected}
+                showSelectColumn={true}
+                enableRowSelection={true}
+                actionType="edit" // OU "edit"
+                handleAction={data => console.log('Ação disparada para:', data)}
               />
-            </InputWrapper>
-            <ButtonSearch>
-              <Button
-                title="Filtrar"
-                icon={PiFunnel}
-                color="GREEN"
-                onClick={applyFilters}
-              />
-            </ButtonSearch>
-          </Form>
-        </Section>
-        <Section>
-          {filteredPosters.length > 0 ? (
-            <Table
-              data={filteredPosters}
-              columns={columns}
-              selectedPosters={selectedPosters}
-              onRowSelect={handleCheckboxSelected}
-              showSelectColumn={true}
-              showEditColumn={true}
-              editType="posters"
-            />
-          ) : (
-            <Message>
-              <p>Nenhum cartaz encontrado para os filtros selecionados.</p>
-            </Message>
-          )}
-        </Section>
-        <Section>
-          <ButtonWrapper>
+            ) : (
+              <Message>
+                <p className="text-slate-400 text-xs">
+                  Nenhum cartaz encontrado com os filtros aplicados.
+                </p>
+              </Message>
+            )}
+          </Section>
+
+          {/* Botões de ação */}
+          <div className="flex flex-wrap gap-4 mt-2">
             <Button
-              title={loading ? 'Aguarde...' : 'Imprimir'}
-              icon={PiPrinter}
-              color="ORANGE"
               onClick={printPoster}
-              disabled={loading}
-            />
+              disabled={loading || filteredPosters.length === 0}
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+            >
+              {loading ? (
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+              ) : (
+                <Printer className="mr-2 h-5 w-5" />
+              )}
+              Imprimir
+            </Button>
 
             <Button
-              title="Excluir"
-              icon={PiTrash}
-              color="RED"
+              variant="outline"
               onClick={deletePosters}
-            />
-          </ButtonWrapper>
-        </Section>
-      </Content>
+              disabled={loading || filteredPosters.length === 0}
+              className="text-red-500 hover:bg-red-50 hover:text-red-600 border-red-200"
+            >
+              <Trash2 className="mr-2 h-5 w-5" /> Excluir
+            </Button>
+          </div>
 
-      <Footer />
-    </Container>
+          {isGeneratingPDF && (
+            <ConfirmModal
+              isOpen={isGeneratingPDF}
+              title="Gerando Cartazes"
+              content={
+                <div className="flex flex-col gap-0 text-center items-center">
+                  <span>Estamos preparando os arquivos para impressão.</span>
+                  <span className="font-medium text-green-600">
+                    Por favor aguarde...
+                  </span>
+                </div>
+              }
+              icon={() => (
+                <Loader2 className="h-6 w-6 animate-spin text-green-600" />
+              )}
+              variant="success"
+              isLoading={true}
+            />
+          )}
+        </Content>
+      </Container>
+    </Layout>
   )
 }

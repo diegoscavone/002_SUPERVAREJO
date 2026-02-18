@@ -32,7 +32,13 @@ import {
 } from 'react-icons/pi'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge' // Importe o Badge do shadcn
-import { ArrowDownUp, ArrowUpAZ, ArrowUpDown, ArrowUpZA } from 'lucide-react'
+import {
+  ArrowDownUp,
+  ArrowUpAZ,
+  ArrowUpDown,
+  ArrowUpZA,
+  Pencil
+} from 'lucide-react'
 
 export function DataTable({
   data = [],
@@ -43,7 +49,8 @@ export function DataTable({
   showEditColumn = false,
   showSelectColumn = true,
   enableRowSelection = true,
-  handleEdit,
+  actionType = null, // "edit" ou "print"
+  handleAction, // Função que será disparada ao clicar
   defaultPageSize = 10
 }) {
   const [sorting, setSorting] = useState([])
@@ -58,49 +65,65 @@ export function DataTable({
 
   const tableColumns = React.useMemo(() => {
     const cols = [...columns].map(col => {
-      // Interceptamos a coluna de status para aplicar o Badge automaticamente
-      if (col.accessorKey === 'status') {
-        return {
-          ...col,
-          cell: ({ getValue }) => {
-            const status = getValue()
-            const statusMap = {
-              active: { label: 'Ativo', variant: 'success' }, // Verifique se criou a variant no shadcn
-              upcoming: { label: 'Futuro', variant: 'outline' },
-              expired: { label: 'Encerrado', variant: 'destructive' }
-            }
-            const config = statusMap[status] || {
-              label: 'Desconhecido',
-              variant: 'secondary'
-            }
-            return (
-              <Badge
-                variant={config.variant}
-                className="font-semibold text-[10px] uppercase rounded-xl tracking-wider"
-              >
-                {config.label}
-              </Badge>
-            )
-          }
+// ... dentro de cols.map
+if (col.accessorKey === 'status') {
+  return {
+    ...col,
+    cell: ({ getValue }) => {
+      const status = getValue()
+      const statusMap = {
+        // Status Ativo -> Verde
+        active: { 
+          label: 'Ativo', 
+          variant: 'success', 
+          className: 'bg-green-100 text-green-700 border-green-200' 
+        },
+        // Status Futuro -> Amarelo
+        upcoming: { 
+          label: 'Futuro', 
+          variant: 'warning', 
+          className: 'bg-yellow-100 text-yellow-700 border-yellow-200' 
+        },
+        // Status Encerrado -> Vermelho
+        expired: { 
+          label: 'Encerrado', 
+          variant: 'destructive', 
+          className: 'bg-red-200 text-red-500 border-red-300 hover:bg-bg-red-200' // Destructive já é vermelho por padrão no Shadcn
         }
       }
+
+      const config = statusMap[status] || {
+        label: 'Desconhecido',
+        variant: 'secondary',
+        className: ''
+      }
+
+      return (
+        <Badge
+          variant={config.variant}
+          className={`font-bold text-[10px] uppercase rounded-xl tracking-wider shadow-none ${config.className}`}
+        >
+          {config.label}
+        </Badge>
+      )
+    }
+  }
+}
       return col
     })
 
+    // Coluna de Seleção (Toggle All Rows)
     if (showSelectColumn && enableRowSelection) {
       cols.unshift({
         id: 'select',
-        header: DataTable => (
+        header: ({ table }) => (
           <div
             className="flex items-center justify-center w-8"
             onClick={e => e.stopPropagation()}
           >
             <Checkbox
-              checked={table.getIsAllPageRowsSelected()}
-              onCheckedChange={value =>
-                table.toggleAllPageRowsSelected(!!value)
-              }
-              aria-label="Selecionar todos"
+              checked={table.getIsAllRowsSelected()}
+              onCheckedChange={value => table.toggleAllRowsSelected(!!value)}
               className="border-input data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600 shadow-none"
             />
           </div>
@@ -113,7 +136,6 @@ export function DataTable({
             <Checkbox
               checked={row.getIsSelected()}
               onCheckedChange={value => row.toggleSelected(!!value)}
-              aria-label="Selecionar linha"
               className="border-input data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600 shadow-none"
             />
           </div>
@@ -122,31 +144,40 @@ export function DataTable({
       })
     }
 
-    // Botão Editar Comentado
-    /*
-    if (showEditColumn) {
+    // NOVA COLUNA DE AÇÕES DINÂMICA
+    if (actionType) {
       cols.push({
-        id: "actions",
+        id: 'actions',
         header: () => <div className="text-center">Ações</div>,
-        cell: ({ row }) => (
-          <div className="flex justify-center" onClick={(e) => e.stopPropagation()}>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={() => handleEdit(row.original.id)}
-              className="h-8 w-8 hover:text-green-600 hover:bg-green-50 transition-colors"
+        cell: ({ row }) => {
+          const isEdit = actionType === 'edit'
+          return (
+            <div
+              className="flex justify-center"
+              onClick={e => e.stopPropagation()}
             >
-              <Pencil className="h-4 w-4" />
-            </Button>
-          </div>
-        ),
-        enableSorting: false,
-      });
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => handleAction?.(row.original)}
+                className={`h-8 w-8 transition-colors ${
+                  isEdit
+                    ? 'hover:text-blue-600 hover:bg-blue-50'
+                    : 'hover:text-orange-600 hover:bg-orange-100 text-orange-500'
+                }`}
+              >
+                {/* Lucide icons: ArrowUpAZ para ordenação, mas usamos Pencil para Edit */}
+                {isEdit ? <Pencil size={16} /> : <Printer size={16} />}
+              </Button>
+            </div>
+          )
+        },
+        enableSorting: false
+      })
     }
-    */
 
     return cols
-  }, [columns, showSelectColumn, enableRowSelection]) // showEditColumn e handleEdit removidos das dependências por enquanto
+  }, [columns, showSelectColumn, enableRowSelection, actionType, handleAction])
 
   const table = useReactTable({
     data,
@@ -167,8 +198,8 @@ export function DataTable({
       updateData: (rowIndex, columnId, value) => {
         onRowUpdate?.(rowIndex, columnId, value)
       },
-      setActiveRowIndex: (index) => {
-        setActiveIndex(index);
+      setActiveRowIndex: index => {
+        setActiveIndex(index)
       }
     },
     initialState: {
@@ -291,7 +322,7 @@ export function DataTable({
                             ) : sortedState === 'desc' ? (
                               <ArrowUpZA className="h-3 w-3 text-green-600" />
                             ) : (
-                              <ArrowUpDown className="h-3 w-3 opacity-20" />
+                              <ArrowUpDown className="h-3 w-3 text-green-600" />
                             )}
                           </div>
                         )}
