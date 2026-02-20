@@ -52,22 +52,33 @@ app.use((error, request, response, next) => {
 })
 
 const PORT = 3333
-app.listen(PORT, () => console.log(`Server Posters is running on Port ${PORT}`))
+const HOST = '0.0.0.0'
 
-cron.schedule('00 21 * * *', async () => {
-  console.log('Executando a limpeza de cartazes antigos...')
-  try {
-    const thirtyDaysAgo = new Date()
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+app.listen(PORT, HOST, () =>
+  console.log(`Server Posters is running on Port ${PORT}`)
+)
 
-    const deletedCount = await knex('posters')
-      .where('created_at', '<', thirtyDaysAgo)
-      .delete()
+cron.schedule(
+  '00 21 * * *',
+  async () => {
+    console.log('Executando a limpeza de cartazes antigos...')
+    try {
+      const thirtyDaysAgo = new Date()
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-    console.log(
-      `${deletedCount} cartaz(es) com mais de 30 dias foram deletados.`
-    )
-  } catch (error) {
-    console.error('Erro ao deletar cartazes antigos:', error)
+      const deletedCount = await knex('posters')
+        .where('created_at', '<', thirtyDaysAgo)
+        .delete()
+
+      console.log(
+        `${deletedCount} cartaz(es) com mais de 30 dias foram deletados.`
+      )
+    } catch (error) {
+      console.error('Erro ao deletar cartazes antigos:', error)
+    }
+  },
+  {
+    scheduled: true,
+    timezone: 'America/Sao_Paulo'
   }
-})
+)

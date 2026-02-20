@@ -432,7 +432,10 @@ export function ProductsValidity() {
             variant="ghost"
             size="icon"
             className="bg-red-50 text-red-500 hover:text-red-500 hover:bg-red-100 h-8 w-8"
-            onClick={() => handleRemoveProduct(row.original.id)}
+            onClick={e => {
+              e.stopPropagation()
+              handleRemoveProduct(row.original.id)
+            }}
           >
             <Trash2 size={18} />
           </Button>
@@ -451,7 +454,7 @@ export function ProductsValidity() {
       <ToastContainer />
       <Container>
         <Content>
-          <Section title="Gestão de Validade">
+          <Section>
             {/* FORMULÁRIO DE ENTRADA - items-end garante o alinhamento no bottom */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 bg-white  rounded-xl items-end">
               <Field className="flex flex-col gap-2">
@@ -497,7 +500,6 @@ export function ProductsValidity() {
 
               {/* Botão alinhado perfeitamente ao bottom */}
               <div className="flex justify-start">
-                {' '}
                 {/* Garante que o botão não estique horizontalmente */}
                 <Button
                   onClick={handleAddProduct}
@@ -555,14 +557,41 @@ export function ProductsValidity() {
           )}
 
           <Section>
-            <DataTable
-              data={productsList}
-              columns={columns}
-              loading={loading}
-              enableRowSelection={true}
-              onRowSelect={setSelectedRows}
-              rowSelection={selectedRows}
-            />
+            {productsList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center min-h-[300px] w-full p-8 bg-slate-50/50 border-2 border-dashed border-slate-200 rounded-2xl animate-in fade-in duration-500">
+                {/* Círculo de fundo com ícone */}
+                <div className="flex items-center justify-center w-20 h-20 bg-white rounded-full shadow-sm mb-4">
+                  <Search
+                    className="w-10 h-10 text-slate-300"
+                    strokeWidth={1.5}
+                  />
+                </div>
+
+                {/* Textos explicativos */}
+                <h3 className="text-lg font-semibold text-slate-700 mb-1">
+                  Nenhum produto encontrado
+                </h3>
+                <p className="text-sm text-slate-500 text-center max-w-[280px]">
+                  Não foram encontrados nenhum <strong>produto</strong> com a{' '}
+                  <strong>data de vencimento</strong> cadastrada.
+                </p>
+
+                {/* Badge opcional para indicar status */}
+                <div className="mt-6 flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  <Search size={14} />
+                  Adicione um produto próximo ao vencimento
+                </div>
+              </div>
+            ) : (
+              <DataTable
+                data={productsList}
+                columns={columns}
+                loading={loading}
+                enableRowSelection={true}
+                onRowSelect={setSelectedRows}
+                rowSelection={selectedRows}
+              />
+            )}
           </Section>
         </Content>
       </Container>

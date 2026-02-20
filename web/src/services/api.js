@@ -1,29 +1,30 @@
 import axios from 'axios'
 
-const getApiBaseUrl = () => {
-  const currentHost = window.location.hostname
+const getBaseUrl = (port) => {
+  const { hostname, protocol} = window.location
 
-  return currentHost === 'localhost'
-    ? 'http://localhost:3333'
-    : `http://${currentHost}:3333`
+const host = hostname === 'localhost' ? 'localhost' : hostname;
+  
+  return `${protocol}//${host}:${port}`;
 }
 
-const getApiErpBaseUrl = () => {
-  const currentHost = window.location.hostname
+// const getApiErpBaseUrl = () => {
+//   const currentHost = window.location.hostname
 
-  return currentHost === 'localhost'
-    ? 'http://localhost:3334'
-    : `http://${currentHost}:3334`
-}
+//   return currentHost === 'localhost'
+//     ? 'http://localhost:3334'
+//     : `http://${currentHost}:3334`
+// }
 
 export const api = axios.create({
-  baseURL: getApiBaseUrl(),
+  baseURL: getBaseUrl('3333'),
   // baseURL: 'http://192.168.0.198:3333',
-  withCredentials: true
+  withCredentials: true,
+  timeout: 10000
 })
 
 export const apiERP = axios.create({
-  baseURL: getApiErpBaseUrl()
+  baseURL: getBaseUrl('3334')
   // baseURL: 'http://192.168.0.198:3334',
   // withCredentials: true
 })

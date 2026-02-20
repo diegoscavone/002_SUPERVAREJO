@@ -3,35 +3,29 @@ import { DEVICE_BREAKPOINTS } from '../../styles/devices'
 
 export const Container = styled.div`
   width: 100%;
-  height: 100vh;
-
-  display: grid;
-  grid-template-columns: 50px auto;
-  grid-template-areas:
-    'header header'
-    'nav content'
-    'nav footer';
-
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
   background-color: ${({ theme }) => theme.COLORS.BACKGROUND_200};
-  @media (max-width: ${DEVICE_BREAKPOINTS.LG}) {
-    grid-template-columns: 50px auto;
-  }
 `
 
 export const Content = styled.div`
-  grid-area: content;
   display: flex;
-  justify-content: center;
-  min-height: 750px;
-  background-color: ${({ theme }) => theme.COLORS.BACKGROUND_200};
-  @media (max-width: ${DEVICE_BREAKPOINTS.XL}) {
-    min-height: 500px;
+  flex-direction: column; /* Agora empilha as seções verticalmente */
+  width: 100%;
+  flex: 1;
+  padding: 20px;
+  gap: 16px; /* Espaçamento controlado entre as seções */
+
+  @media (max-width: ${DEVICE_BREAKPOINTS.MD}) {
+    padding: 10px;
+    gap: 20px;
   }
 `
 
 export const Form = styled.div`
   width: 40%;
-  padding: 3rem ;
+  padding: 3rem;
   display: flex;
   flex-direction: column;
   gap: 1.6rem;

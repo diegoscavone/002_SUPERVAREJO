@@ -21,7 +21,8 @@ import {
   parseISO,
   startOfDay
 } from 'date-fns'
-import { Tag, Trash2 } from 'lucide-react'
+import { Search, Tag, Trash2 } from 'lucide-react'
+import { ConfirmModal } from '../../components/ConfirmModal'
 
 export function Offers() {
   const navigate = useNavigate()
@@ -34,6 +35,9 @@ export function Offers() {
   const [initialDate, setInitialDate] = useState('')
   const [finalDate, setFinalDate] = useState('')
   const [nameFilter, setNameFilter] = useState('')
+
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
 
   // Função que retorna o badge com a cor apropriada para cada status
   function getStatusBadge(status) {
@@ -262,6 +266,33 @@ export function Offers() {
     }
   }
 
+  async function handleConfirmDelete() {
+    const selectedIds = Object.keys(selectedOffers).filter(
+      id => selectedOffers[id]
+    )
+
+    try {
+      setIsDeleting(true)
+
+      // Deleta as ofertas uma a uma (padrão seguro para REST)
+      await Promise.all(selectedIds.map(id => api.delete(`/offers/${id}`)))
+
+      toastSuccess(`${selectedIds.length} oferta(s) excluída(s) com sucesso!`)
+
+      // Limpa a seleção e fecha o modal
+      setSelectedOffers({})
+      setIsDeleteModalOpen(false)
+
+      // Recarrega a lista
+      await fetchOffers()
+    } catch (error) {
+      console.error(error)
+      toastError('Erro ao excluir as ofertas selecionadas.')
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
   return (
     <Layout>
       <ToastContainer />
@@ -269,7 +300,7 @@ export function Offers() {
         <Content className="flex flex-col gap-6 p-6">
           {/* Cabeçalho de Ações */}
           <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-none">
-            <h1 className="text-base font-bold text-neutral-600">
+            <h1 className="text-base font-bold text-neutral-500">
               Gestão de Ofertas
             </h1>
             <Button
@@ -294,11 +325,30 @@ export function Offers() {
                   handleEdit={id => navigate(`/offers/edit/${id}`)}
                 />
               ) : (
-                <div className="p-8 text-center border-2 border-dashed rounded-lg">
-                  <p className="text-muted-foreground">
-                    Nenhuma oferta encontrada.
-                  </p>
+    <div className="flex flex-col items-center justify-center min-h-[300px] w-full p-8 bg-slate-50/50 border-2 border-dashed border-slate-200 rounded-2xl animate-in fade-in duration-500">
+                {/* Círculo de fundo com ícone */}
+                <div className="flex items-center justify-center w-20 h-20 bg-white rounded-full shadow-sm mb-4">
+                  <Search
+                    className="w-10 h-10 text-slate-300"
+                    strokeWidth={1.5}
+                  />
                 </div>
+
+                {/* Textos explicativos */}
+                <h3 className="text-lg font-semibold text-slate-700 mb-1">
+                  Nenhuma oferta encontrada
+                </h3>
+                <p className="text-sm text-slate-500 text-center max-w-[280px]">
+                  Não foram encontrados nenhum <strong>produto</strong> em{' '}
+                  <strong>oferta.</strong>
+                </p>
+
+                {/* Badge opcional para indicar status */}
+                <div className="mt-6 flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  <Search size={14} />
+                  Clique no botão Nova Oferta
+                </div>
+              </div>
               )}
             </div>
           </Section>
@@ -309,7 +359,7 @@ export function Offers() {
               <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2">
                 <Button
                   variant="destructive"
-                  onClick={deleteOffers}
+                  onClick={() => setIsDeleteModalOpen(true)}
                   disabled={loading}
                   className="gap-2 shadow-none transition-all hover:bg-red-600 hover:brightness-110 active:scale-95"
                 >
@@ -319,6 +369,25 @@ export function Offers() {
               </div>
             )}
           </Section>
+
+          <ConfirmModal
+            isOpen={isDeleteModalOpen}
+            onClose={() => setIsDeleteModalOpen(false)}
+            onConfirm={handleConfirmDelete}
+            isLoading={isDeleting}
+            variant="destructive"
+            title="Confirmar Exclusão"
+            icon={Trash2}
+            confirmButtonText="Sim, excluir ofertas"
+            content={
+              <p>
+                Você tem certeza que deseja excluir{' '}
+                <strong>{Object.keys(selectedOffers).length}</strong> oferta(s)
+                selecionada(s)? Esta ação removerá os históricos
+                permanentemente.
+              </p>
+            }
+          />
         </Content>
       </Container>
     </Layout>

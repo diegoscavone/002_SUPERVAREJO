@@ -1,181 +1,209 @@
-import { Container, Content, Form, InputWrapper, ButtonWrapper } from './styles'
-
-import { Header } from '../../components/Header'
-import { Footer } from '../../components/Footer'
-import { Input } from '../../components/Input'
-import { Section } from '../../components/Section'
+import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { ToastContainer } from 'react-toastify'
 
 import { api } from '../../services/api'
-import { Nav } from '../../components/Nav'
-
-import { toast, ToastContainer } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
-import { Button } from '../../components/Button'
-import { Label } from '../Home/styles'
-import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { useNavigate } from 'react-router-dom'
-import { InputFile } from '../../components/InputFile'
-import { PiCloudArrowUp } from 'react-icons/pi'
 import { toastError, toastSuccess } from '../../styles/toastConfig'
+
+import { Layout } from '@/components/Layout'
+import { Button } from '@/components/ui/button'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle
+} from '@/components/ui/card'
+import { FieldLabel } from '@/components/ui/field'
+import { Input } from '@/components/ui/input'
+import { Check, CloudUpload, FileImage } from 'lucide-react'
+import { Container, Content } from './styles'
 
 export function CampaignDetails() {
   const navigate = useNavigate()
-  const [campaign, setCampaign] = useState({})
   const { id } = useParams()
 
   const [campaignName, setCampaignName] = useState('')
   const [campaignImage, setCampaignImage] = useState(null)
-  const [campaignImageName, setCampaignImageName] = useState('')
+  const [previewURL, setPreviewURL] = useState('') // Para o visualizador
+  const [loading, setLoading] = useState(false)
 
-  // Função para remover o hash do nome do arquivo
-  function removeHashFromFilename(filename) {
-    if (!filename) return ''
-    
-    // Encontra a posição do primeiro '-'
-    const firstDashIndex = filename.indexOf('-')
-    
-    if (firstDashIndex !== -1) {
-      // Remove tudo até o primeiro '-' (incluindo o '-')
-      return filename.substring(firstDashIndex + 1)
-    }
-    
-    // Se não tiver '-', retorna o nome original
-    return filename
-  }
-
-  function handleNameChange(event) {
-    setCampaignName(event.target.value)
-  }
-
-  function handleImageChange(event) {
-    const file = event.target.files[0]
-    setCampaignImage(file)
-    setCampaignImageName(file ? file.name : '')
-  }
-
-  async function handleUpdateCampaign() {
-    try {
-      // Validação básica
-      if (!campaignName.trim()) {
-        toastError('Nome da campanha é obrigatório!')
-        return
-      }
-
-      const formData = new FormData()
-      formData.append('name', campaignName.trim())
-
-      // Só adiciona a imagem se uma nova foi selecionada
-      if (campaignImage) {
-        formData.append('image', campaignImage)
-      }
-
-      // Para debug - remova em produção
-      console.log('FormData contents:')
-      for (let [key, value] of formData.entries()) {
-        console.log(key, value)
-      }
-
-      const response = await api.patch(`/campaign-image/${id}`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      })
-
-      toastSuccess('Campanha alterada com sucesso!')
-      setTimeout(() => {
-        navigate('/campaigns')
-      }, 2000)
-      
-      return response.data
-    } catch (error) {
-      console.error('Erro ao atualizar campanha:', error)
-      
-      // Tratamento de erro mais específico
-      if (error.response) {
-        // Erro do servidor (4xx, 5xx)
-        const message = error.response.data?.message || 'Erro no servidor'
-        toastError(`Erro: ${message}`)
-      } else if (error.request) {
-        // Erro de rede
-        toastError('Erro de conexão. Verifique sua internet.')
-      } else {
-        // Outros erros
-        toastError('Ocorreu um erro inesperado.')
-      }
-    }
-  }
-
+  // 1. Efeito para carregar os dados iniciais
   useEffect(() => {
     async function fetchCampaign() {
       try {
         const response = await api.get(`/campaigns/details/${id}`)
-        const campaignData = response.data
-        
-        setCampaign(campaignData)
-        setCampaignName(campaignData.name || '')
-        
-        // Remove o hash do nome da imagem para exibição
-        const cleanImageName = removeHashFromFilename(campaignData.image || '')
-        setCampaignImageName(cleanImageName)
-        
-        console.log('Imagem original:', campaignData.image)
-        console.log('Imagem sem hash:', cleanImageName)
-        
+        const { name, image } = response.data
+
+        setCampaignName(name || '')
+        if (image) {
+          // Define a URL inicial vinda do backend
+          setPreviewURL(`${api.defaults.baseURL}/tmp/uploads/${image}`)
+        }
       } catch (error) {
-        console.error('Erro ao buscar campanha:', error)
-        toastError('Erro ao buscar campanha.')
+        toastError('Erro ao carregar dados da campanha.')
       }
     }
-    
-    if (id) {
-      fetchCampaign()
-    }
+    fetchCampaign()
   }, [id])
 
+  // 2. Lógica do Visualizador de Imagem (Preview)
+  function handleImageChange(event) {
+    const file = event.target.files[0]
+    if (file) {
+      setCampaignImage(file)
+      // Cria uma URL temporária para o preview imediato
+      const url = URL.createObjectURL(file)
+      setPreviewURL(url)
+    }
+  }
+
+  async function handleUpdateCampaign() {
+    if (!campaignName.trim()) return toastError('O nome é obrigatório!')
+
+    try {
+      setLoading(true)
+      const formData = new FormData()
+      formData.append('name', campaignName.trim())
+      if (campaignImage) {
+        formData.append('image', campaignImage)
+      }
+
+      await api.patch(`/campaign-image/${id}`, formData)
+
+      toastSuccess('Campanha atualizada com sucesso!')
+      setTimeout(() => navigate('/campaigns'), 1500)
+    } catch (error) {
+      toastError('Erro ao atualizar. Verifique os dados.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
-    <Container>
-      <Header />
-      <Nav />
+    <Layout>
       <ToastContainer />
-      <Content>
-        <Form>
-          <Section title="Informações da Campanha">
-            <InputWrapper>
-              <Label>Nome da campanha</Label>
-              <Input
-                name="name"
-                value={campaignName}
-                onChange={handleNameChange}
-                placeholder="Digite o nome da campanha"
-              />
-            </InputWrapper>
+      <Container>
+        <Content>
+          <div className="container max-w-4xl py-10 px-4 mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+              {/* Coluna do Formulário */}
+              <div className="md:col-span-7">
+                <Card className="border-none shadow-none">
+                  <CardHeader>
+                    <CardTitle className="text-green-600">
+                      Configurações Gerais
+                    </CardTitle>
+                    <CardDescription>
+                      Altere o nome e a identidade visual da campanha.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid w-full items-center gap-1.5">
+                      <FieldLabel className="text-neutral-500" htmlFor="name">
+                        Nome da Campanha
+                      </FieldLabel>
+                      <Input
+                        id="name"
+                        value={campaignName}
+                        onChange={e => setCampaignName(e.target.value)}
+                        placeholder="Ex: Ofertas da Semana"
+                        className="text-neutral-600"
+                      />
+                    </div>
 
-            <InputWrapper>
-              <InputFile
-                type="file"
-                icon={PiCloudArrowUp}
-                name="image"
-                title={campaignImageName || 'Selecione imagem'}
-                onChange={handleImageChange}
-                accept="image/*"
-              />
-            </InputWrapper>
-          </Section>
-          
-          <Section>
-            <ButtonWrapper>
-              <Button
-                title="Salvar"
-                color="GREEN"
-                onClick={handleUpdateCampaign}
-              />
-            </ButtonWrapper>
-          </Section>
-        </Form>
-      </Content>
+                    <div className="grid w-full items-center gap-1.5">
+                      <FieldLabel className="text-neutral-500" htmlFor="image">
+                        Imagem do Cartaz (Template)
+                      </FieldLabel>
 
-      <Footer />
-    </Container>
+                      {/* Container do Input Customizado */}
+                      <div className="relative">
+                        <input
+                          id="image"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageChange}
+                          className="hidden" // Escondemos o input original
+                        />
+
+                        <FieldLabel
+                          htmlFor="image"
+                          className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer bg-slate-50 hover:bg-orange-50 hover:border-orange-300 transition-all group
+"
+                        >
+                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                            <div className="p-3 bg-white rounded-full shadow-sm mb-3 group-hover:scale-110 transition-transform">
+                              <CloudUpload
+                                size={24}
+                                className="text-orange-500"
+                              />
+                            </div>
+                            <p className="text-sm text-slate-600 font-bold">
+                              Clique para selecionar
+                            </p>
+                            <p className="text-xs text-slate-400 mt-1">
+                              PNG, JPG ou JPEG (Recomendado: Vertical)
+                            </p>
+                          </div>
+                        </FieldLabel>
+                      </div>
+                    </div>
+                  </CardContent>
+                  <CardFooter className="flex justify-end gap-2 border-t pt-4 pb-4">
+                    <Button
+                      variant="ghost"
+                      onClick={() => navigate('/campaigns')}
+                      className="text-neutral-500 hover:text-neutral-500"
+                    >
+                      Cancelar
+                    </Button>
+                    <Button
+                      onClick={handleUpdateCampaign}
+                      disabled={loading}
+                      className="bg-green-600 hover:bg-green-700"
+                    >
+                      {loading ? (
+                        'Salvando...'
+                      ) : (
+                        <>
+                          <Check /> Salvar
+                        </>
+                      )}
+                    </Button>
+                  </CardFooter>
+                </Card>
+              </div>
+
+              {/* Coluna do Visualizador (Preview) */}
+              <div className="md:col-span-5">
+                <Card className="h-full overflow-hidden border-none shadow-none">
+                  <CardContent className="p-0 flex items-center justify-center bg-slate-100 min-h-[400px]">
+                    {previewURL ? (
+                      <img
+                        src={previewURL}
+                        alt="Preview"
+                        className="w-full h-full object-contain max-h-[500px]"
+                      />
+                    ) : (
+                      <div className="text-center text-slate-400 p-10">
+                        <FileImage
+                          size={60}
+                          className="mx-auto mb-2 opacity-20"
+                        />
+                        <p className="text-sm font-medium">
+                          Nenhuma imagem carregada
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </div>
+        </Content>
+      </Container>
+    </Layout>
   )
 }

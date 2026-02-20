@@ -1,54 +1,48 @@
-import {
-  Container,
-  Content,
-  Form,
-  InputWrapper,
-  Label,
-  Message
-} from './styles'
-
-import { Header } from '../../components/Header'
-import { Nav } from '../../components/Nav'
-import { Footer } from '../../components/Footer'
-import { Select } from '../../components/Select'
-import { Button } from '../../components/Button'
-import { InputMask } from '../../components/InputMask'
-import { Section } from '../../components/Section'
-import { DataTable } from '../../components/DataTable'
-
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
+
+import { PiCalendarDots, PiMagnifyingGlass, PiPlayCircle } from 'react-icons/pi'
+import { CirclePlay, Search, Loader2 } from 'lucide-react'
 
 import { api, apiERP } from '../../services/api'
-
 import { useCreatedPoster } from '../../hooks/createdPoster'
-import { toast, ToastContainer } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
-import { useNavigate } from 'react-router-dom'
-import { PiMagnifyingGlass, PiPlayCircle, PiCalendarDots } from 'react-icons/pi'
 import { toastError, toastInfo, toastSuccess } from '../../styles/toastConfig'
-import { formatDate } from 'date-fns'
+
 import { Layout } from '@/components/Layout'
+import { Section } from '../../components/Section'
+import { DataTable } from '../../components/DataTable' // Seu componente robusto
+import { InputMask } from '../../components/InputMask'
+import { Field, FieldLabel } from '@/components/ui/field'
+import { Button } from '@/components/ui/button'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from '@/components/ui/select'
+
+import { Container, Content, Message } from './styles'
+
 export function Automate() {
   const navigate = useNavigate()
+  const handleCreatePoster = useCreatedPoster()
+
   const [unit, setUnit] = useState('')
   const [date, setDate] = useState('')
   const [sale, setSale] = useState([])
-
-  const [posters, setPosters] = useState([])
   const [selectedPosters, setSelectedPosters] = useState({})
-  const handleCreatePoster = useCreatedPoster()
-
   const [campaigns, setCampaigns] = useState([])
   const [campaignSelected, setCampaignSelected] = useState('')
-  const [campaignTypeSelected, setCampaignTypeSelected] = useState(1)
-
   const [loading, setLoading] = useState(false)
+  const [searching, setSearching] = useState(false)
 
+  // Definição das Colunas para o DataTable
   const productColumns = [
     { accessorKey: 'product_id', header: 'Código', enableSorting: true },
     { accessorKey: 'description', header: 'Descrição', enableSorting: true },
-    // { accessorKey: 'complement', header: 'Complemento', enableSorting: true },
-    // { accessorKey: 'packaging', header: 'Emb', enableSorting: true },
     {
       accessorKey: 'initial_date',
       header: 'Data Inicial',
@@ -61,212 +55,240 @@ export function Automate() {
       cell: ({ getValue }) => formatDate(getValue()),
       enableSorting: true
     },
-    { accessorKey: 'price', header: 'Preço' }
+    {
+      accessorKey: 'price',
+      header: 'Preço',
+      cell: ({ getValue }) => `R$ ${getValue()}`
+    }
   ]
-
-  function handleCampaignsChange(event) {
-    setCampaignSelected(event.target.value)
-  }
 
   async function fetchSale() {
     if (!unit || !date) {
-      toastInfo('Todos os campos são obrigatórios')
-      return
+      return toastInfo('Todos os campos são obrigatórios')
     }
 
     try {
+      setSearching(true)
       const response = await apiERP.get(`/posters?unit=${unit}&date=${date}`)
 
       if (!response.data || response.data.length === 0) {
-        toastInfo('Nenhuma oferta econtrada com a data informada.')
-        setDate(null)
+        toastInfo('Nenhuma oferta encontrada com a data informada.')
+        setSale([])
         return
       }
-      setSale(response.data)
+
+      // Mapeamos os dados para o formato que o DataTable espera (com ID único)
+      const formattedData = response.data.map(item => ({
+        id: String(item.prod_codigo), // O DataTable usa o 'id' para seleção
+        product_id: item.prod_codigo,
+        description: item.prod_descricao,
+        complement: item.prod_complemento,
+        packaging: item.prod_emb,
+        price: item.prpr_prvenda,
+        initial_date: item.prpr_datainicial,
+        final_date: item.prpr_datafinal,
+        prpr_unid_codigo: item.prpr_unid_codigo
+      }))
+
+      setSale(formattedData)
     } catch {
-      toastError('Não foi possível encontrar o produto em oferta.')
+      toastError('Não foi possível encontrar os produtos em oferta.')
+    } finally {
+      setSearching(false)
     }
   }
 
-  function handleSearch() {
-    fetchSale()
-  }
-
-  function formatDate(date) {
-    const dateFormat = new Date(date)
-    const dia = String(dateFormat.getDate()).padStart(2, '0')
-    const mes = String(dateFormat.getMonth() + 1).padStart(2, '0')
-    const ano = dateFormat.getFullYear()
-    return `${dia}/${mes}/${ano}`
+  function formatDate(dateString) {
+    if (!dateString) return '-'
+    const dateFormat = new Date(dateString)
+    return dateFormat.toLocaleDateString('pt-BR')
   }
 
   async function handleAutomate() {
-    if (
-      Object.keys(selectedPosters).filter(posterId => selectedPosters[posterId])
-        .length === 0 ||
-      campaignSelected.length === 0
-    ) {
-      toastInfo('Nenhum produto ou campanha selecionado.')
-      return
+    // Pegamos apenas as chaves (IDs) que estão marcadas como true
+    const selectedIds = Object.keys(selectedPosters).filter(
+      id => selectedPosters[id]
+    )
+
+    if (selectedIds.length === 0 || !campaignSelected) {
+      return toastInfo('Nenhum produto ou campanha selecionado.')
     }
+
     try {
       setLoading(true)
-
-      // const selectedProducts = Object.keys(selectedPosters)
-      // .filter(posterIndex => selectedPosters[posterIndex])
-      // .map(index => sale[Number(index)])
-
-      const selectedProducts = sale.filter(
-        product => selectedPosters[product.prod_codigo]
+      const selectedProducts = sale.filter(product =>
+        selectedIds.includes(String(product.id))
       )
 
       for (const product of selectedProducts) {
         const productInputs = {
-          product_id: product.prod_codigo,
-          description: product.prod_descricao,
-          complement: product.prod_complemento,
-          packaging: product.prod_emb,
-          price: product.prpr_prvenda,
-          initial_date: product.prpr_datainicial,
-          final_date: product.prpr_datafinal,
-          campaignsSelected: campaignSelected,
-          campaignTypeSelected: campaignTypeSelected,
+          product_id: product.product_id,
+          description: product.description,
+          complement: product.complement,
+          packaging: product.packaging,
+          price: product.price,
           unit: product.prpr_unid_codigo
         }
 
-        const formatedDateInitial = formatDate(productInputs.initial_date)
-        const formatedDateFinal = formatDate(productInputs.final_date)
+        const dateInit = formatDate(product.initial_date)
+        const dateEnd = formatDate(product.final_date)
 
         await handleCreatePoster(
           productInputs,
-          formatedDateInitial,
-          formatedDateFinal,
+          dateInit,
+          dateEnd,
           campaignSelected,
-          campaignTypeSelected
+          1
         )
       }
-      toastSuccess('Cartazes Criado com sucesso!')
-      setTimeout(() => {
-        navigate('/print')
-      }, 2000)
+
+      toastSuccess('Cartazes criados com sucesso!')
+      setTimeout(() => navigate('/print'), 2000)
     } catch (error) {
-      toastError('Não foi possivel cadastrar os cartazes.' + error.message)
-      console.log(error.message)
+      toastError('Erro ao cadastrar cartazes: ' + error.message)
+    } finally {
+      setLoading(false)
     }
   }
 
   useEffect(() => {
-    async function fetchCampaign() {
+    async function fetchCampaigns() {
       const response = await api.get('campaigns')
       setCampaigns(response.data)
     }
-    fetchCampaign()
+    fetchCampaigns()
   }, [])
-
-  function handleCheckboxSelected(rowSelection) {
-    setSelectedPosters(rowSelection)
-  }
 
   return (
     <Layout>
+      <ToastContainer />
       <Container>
-        <Header />
-        <Nav />
-        <ToastContainer />
         <Content>
-          <Section title="Gestão de Ofertas">
-            <Form>
-              <InputWrapper>
-                <Label>Código da Unidade</Label>
+          <Section>
+            <div className="flex items-end gap-4 bg-white rounded-xl">
+              <Field className="w-36">
+                <FieldLabel>Unidade</FieldLabel>
                 <InputMask
                   mask="000"
                   placeholder="000"
-                  type="text"
                   onChange={e => setUnit(e.target.value)}
                 />
-              </InputWrapper>
+              </Field>
 
-              <InputWrapper>
-                <Label>Data Inicial da Oferta</Label>
+              <Field className="w-48">
+                <FieldLabel>Data Inicial da Oferta</FieldLabel>
                 <InputMask
                   mask="00/00/0000"
                   placeholder="00/00/0000"
-                  type="text"
                   icon={PiCalendarDots}
                   value={date}
-                  onFocus={() => setDate(null)}
                   onChange={e => setDate(e.target.value)}
+                  onFocus={() => setDate('')}
                 />
-              </InputWrapper>
+              </Field>
 
-              <InputWrapper>
-                <div>
-                  <Button
-                    title="Buscar"
-                    icon={PiMagnifyingGlass}
-                    color="GREEN"
-                    onClick={handleSearch}
-                  />
-                </div>
-              </InputWrapper>
-            </Form>
+              <Button
+                type="button"
+                onClick={fetchSale}
+                disabled={searching}
+                className="bg-green-600 hover:bg-green-700 h-10 px-6 gap-2"
+              >
+                {searching ? (
+                  <Loader2 className="animate-spin h-4 w-4" />
+                ) : (
+                  <Search size={18} />
+                )}
+                <span>Buscar</span>
+              </Button>
+            </div>
           </Section>
+
           <Section>
             {sale.length === 0 ? (
-              <Message>
-                <p>Você ainda não pesquisou nenhum produto em oferta.</p>
-              </Message>
+              <div className="flex flex-col items-center justify-center min-h-[300px] w-full p-8 bg-slate-50/50 border-2 border-dashed border-slate-200 rounded-2xl animate-in fade-in duration-500">
+                {/* Círculo de fundo com ícone */}
+                <div className="flex items-center justify-center w-20 h-20 bg-white rounded-full shadow-sm mb-4">
+                  <Search
+                    className="w-10 h-10 text-slate-300"
+                    strokeWidth={1.5}
+                  />
+                </div>
+
+                {/* Textos explicativos */}
+                <h3 className="text-lg font-semibold text-slate-700 mb-1">
+                  Nenhuma oferta pesquisada
+                </h3>
+                <p className="text-sm text-slate-500 text-center max-w-[280px]">
+                  Informe a <strong>unidade</strong> e a <strong>data</strong>{' '}
+                  acima para buscar os produtos em oferta no ERP.
+                </p>
+
+                {/* Badge opcional para indicar status */}
+                <div className="mt-6 flex items-center gap-2 px-3 py-1 bg-slate-100 rounded-full text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                  <Search size={14} />
+                  Aguardando Consulta
+                </div>
+              </div>
             ) : (
-              <Table
-                data={sale.map(saleItem => ({
-                  id: saleItem.prod_codigo,
-                  product_id: saleItem.prod_codigo,
-                  description: saleItem.prod_descricao,
-                  complement: saleItem.prod_complemento,
-                  packaging: saleItem.prod_emb,
-                  price: saleItem.prpr_prvenda, // Substitui ponto por vírgula
-                  initial_date: saleItem.prpr_datainicial || null, // Atribui null se a data for undefined
-                  final_date: saleItem.prpr_datafinal || null
-                }))}
+              <DataTable
+                data={sale}
                 columns={productColumns}
-                selectedPosters={selectedPosters}
-                onRowSelect={handleCheckboxSelected}
-                showEditColumn={false}
+                rowSelection={selectedPosters}
+                onRowSelect={setSelectedPosters}
+                enableRowSelection={true}
                 showSelectColumn={true}
               />
             )}
           </Section>
-          <Section>
-            <Form>
-              <InputWrapper>
-                <Label>Selecione uma campanha</Label>
-                <Select onChange={handleCampaignsChange}>
-                  <option value={0}>Selecione</option>
-                  {campaigns.map(campaign => (
-                    <option
-                      key={campaign.id}
-                      value={campaign.id}
-                      data-image={campaign.image}
-                    >
-                      {campaign.name}
-                    </option>
-                  ))}
-                </Select>
-              </InputWrapper>
 
-              <InputWrapper>
+          {sale.length > 0 && (
+            <Section>
+              <div className="flex items-end gap-4 bg-orange-50 p-6 rounded-xl border border-orange-100">
+                <Field className="w-64">
+                  <Select
+                    onValueChange={setCampaignSelected}
+                    value={campaignSelected}
+                  >
+                    <SelectTrigger className="bg-white border-orange-200">
+                      <SelectValue placeholder="Selecione a campanha" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {campaigns.map(c => (
+                        <SelectItem key={c.id} value={String(c.id)}>
+                          {c.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+
                 <Button
-                  title={loading ? 'Criando aguarde...' : 'Iniciar Automação'}
-                  icon={PiPlayCircle}
-                  color="ORANGE"
                   onClick={handleAutomate}
-                  disabled={loading}
-                />
-              </InputWrapper>
-            </Form>
-          </Section>
+                  disabled={
+                    loading || Object.keys(selectedPosters).length === 0
+                  }
+                  className="bg-orange-500 hover:bg-orange-600 h-10 px-8 gap-2 shadow-lg shadow-orange-200"
+                >
+                  {loading ? (
+                    <Loader2 className="animate-spin h-5 w-5" />
+                  ) : (
+                    <CirclePlay size={20} />
+                  )}
+                  {loading ? 'Processando...' : 'Iniciar Automação'}
+                </Button>
+
+                <span className="text-xs text-orange-700 font-medium pb-2">
+                  {
+                    Object.keys(selectedPosters).filter(
+                      id => selectedPosters[id]
+                    ).length
+                  }{' '}
+                  itens selecionados
+                </span>
+              </div>
+            </Section>
+          )}
         </Content>
-        <Footer />
       </Container>
     </Layout>
   )

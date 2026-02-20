@@ -173,35 +173,36 @@ class OffersController {
 
   // Excluir uma oferta
   async delete(request, response) {
-    const { id } = request.params
+  const { id } = request.params; // Ex: "1,2,3"
 
-    // Verificar se a oferta existe
-    const offerExists = await knex('offers').where({ id }).first()
+  // Transforma a string "1,2,3" em um array [1, 2, 3]
+  const ids = String(id).split(',').map(Number);
 
-    if (!offerExists) {
-      throw new AppError("Oferta não encontrada", 404)
-    }
-
-    // Inicia uma transação
-    const trx = await knex.transaction()
-
-    try {
-      // Excluir os produtos da oferta
-      await trx('products_offers').where({ offer_id: id }).delete()
-      
-      // Excluir a oferta
-      await trx('offers').where({ id }).delete()
-
-      // Commit da transação
-      await trx.commit()
-
-      return response.json({ message: "Oferta excluída com sucesso" })
-    } catch (error) {
-      // Rollback em caso de erro
-      await trx.rollback()
-      throw new AppError("Erro ao excluir oferta: " + error.message)
-    }
+  if (!ids || ids.length === 0) {
+    throw new AppError("Nenhum ID fornecido para exclusão");
   }
+
+  const trx = await knex.transaction();
+
+  try {
+    // Deleta os produtos vinculados a qualquer um dos IDs da lista
+    await trx('products_offers')
+      .whereIn('offer_id', ids) // Onde o ID está na lista
+      .delete();
+    
+    // Deleta as ofertas da lista
+    await trx('offers')
+      .whereIn('id', ids)
+      .delete();
+
+    await trx.commit();
+
+    return response.json({ message: `${ids.length} oferta(s) excluída(s) com sucesso` });
+  } catch (error) {
+    await trx.rollback();
+    throw new AppError("Erro ao excluir ofertas: " + error.message);
+  }
+}
 
   // Gerar PDF da oferta (apenas um esboço - implementação completa depende da biblioteca usada)
   async generatePDF(request, response) {

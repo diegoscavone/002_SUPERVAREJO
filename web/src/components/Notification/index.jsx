@@ -130,9 +130,8 @@ export function Notification() {
                 variant="ghost" 
                 className="w-full justify-center text-xs font-bold text-green-600 hover:text-green-700 hover:bg-green-100/50"
                 onClick={() => {
-                // Navegação SPA sênior
                 navigate('/productsValidity');
-              }} // Ou use o navigate do react-router
+              }} 
               >
                 Ver Relatório Completo
               </Button>
