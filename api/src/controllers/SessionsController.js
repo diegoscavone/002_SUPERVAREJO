@@ -30,8 +30,8 @@ class SessionsController {
 
     response.cookie('token', token, {
       httpOnly: true,
-      sameSite: 'Strict',
-      secure: true,
+      sameSite: 'Lax',
+      secure: false,
       maxAge
     })
 
