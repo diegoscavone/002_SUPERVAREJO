@@ -27,7 +27,7 @@ app.use(
     //   'http://127.0.0.1:5173',
     // ],
 
-    origin: (origin, callback) => callback(null, true),
+    origin: '*',
     credentials: true
   })
 )
