@@ -54,7 +54,7 @@ services:
     build:
       context: ./api-erp
       dockerfile: Dockerfile
-      network_mode: host
+    network_mode: host
     depends_on:
       - db
     environment:
