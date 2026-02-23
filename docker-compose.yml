@@ -54,6 +54,7 @@ services:
     build:
       context: ./api-erp
       dockerfile: Dockerfile
+      network_mode: host
     depends_on:
       - db
     environment:
@@ -63,11 +64,8 @@ services:
       - DB_USER=diegoscavone
       - DB_PASSWORD=princesa@33
       - DB_DATABASE_PROD=erp
-    ports:
-      - "3334:3334"
     restart: always
-    networks:
-      - supervarejo-net
+
 
 volumes:
   posters_data:
