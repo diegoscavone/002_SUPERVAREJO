@@ -11,17 +11,16 @@ services:
     networks:
       - supervarejo-net
 
-  # Ajustado o alinhamento do db
   db:
     image: postgres:15-alpine
     container_name: supervarejo-db
     restart: always
     environment:
-      POSTGRES_USER: diego_user
-      POSTGRES_PASSWORD: diego_password
-      POSTGRES_DB: supervarejo_prod
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE_PROD}
+    # Removi o ports "5432:5432" por segurança. 
+    # A API ainda consegue conectar porque estão na mesma rede.
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
@@ -37,12 +36,11 @@ services:
     environment:
       - NODE_ENV=production
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
-      # Injetando as variáveis que o seu knexfile.js pede:
-      - DB_HOST=db
+      - DB_HOST=db  # <--- FIXO COMO DB (Nome do serviço acima)
       - DB_PORT=5432
-      - DB_USER=diego_user
-      - DB_PASSWORD=diego_password
-      - DB_DATABASE_PROD=supervarejo_prod
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_DATABASE_PROD=${DB_DATABASE_PROD}
     ports:
       - "3333:3333"
     volumes:
@@ -74,7 +72,7 @@ services:
 volumes:
   posters_data:
   uploads:
-  pgdata: # IMPORTANTE: Adicionado para não perder os dados do banco
+  pgdata:
 
 networks:
   supervarejo-net:
