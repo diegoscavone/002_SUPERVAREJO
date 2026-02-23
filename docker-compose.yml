@@ -58,7 +58,7 @@ services:
       - db
     environment:
       - NODE_ENV=production
-      - DB_HOST='192.168.0.198'  # <--- FIXO COMO DB (Nome do serviço acima)
+      - DB_HOST=192.168.0.198  # <--- FIXO COMO DB (Nome do serviço acima)
       - DB_PORT=5432
       - DB_USER=diegoscavone
       - DB_PASSWORD=princesa@33
