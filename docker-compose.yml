@@ -45,7 +45,7 @@ services:
       - "3333:3333"
     volumes:
       - posters_data:/app/src/database
-      - uploads:/app/tmp/uploads
+      - uploads:/app/src/tmp/uploads
     restart: always
     networks:
       - supervarejo-net

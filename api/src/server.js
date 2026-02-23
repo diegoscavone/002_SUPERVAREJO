@@ -34,7 +34,7 @@ origin: 'http://192.168.0.198',
   })
 )
 
-app.use('/tmp/uploads', express.static(path.resolve(__dirname,'..', 'tmp', 'uploads')))
+app.use('/tmp/uploads', express.static(path.resolve(__dirname, 'tmp', 'uploads')))
 app.use(routes)
 
 app.use((error, request, response, next) => {
