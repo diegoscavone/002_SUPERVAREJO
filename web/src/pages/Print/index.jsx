@@ -23,7 +23,7 @@ import { Layout } from '@/components/Layout/index.jsx'
 import { Button } from '@/components/ui/button'
 import { Field, FieldLabel } from '@/components/ui/field.jsx'
 import { Input } from '@/components/ui/input'
-import { Loader2, Pencil, Printer, Trash2 } from 'lucide-react'
+import { Loader2, Pencil, Printer, Search, Trash2 } from 'lucide-react'
 import { ConfirmModal } from '@/components/ConfirmModal/index.jsx'
 
 export function Print() {
