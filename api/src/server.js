@@ -27,8 +27,10 @@ app.use(
     //   'http://127.0.0.1:5173',
     // ],
 
-    origin: '*',
-    credentials: true
+origin: 'http://192.168.0.198', 
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  credentials: true, // OBRIGATÓRIO para o navegador aceitar o cookie do SessionsController
+  optionsSuccessStatus: 200
   })
 )
 
