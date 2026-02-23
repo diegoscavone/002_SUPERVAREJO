@@ -62,9 +62,9 @@ services:
       - NODE_ENV=production
       - DB_HOST=db
       - DB_PORT=5432
-      - DB_USER=diego_user
-      - DB_PASSWORD=diego_password
-      - DB_DATABASE_PROD=supervarejo_prod
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_DATABASE_PROD=${DB_DATABASE_PROD}
     ports:
       - "3334:3334"
     restart: always
