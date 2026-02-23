@@ -7,8 +7,23 @@ services:
       dockerfile: Dockerfile
     ports:
       - "80:80"
-      - "5173:5173"
     restart: always
+    networks:
+      - supervarejo-net
+
+  # Ajustado o alinhamento do db
+  db:
+    image: postgres:15-alpine
+    container_name: supervarejo-db
+    restart: always
+    environment:
+      POSTGRES_USER: diego_user
+      POSTGRES_PASSWORD: diego_password
+      POSTGRES_DB: supervarejo_prod
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     networks:
       - supervarejo-net
 
@@ -16,12 +31,18 @@ services:
     build:
       context: ./api
       dockerfile: Dockerfile
-    # --- AJUSTES PARA O PUPPETEER ---
-    shm_size: '1gb' # Evita o crash do Chromium em cartazes pesados
+    shm_size: '1gb'
+    depends_on:
+      - db
     environment:
-      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
       - NODE_ENV=production
-    # --------------------------------
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+      # Injetando as variáveis que o seu knexfile.js pede:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=diego_user
+      - DB_PASSWORD=diego_password
+      - DB_DATABASE_PROD=supervarejo_prod
     ports:
       - "3333:3333"
     volumes:
@@ -35,6 +56,15 @@ services:
     build:
       context: ./api-erp
       dockerfile: Dockerfile
+    depends_on:
+      - db
+    environment:
+      - NODE_ENV=production
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=diego_user
+      - DB_PASSWORD=diego_password
+      - DB_DATABASE_PROD=supervarejo_prod
     ports:
       - "3334:3334"
     restart: always
@@ -44,6 +74,7 @@ services:
 volumes:
   posters_data:
   uploads:
+  pgdata: # IMPORTANTE: Adicionado para não perder os dados do banco
 
 networks:
   supervarejo-net:
