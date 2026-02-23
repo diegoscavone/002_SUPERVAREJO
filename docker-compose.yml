@@ -59,10 +59,10 @@ services:
     environment:
       - NODE_ENV=production
       - DB_HOST=${DB_HOST}  # <--- FIXO COMO DB (Nome do serviço acima)
-      - DB_PORT=6432
-      - DB_USER=diego
+      - DB_PORT=5432
+      - DB_USER=diegoscavone
       - DB_PASSWORD=princesa@33
-      - DB_DATABASE_PROD=princesa
+      - DB_DATABASE_PROD=erp
     ports:
       - "3334:3334"
     restart: always
