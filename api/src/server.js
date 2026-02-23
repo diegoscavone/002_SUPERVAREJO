@@ -34,7 +34,8 @@ origin: 'http://192.168.0.198',
   })
 )
 
-const uploadsPath = path.resolve(__dirname, 'tmp', 'uploads');
+const uploadsPath = '/app/src/tmp/uploads';
+// const uploadsPath = path.resolve(__dirname, 'tmp', 'uploads');
 console.log('Pasta de uploads detectada em:', uploadsPath);
 app.use('/tmp/uploads', express.static(uploadsPath));
 app.use(routes)
