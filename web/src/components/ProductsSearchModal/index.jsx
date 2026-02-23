@@ -103,6 +103,7 @@ export function ProductSearchModal({
               rowSelection={
                 selectedProductId ? { [String(selectedProductId)]: true } : {}
               }
+              defaultPageSize={20}
             />
           )}
         </div>

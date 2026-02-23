@@ -96,15 +96,21 @@ class PostersPdfController {
       //   ],
       //   timeout: 60000
       // })
+      const isDocker = process.env.PUPPETEER_EXECUTABLE_PATH !== undefined
+      const exePath = isDocker
+        ? process.env.PUPPETEER_EXECUTABLE_PATH
+        : process.env.CHROME_PATH
 
+      console.log('Iniciando browser no caminho:', exePath)
       const browser = await puppeteer.launch({
-        executablePath:
-          process.env.CHROME_PATH || '/usr/bin/chromium-browser',
+        executablePath: exePath,
+        headless: 'new',
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage', // Importante para evitar crash por falta de memória em containers
-          '--headless=new'
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--remote-debugging-port=9222'
         ]
       })
       const page = await browser.newPage()
