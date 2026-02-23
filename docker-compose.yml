@@ -63,7 +63,7 @@ services:
       - DB_PORT=5432
       - DB_USER=diegoscavone
       - DB_PASSWORD=princesa@33
-      - DB_DATABASE_PROD=erp
+      - DB_DATABASE=erp
     restart: always
 
 
