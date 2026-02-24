@@ -19,6 +19,7 @@ import { FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
 import { Check, CloudUpload, FileImage } from 'lucide-react'
 import { Container, Content } from './styles'
+import { Switch } from '@/components/ui/switch'
 
 export function NewCampaign() {
   const navigate = useNavigate()
@@ -27,6 +28,24 @@ export function NewCampaign() {
   const [campaignImage, setCampaignImage] = useState(null)
   const [previewURL, setPreviewURL] = useState('') // Visualizador em tempo real
   const [loading, setLoading] = useState(false)
+
+  const [isVencimento, setIsVencimento] = useState(false);
+const [isPriceRequired, setIsPriceRequired] = useState(true);
+
+// Lógica de exclusividade mútua
+function handleVencimentoChange(value) {
+  setIsVencimento(value);
+  if (value === true) {
+    setIsPriceRequired(false);
+  }
+}
+
+function handlePriceRequiredChange(value) {
+  setIsPriceRequired(value);
+  if (value === true) {
+    setIsVencimento(false);
+  }
+}
 
   // Lógica para capturar a imagem e gerar o preview
   function handleImageChange(event) {
@@ -50,6 +69,8 @@ export function NewCampaign() {
       const formData = new FormData()
       formData.append('name', campaignName.trim())
       formData.append('image', campaignImage)
+      formData.append('is_vencimento', isVencimento)
+      formData.append('is_price_required', isPriceRequired)
 
       await api.post('/campaigns', formData, {
         headers: { 'Content-Type': 'multipart/form-data' }
@@ -132,6 +153,43 @@ export function NewCampaign() {
                             </p>
                           </div>
                         </FieldLabel>
+                      </div>
+                    </div>
+
+                                       {/* Seção de Regras de Negócio (Switches) */}
+                    <div className="flex flex-col gap-4 pt-4 border-t">
+                      <div className="flex items-center justify-between space-x-2">
+                        <div className="flex flex-col space-y-1">
+                          <FieldLabel htmlFor="vencimento-mode" className="text-neutral-500">
+                            Modo Vencimento
+                          </FieldLabel>
+                          <p className="text-xs text-neutral-500">
+                            Ativado irá mostrar somente o campo de validade do produto.
+                          </p>
+                        </div>
+                        <Switch
+                          id="vencimento-mode"
+                          checked={isVencimento}
+                          onCheckedChange={handleVencimentoChange} // Função customizada
+                          className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-slate-200"
+                        />
+                      </div>
+                    
+                      <div className="flex items-center justify-between space-x-2">
+                        <div className="flex flex-col space-y-1">
+                          <FieldLabel htmlFor="price-required" className="text-neutral-500 ">
+                            Preço Obrigatório
+                          </FieldLabel>
+                          <p className="text-xs text-neutral-500">
+                           Ativado irá mostrar somente o campo de preço do produto.
+                          </p>
+                        </div>
+                        <Switch
+                          id="price-required"
+                          checked={isPriceRequired}
+                          onCheckedChange={handlePriceRequiredChange} // Função customizada
+                          className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-slate-200"
+                        />
                       </div>
                     </div>
                   </CardContent>

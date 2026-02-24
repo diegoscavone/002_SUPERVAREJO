@@ -7,7 +7,7 @@ const AppError = require('../utils/AppError')
 
 class CampaignController {
   async create(request, response) {
-    const { name } = request.body
+    const { name, is_vencimento, is_price_required } = request.body
     const file = request.file
 
     // Verifica se o arquivo foi enviado
@@ -27,9 +27,11 @@ class CampaignController {
 
     await diskStorage.saveFile(file.path, destinationPath)
 
-    await knex('campaigns').insert({
+await knex('campaigns').insert({
       name,
-      image: file.filename
+      image: file.filename,
+      is_vencimento: is_vencimento === 'true' || is_vencimento === true,
+      is_price_required: is_price_required === 'true' || is_price_required === true
     })
 
     // fs.unlinkSync(file.path)
@@ -103,6 +105,8 @@ class CampaignController {
       throw new AppError('Erro ao buscar detalhes da campanha')
     }
   }
+
+  
 }
 
 module.exports = CampaignController

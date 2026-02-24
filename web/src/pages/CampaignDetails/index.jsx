@@ -17,6 +17,7 @@ import {
 } from '@/components/ui/card'
 import { FieldLabel } from '@/components/ui/field'
 import { Input } from '@/components/ui/input'
+import { Switch } from '@/components/ui/switch'
 import { Check, CloudUpload, FileImage } from 'lucide-react'
 import { Container, Content } from './styles'
 
@@ -29,14 +30,20 @@ export function CampaignDetails() {
   const [previewURL, setPreviewURL] = useState('') // Para o visualizador
   const [loading, setLoading] = useState(false)
 
+  const [isVencimento, setIsVencimento] = useState(false)
+const [isPriceRequired, setIsPriceRequired] = useState(true)
+
   // 1. Efeito para carregar os dados iniciais
   useEffect(() => {
     async function fetchCampaign() {
       try {
         const response = await api.get(`/campaigns/details/${id}`)
-        const { name, image } = response.data
+        const { name, image, is_vencimento, is_price_required} = response.data
 
         setCampaignName(name || '')
+        setIsVencimento(is_vencimento)
+        setIsPriceRequired(is_price_required)
+
         if (image) {
           // Define a URL inicial vinda do backend
           setPreviewURL(`${api.defaults.baseURL}/tmp/uploads/${image}`)
@@ -66,9 +73,14 @@ export function CampaignDetails() {
       setLoading(true)
       const formData = new FormData()
       formData.append('name', campaignName.trim())
+      formData.append('is_vencimento', isVencimento)
+      formData.append('is_price_required', isPriceRequired)
       if (campaignImage) {
         formData.append('image', campaignImage)
       }
+
+      console.log(isVencimento)
+
 
       await api.patch(`/campaign-image/${id}`, formData)
 
@@ -80,6 +92,22 @@ export function CampaignDetails() {
       setLoading(false)
     }
   }
+
+  // Quando ligar Vencimento, desliga Preço Obrigatório
+function handleVencimentoChange(value) {
+  setIsVencimento(value);
+  if (value === true) {
+    setIsPriceRequired(false);
+  }
+}
+
+// Quando ligar Preço Obrigatório, desliga Vencimento
+function handlePriceRequiredChange(value) {
+  setIsPriceRequired(value);
+  if (value === true) {
+    setIsVencimento(false);
+  }
+}
 
   return (
     <Layout>
@@ -150,6 +178,43 @@ export function CampaignDetails() {
                         </FieldLabel>
                       </div>
                     </div>
+
+                   {/* Seção de Regras de Negócio (Switches) */}
+<div className="flex flex-col gap-4 pt-4 border-t">
+  <div className="flex items-center justify-between space-x-2">
+    <div className="flex flex-col space-y-1">
+      <FieldLabel htmlFor="vencimento-mode" className="text-neutral-500">
+        Modo Vencimento
+      </FieldLabel>
+      <p className="text-xs text-neutral-500">
+        Ativado irá mostrar somente o campo de validade do produto.
+      </p>
+    </div>
+    <Switch
+      id="vencimento-mode"
+      checked={isVencimento}
+      onCheckedChange={handleVencimentoChange} // Função customizada
+      className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-slate-200"
+    />
+  </div>
+
+  <div className="flex items-center justify-between space-x-2">
+    <div className="flex flex-col space-y-1">
+      <FieldLabel htmlFor="price-required" className="text-neutral-500 ">
+        Preço Obrigatório
+      </FieldLabel>
+      <p className="text-xs text-neutral-500">
+       Ativado irá mostrar somente o campo de preço do produto.
+      </p>
+    </div>
+    <Switch
+      id="price-required"
+      checked={isPriceRequired}
+      onCheckedChange={handlePriceRequiredChange} // Função customizada
+      className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-slate-200"
+    />
+  </div>
+</div>
                   </CardContent>
                   <CardFooter className="flex justify-end gap-2 border-t pt-4 pb-4">
                     <Button

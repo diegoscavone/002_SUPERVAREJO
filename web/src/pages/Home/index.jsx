@@ -58,6 +58,8 @@ export function Home() {
 
   const [userUnit, setUserUnit] = useState(null)
 
+  const [selectedCampaignData, setSelectedCampaignData] = useState(null)
+
   const handleCreatePoster = useCreatedPoster()
 
   //Objeto onde armazena os valores de todos os inputs
@@ -215,54 +217,81 @@ export function Home() {
   }
 
   //Função que verifica e valida se os campos estão preenchidos
-  function validateInputs(
-    productInputs,
-    // dateInitial,
-    // dateFinal,
-    campaignSelected,
-    campaignTypeSelected
-  ) {
-    // Função auxiliar para verificar se um campo é válido
-    const isFieldValid = field => {
-      // Se for undefined ou null, é inválido
-      if (field === undefined || field === null) return false
+  // function validateInputs(
+  //   productInputs,
+  //   // dateInitial,
+  //   // dateFinal,
+  //   campaignSelected,
+  //   campaignTypeSelected
+  // ) {
+  //   // Função auxiliar para verificar se um campo é válido
+  //   const isFieldValid = field => {
+  //     // Se for undefined ou null, é inválido
+  //     if (field === undefined || field === null) return false
 
-      // Se for string, verifica se não está vazia após trim
-      if (typeof field === 'string') return field.trim() !== ''
+  //     // Se for string, verifica se não está vazia após trim
+  //     if (typeof field === 'string') return field.trim() !== ''
 
-      // Se for número, é válido (mesmo se for 0)
-      if (typeof field === 'number') return true
+  //     // Se for número, é válido (mesmo se for 0)
+  //     if (typeof field === 'number') return true
 
-      // Para outros tipos, considera válido se for "truthy"
-      return Boolean(field)
-    }
+  //     // Para outros tipos, considera válido se for "truthy"
+  //     return Boolean(field)
+  //   }
 
-    // Cria um objeto com cada campo e seu status de validação
-    const fieldValidation = {
-      product_id: isFieldValid(productInputs.product_id),
-      description: isFieldValid(productInputs.description),
-      packaging: isFieldValid(productInputs.packaging),
-      // dateInitial: isFieldValid(dateInitial),
-      // dateFinal: isFieldValid(dateFinal),
-      campaignSelected: isFieldValid(campaignSelected),
-      campaignTypeSelected: isFieldValid(campaignTypeSelected)
-    }
+  //   // Cria um objeto com cada campo e seu status de validação
+  //   const fieldValidation = {
+  //     product_id: isFieldValid(productInputs.product_id),
+  //     description: isFieldValid(productInputs.description),
+  //     packaging: isFieldValid(productInputs.packaging),
+  //     // dateInitial: isFieldValid(dateInitial),
+  //     // dateFinal: isFieldValid(dateFinal),
+  //     campaignSelected: isFieldValid(campaignSelected),
+  //     campaignTypeSelected: isFieldValid(campaignTypeSelected)
+  //   }
 
-    // Adiciona validação específica baseada no tipo de campanha
+  //   // Adiciona validação específica baseada no tipo de campanha
+  //   if (campaignTypeSelected === '2') {
+  //     // Modo atacarejo - verifica preços de varejo e atacado
+  //     fieldValidation.price_retail = isFieldValid(productInputs.price_retail)
+  //     fieldValidation.price_wholesale = isFieldValid(
+  //       productInputs.price_wholesale
+  //     )
+  //   } else {
+  //     // Modo normal - verifica apenas o preço normal
+  //     fieldValidation.price = isFieldValid(productInputs.price)
+  //   }
+
+  //   // Todos os campos devem ser válidos
+  //   return Object.values(fieldValidation).every(Boolean)
+  // }
+
+  function validateInputs(productInputs, campaignSelected, campaignTypeSelected, features) {
+  const isFieldValid = field => {
+    if (field === undefined || field === null) return false;
+    if (typeof field === 'string') return field.trim() !== '';
+    return true;
+  };
+
+  const fieldValidation = {
+    product_id: isFieldValid(productInputs.product_id),
+    description: isFieldValid(productInputs.description),
+    packaging: isFieldValid(productInputs.packaging),
+    campaignSelected: isFieldValid(campaignSelected),
+  };
+
+  // VALIDAÇÃO DE PREÇO: Só valida se a flag do banco disser que é obrigatório
+  if (features?.is_price_required) {
     if (campaignTypeSelected === '2') {
-      // Modo atacarejo - verifica preços de varejo e atacado
-      fieldValidation.price_retail = isFieldValid(productInputs.price_retail)
-      fieldValidation.price_wholesale = isFieldValid(
-        productInputs.price_wholesale
-      )
+      fieldValidation.price_retail = isFieldValid(productInputs.price_retail);
+      fieldValidation.price_wholesale = isFieldValid(productInputs.price_wholesale);
     } else {
-      // Modo normal - verifica apenas o preço normal
-      fieldValidation.price = isFieldValid(productInputs.price)
+      fieldValidation.price = isFieldValid(productInputs.price);
     }
-
-    // Todos os campos devem ser válidos
-    return Object.values(fieldValidation).every(Boolean)
   }
+
+  return Object.values(fieldValidation).every(Boolean);
+}
 
   function createPoster() {
     if (campaignTypeSelected === '2') {
@@ -280,7 +309,8 @@ export function Home() {
       // dateInitial,
       // dateFinal,
       campaignSelected,
-      campaignTypeSelected
+      campaignTypeSelected,
+      selectedCampaignData
     )
 
     if (!isInputValid) {
@@ -455,11 +485,12 @@ export function Home() {
                   <Select
                     onValueChange={value => {
                       handleSelectedChange(value)
-                      const selectedCampaign = campaigns.find(
+                      const selected = campaigns.find(
                         c => String(c.id) === value
                       )
-                      if (selectedCampaign) {
-                        handleImageCampaign(selectedCampaign.image)
+                      if (selected) {
+                        setSelectedCampaignData(selected) // Salva o objeto com is_vencimento e is_price_required
+                        handleImageCampaign(selected.image)
                       }
                     }}
                   >
@@ -625,16 +656,14 @@ export function Home() {
                 </div>
               </Section>
             )}
-            {campaignSelected !== '17' && campaignSelected !== '33' && (
+            {selectedCampaignData && !selectedCampaignData.is_price_required &&(
               <Section
                 title={
-                  campaignSelected === '18'
-                    ? 'Validade do Produto'
-                    : 'Validade da Campanha'
+                  selectedCampaignData.is_vencimento ? "Validade do Produto" : "Validade da Campanha"
                 }
               >
-                <div className="flex flex-col md:flex-row gap-4 w-full mt-4">
-                  {campaignSelected !== '18' && (
+                <div className="flex flex-col md:flex-row gap-4 w-full">
+                  {!selectedCampaignData.is_vencimento && (
                     <Field className="flex flex-col gap-2 flex-1">
                       <FieldLabel htmlFor="initial_date">
                         Data Inicial
@@ -653,7 +682,7 @@ export function Home() {
                   )}
 
                   <Field className="flex flex-col gap-2 flex-1">
-                    <FieldLabel htmlFor="final_date">Data Final</FieldLabel>
+                    <FieldLabel htmlFor="final_date">{selectedCampaignData.is_vencimento ? "Validade do Produto" : "Data Final"}</FieldLabel>
                     <InputMask
                       id="final_date"
                       name="final_date"

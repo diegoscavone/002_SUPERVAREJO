@@ -10,7 +10,7 @@ class ImageCampaignController {
     try {
       const user_id = request.user.id
       const campaign_id = request.params.id
-      const { name } = request.body
+      const { name, is_vencimento, is_price_required } = request.body
       const diskStorage = new DiskStorage()
 
       // Validação de autenticação
@@ -47,6 +47,12 @@ class ImageCampaignController {
         .update({
           name: name || campaign.name, // Manter nome atual se não foi fornecido
           image: imageFilename,
+          is_vencimento: is_vencimento !== undefined 
+          ? (is_vencimento === 'true' || is_vencimento === true) 
+          : campaign.is_vencimento,
+        is_price_required: is_price_required !== undefined 
+          ? (is_price_required === 'true' || is_price_required === true) 
+          : campaign.is_price_required,
           updated_at: knex.fn.now()
         })
         .returning('*') // Para PostgreSQL
