@@ -27,17 +27,17 @@ app.use(
     //   'http://127.0.0.1:5173',
     // ],
 
-  origin: 'http://192.168.0.198',
-  // origin: 'http://localhost:5174' ,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  credentials: true, // OBRIGATÓRIO para o navegador aceitar o cookie do SessionsController
-  optionsSuccessStatus: 200
+    origin: 'http://192.168.0.198',
+    // origin: 'http://localhost:5173',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    credentials: true, // OBRIGATÓRIO para o navegador aceitar o cookie do SessionsController
+    optionsSuccessStatus: 200
   })
 )
 
-const uploadsPath = path.resolve(__dirname, 'tmp', 'uploads');
-console.log('Pasta de uploads detectada em:', uploadsPath);
-app.use('/tmp/uploads', express.static(uploadsPath));
+const uploadsPath = path.resolve(__dirname, 'tmp', 'uploads')
+console.log('Pasta de uploads detectada em:', uploadsPath)
+app.use('/tmp/uploads', express.static(uploadsPath))
 app.use(routes)
 
 app.use((error, request, response, next) => {

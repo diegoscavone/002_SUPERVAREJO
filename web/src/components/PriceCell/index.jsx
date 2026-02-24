@@ -5,27 +5,35 @@ import { FormatCurrency } from '@/hooks/formatCurrency'
 export function PriceCell({ value, onUpdate, index }) {
   const [localValue, setLocalValue] = useState('')
 
-  useEffect(() => {
+useEffect(() => {
     if (value !== undefined && value !== null) {
-      const numericValue = parseFloat(String(value).replace(',', '.'))
-      setLocalValue(isNaN(numericValue) ? '' : FormatCurrency(numericValue))
+      // Se o valor já for uma string formatada ou número, tratamos
+      const numericValue = typeof value === 'string' 
+        ? parseFloat(value.replace(',', '.')) 
+        : value
+      
+      setLocalValue(isNaN(numericValue) || numericValue === 0 ? '' : FormatCurrency(numericValue))
     }
   }, [value])
 
-  const handleChange = e => {
+ const handleChange = e => {
+    // 1. Tratamento da máscara (Visual)
     const inputValue = e.target.value.replace(/[^\d]/g, '')
     const numericValue = parseFloat(inputValue) / 100
     const formatted = isNaN(numericValue) ? '' : FormatCurrency(numericValue)
+    
     setLocalValue(formatted)
+
+    // 2. Atualização em TEMPO REAL (Lógica)
+    // Enviamos o valor limpo (ex: 10.50) para o pai atualizar a margem na hora
+    const cleanValue = isNaN(numericValue) ? '0' : String(numericValue)
+    onUpdate(cleanValue) 
   }
 
-  const handleBlur = () => {
-    const cleanValue = localValue
-      .replace('R$', '')
-      .replace(/\./g, '')
-      .replace(',', '.')
-      .trim()
-    onUpdate(cleanValue)
+const handleBlur = () => {
+    // Mantemos o blur apenas para garantir consistência final, 
+    // mas a lógica principal agora corre no handleChange
+    if (localValue === '') onUpdate('0')
   }
 
   const handleKeyDown = e => {

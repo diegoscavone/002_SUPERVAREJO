@@ -738,44 +738,83 @@ export function NewOffer() {
     }
   }
 
-   const handleRowUpdate = useCallback(
-    (rowIndex, columnId, value) => {
-      setSelectedProducts(prev => {
-        const newData = [...prev]
-        const item = { ...newData[rowIndex] }
+  //  const handleRowUpdate = useCallback(
+  //   (rowIndex, columnId, value) => {
+  //     setSelectedProducts(prev => {
+  //       const newData = [...prev]
+  //       const item = { ...newData[rowIndex] }
 
-        if (item[columnId] === value) return prev // Evita renders inúteis
+  //       if (item[columnId] === value) return prev // Evita renders inúteis
 
-        item[columnId] = value
+  //       item[columnId] = value
 
-        if (columnId === 'offerPrice') {
-          const sanitized = String(value)
-            .replace(',', '.')
-            .replace(/[^\d.]/g, '')
-          const validNumber = parseFloat(sanitized) || 0
-          item.profit = calculateProfit(item.prod_preco_custo, validNumber)
+  //       if (columnId === 'offerPrice') {
+  //         const sanitized = String(value)
+  //           .replace(',', '.')
+  //           .replace(/[^\d.]/g, '')
+  //         const validNumber = parseFloat(sanitized) || 0
+  //         item.profit = calculateProfit(item.prod_preco_custo, validNumber)
 
-          // Lógica de Debounce
-          const productId = item.prod_codigo
-          if (syncTimeoutRef.current[productId]) {
-            clearTimeout(syncTimeoutRef.current[productId])
-          }
+  //         // Lógica de Debounce
+  //         const productId = item.prod_codigo
+  //         if (syncTimeoutRef.current[productId]) {
+  //           clearTimeout(syncTimeoutRef.current[productId])
+  //         }
 
-          syncTimeoutRef.current[productId] = setTimeout(async () => {
-            try {
-              await syncItemToDatabase(item)
-            } catch (err) {
-              console.error('Falha ao sincronizar preço:', err)
-            }
-          }, 800)
+  //         syncTimeoutRef.current[productId] = setTimeout(async () => {
+  //           try {
+  //             await syncItemToDatabase(item)
+  //           } catch (err) {
+  //             console.error('Falha ao sincronizar preço:', err)
+  //           }
+  //         }, 800)
+  //       }
+
+  //       newData[rowIndex] = item
+  //       return newData
+  //     })
+  //   },
+  //   [calculateProfit, syncItemToDatabase]
+  // )
+
+  const handleRowUpdate = useCallback(
+  (rowIndex, columnId, value) => {
+    setSelectedProducts(prev => {
+      const newData = [...prev];
+      const item = { ...newData[rowIndex] };
+
+      // Atualização IMEDIATA para a UI
+      item[columnId] = value;
+
+      if (columnId === 'offerPrice') {
+        const sanitized = String(value).replace(',', '.');
+        const validNumber = parseFloat(sanitized) || 0;
+        
+        // Recalcula a margem para o objeto que vai para o estado local agora
+        item.profit = calculateProfit(item.prod_preco_custo, validNumber);
+
+        // Lógica de Debounce APENAS para o banco de dados
+        const productId = item.prod_codigo;
+        if (syncTimeoutRef.current[productId]) {
+          clearTimeout(syncTimeoutRef.current[productId]);
         }
 
-        newData[rowIndex] = item
-        return newData
-      })
-    },
-    [calculateProfit, syncItemToDatabase]
-  )
+        syncTimeoutRef.current[productId] = setTimeout(async () => {
+          try {
+            // Sincroniza o 'item' que já contém os valores atualizados
+            await syncItemToDatabase(item);
+          } catch (err) {
+            console.error('Falha ao sincronizar preço:', err);
+          }
+        }, 1000); // 1 segundo de silêncio para disparar o save
+      }
+
+      newData[rowIndex] = item;
+      return newData;
+    });
+  },
+  [calculateProfit, syncItemToDatabase]
+);
 
   const MARGIN_THEME = {
     CRITICAL: {
