@@ -73,7 +73,15 @@ export function ProductsValidity() {
   const codeInputRef = useRef(null)
   const userUnit = user.unit || user.unidade || user.unid_codigo
 
+  const [showScanner, setShowScanner] = useState(false)
+
   // --- LÓGICA DE NEGÓCIO ---
+  const handleScan = code => {
+    setProductSearch({ ...productSearch, id: code })
+    setShowScanner(false)
+    // Opcional: já disparar a busca automática
+    handleProductSearch()
+  }
 
   useEffect(() => {
     async function fetchCampaigns() {
@@ -459,19 +467,46 @@ export function ProductsValidity() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 bg-white  rounded-xl items-end">
               <Field className="flex flex-col gap-2">
                 <FieldLabel>Código</FieldLabel>
-                <InputGroup>
-                  <InputGroupInput
-                    type="text"
-                    value={productSearch.id}
-                    onChange={e =>
-                      setProductSearch({ ...productSearch, id: e.target.value })
-                    }
-                    onKeyDown={e => e.key === 'Enter' && handleProductSearch()}
-                  />
-                  <InputGroupAddon align="inline-start">
-                    <Search size={16} />
-                  </InputGroupAddon>
-                </InputGroup>
+                <div className="flex gap-2 items-center">
+                  <InputGroup className="flex-1">
+                    <InputGroupInput
+                      type="text"
+                      value={productSearch.id}
+                      onChange={e =>
+                        setProductSearch({
+                          ...productSearch,
+                          id: e.target.value
+                        })
+                      }
+                      onKeyDown={e =>
+                        e.key === 'Enter' && handleProductSearch()
+                      }
+                    />
+                    <InputGroupAddon align="inline-start">
+                      <Search size={16} />
+                    </InputGroupAddon>
+                  </InputGroup>
+
+                  {/* Botão de busca visível apenas em telas menores que LG (mobile/tablet) */}
+                  <Button
+                    type="button"
+                    onClick={handleProductSearch}
+                    size="icon"
+                    className="lg:hidden bg-green-600 hover:bg-green-700 w-12 shrink-0 shadow-none"
+                  >
+                    <Search size={18} className="text-white" />
+                  </Button>
+
+                  <Button onClick={() => setShowScanner(!showScanner)}>
+                    {showScanner ? 'Fechar Câmera' : 'Escanear Código'}
+                  </Button>
+
+                  {showScanner && (
+                    <div className="my-4">
+                      <BarcodeScanner onScanSuccess={handleScan} />
+                    </div>
+                  )}
+                </div>
               </Field>
 
               <Field className="flex flex-col gap-2 lg:col-span-1">
