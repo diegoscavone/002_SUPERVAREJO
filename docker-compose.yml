@@ -9,7 +9,7 @@ services:
     ports:
       - '80:80'   # Entrada HTTP (Essencial para o Let's Encrypt)
       - '443:443' # Entrada HTTPS (Onde os celulares vão conectar)
-      - '81:81'   # Painel Administrativo (Acesse via 192.168.0.198:81)
+      - '8080:81'   # Painel Administrativo (Acesse via 192.168.0.198:81)
     volumes:
       - ./proxy/data:/data
       - ./proxy/letsencrypt:/etc/letsencrypt
