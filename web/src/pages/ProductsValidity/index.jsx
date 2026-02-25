@@ -50,6 +50,7 @@ import {
   SelectValue
 } from '@/components/ui/select'
 import { useNavigate } from 'react-router-dom'
+import { BarcodeScanner } from '@/components/BarcodeScanner'
 
 export function ProductsValidity() {
   const navigate = useNavigate()
