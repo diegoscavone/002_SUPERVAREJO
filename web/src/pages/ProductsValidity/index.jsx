@@ -498,7 +498,7 @@ export function ProductsValidity() {
                     <Search size={18} className="text-white" />
                   </Button>
 
-                  <Button onClick={() => setShowScanner(!showScanner)}>
+                  {/* <Button onClick={() => setShowScanner(!showScanner)}>
                     {showScanner ? 'Fechar Câmera' : 'Escanear Código'}
                   </Button>
 
@@ -506,7 +506,7 @@ export function ProductsValidity() {
                     <div className="my-4">
                       <BarcodeScanner onScanSuccess={handleScan} />
                     </div>
-                  )}
+                  )} */}
                 </div>
               </Field>
 
