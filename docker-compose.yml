@@ -1,76 +1,96 @@
 version: '3.8'
 
 services:
+  # --- INFRA DE PROXY E SSL ---
+  proxy-manager:
+    image: 'jc21/nginx-proxy-manager:latest'
+    container_name: supervarejo-proxy
+    restart: always
+    ports:
+      - '80:80'   # Entrada HTTP (Essencial para o Let's Encrypt)
+      - '443:443' # Entrada HTTPS (Onde os celulares vão conectar)
+      - '81:81'   # Painel Administrativo (Acesse via 192.168.0.198:81)
+    volumes:
+      - ./proxy/data:/data
+      - ./proxy/letsencrypt:/etc/letsencrypt
+    networks:
+      - supervarejo-net
+
+  # --- FRONTEND ---
   web:
     build:
       context: ./web
       dockerfile: Dockerfile
-    ports:
-      - "80:80"
+    container_name: supervarejo-web-ssl
     restart: always
+    # Removido ports 80:80 para não conflitar com o proxy
     networks:
       - supervarejo-net
 
+  # --- BANCO DE DADOS ---
   db:
     image: postgres:15-alpine
-    container_name: supervarejo-db
+    container_name: supervarejo-db-ssl
     restart: always
     environment:
       POSTGRES_USER: diego
       POSTGRES_PASSWORD: princesa@33
       POSTGRES_DB: princesa
-    # Removi o ports "5432:5432" por segurança. 
-    # A API ainda consegue conectar porque estão na mesma rede.
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata_ssl:/var/lib/postgresql/data
     networks:
       - supervarejo-net
 
+  # --- API PRINCIPAL ---
   api:
     build:
       context: ./api
       dockerfile: Dockerfile
+    container_name: supervarejo-api-ssl
     shm_size: '1gb'
     depends_on:
       - db
     environment:
       - NODE_ENV=production
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
-      - DB_HOST=${DB_HOST}  # <--- FIXO COMO DB (Nome do serviço acima)
-      - DB_PORT=6432
+      - DB_HOST=db  # Nome do serviço acima
+      - DB_PORT=5432
       - DB_USER=diego
       - DB_PASSWORD=princesa@33
       - DB_DATABASE_PROD=princesa
-    ports:
-      - "3333:3333"
+    # Porta 3333 fica interna para o Proxy
     volumes:
-      - posters_data:/app/src/database
-      - uploads:/app/src/tmp/uploads
+      - posters_data_ssl:/app/src/database
+      - uploads_ssl:/app/src/tmp/uploads
     restart: always
     networks:
       - supervarejo-net
 
+  # --- API ERP (Ajustada para conversar com o banco isolado) ---
   api-erp:
     build:
       context: ./api-erp
       dockerfile: Dockerfile
-    network_mode: host
+    container_name: supervarejo-erp-ssl
+    # Removi network_mode: host para isolar. Se o ERP for externo, 
+    # use o IP real do servidor ERP no DB_HOST.
     depends_on:
       - db
     environment:
       - NODE_ENV=production
-      - DB_HOST=127.0.0.1  # <--- FIXO COMO DB (Nome do serviço acima)
+      - DB_HOST=db
       - DB_PORT=5432
       - DB_USER=diegoscavone
       - DB_PASSWORD=princesa@33
       - DB_DATABASE=erp
     restart: always
-
+    networks:
+      - supervarejo-net
 
 volumes:
-  posters_data:
-  uploads:
-  pgdata:
+  posters_data_ssl:
+  uploads_ssl:
+  pgdata_ssl:
 
 networks:
   supervarejo-net:
