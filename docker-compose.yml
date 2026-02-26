@@ -4,7 +4,7 @@ services:
   # --- INFRA DE PROXY E SSL ---
   proxy-manager:
     image: 'jc21/nginx-proxy-manager:latest'
-    container_name: supervarejo-proxy
+    container_name: supervarejo_teste-proxy
     restart: always
     ports:
       - '8081:80'   # Entrada HTTP (Essencial para o Let's Encrypt)
@@ -21,7 +21,7 @@ services:
     build:
       context: ./web
       dockerfile: Dockerfile
-    container_name: supervarejo-web-ssl
+    container_name: supervarejo_teste-web-ssl
     restart: always
     # Removido ports 80:80 para não conflitar com o proxy
     networks:
@@ -30,7 +30,7 @@ services:
   # --- BANCO DE DADOS ---
   db:
     image: postgres:15-alpine
-    container_name: supervarejo-db-ssl
+    container_name: supervarejo_teste-db-ssl
     restart: always
     environment:
       POSTGRES_USER: diego
@@ -46,7 +46,7 @@ services:
     build:
       context: ./api
       dockerfile: Dockerfile
-    container_name: supervarejo-api-ssl
+    container_name: supervarejo_teste-api-ssl
     shm_size: '1gb'
     depends_on:
       - db
@@ -71,7 +71,7 @@ services:
     build:
       context: ./api-erp
       dockerfile: Dockerfile
-    container_name: supervarejo-erp-ssl
+    container_name: supervarejo_teste-erp-ssl
     # Removi network_mode: host para isolar. Se o ERP for externo, 
     # use o IP real do servidor ERP no DB_HOST.
     depends_on:
