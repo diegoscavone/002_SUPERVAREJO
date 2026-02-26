@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const getBaseUrl = (port) => {
+const getBaseUrl = (port, path) => {
   const { hostname, protocol} = window.location
 
 // Se for localhost, mantém o comportamento de portas para desenvolvimento
