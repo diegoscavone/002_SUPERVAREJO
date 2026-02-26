@@ -85,8 +85,8 @@ services:
       - DB_PASSWORD=princesa@33
       - DB_DATABASE=erp
     restart: always
-    networks:
-      - supervarejo-net
+    # networks:
+    #   - supervarejo-net
 
 volumes:
   posters_data_ssl:
