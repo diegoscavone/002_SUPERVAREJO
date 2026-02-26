@@ -3,28 +3,24 @@ import axios from 'axios'
 const getBaseUrl = (port) => {
   const { hostname, protocol} = window.location
 
-const host = hostname === 'localhost' ? 'localhost' : hostname;
-  
-  return `${protocol}//${host}:${port}`;
+// Se for localhost, mantém o comportamento de portas para desenvolvimento
+  if (hostname === 'localhost') {
+    return `${protocol}//localhost:${port}`;
+  }
+
+  // Em produção (no seu domínio), removemos a porta e usamos o path configurado no Nginx
+  return `${protocol}//${hostname}${path}`;
 }
 
-// const getApiErpBaseUrl = () => {
-//   const currentHost = window.location.hostname
-
-//   return currentHost === 'localhost'
-//     ? 'http://localhost:3334'
-//     : `http://${currentHost}:3334`
-// }
-
 export const api = axios.create({
-  baseURL: getBaseUrl('3333'),
+  baseURL: getBaseUrl('3333', '/api'),
   // baseURL: 'http://192.168.0.198:3333',
   withCredentials: true,
   timeout: 10000
 })
 
 export const apiERP = axios.create({
-  baseURL: getBaseUrl('3334')
+  baseURL: getBaseUrl('3334', '/erp')
   // baseURL: 'http://192.168.0.198:3334',
   // withCredentials: true
 })
