@@ -74,6 +74,7 @@ services:
     container_name: supervarejo_teste-erp-ssl
     # Removi network_mode: host para isolar. Se o ERP for externo, 
     # use o IP real do servidor ERP no DB_HOST.
+    network_mode: host
     depends_on:
       - db
     environment:
