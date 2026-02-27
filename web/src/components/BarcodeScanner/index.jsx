@@ -8,52 +8,42 @@ export function BarcodeScanner({ onScanSuccess }) {
     // 1. Instancia o scanner apontando para o ID 'reader'
     const html5QrCode = new Html5Qrcode('reader', {
       formatsToSupport: [
-        0, // FORMAT_EAN_13 (O mais comum em supermercado)
-        5, // FORMAT_EAN_8
-        11 // FORMAT_UPC_A
+        Html5QrcodeSupportedFormats.EAN_13,
+        Html5QrcodeSupportedFormats.EAN_8,
+        Html5QrcodeSupportedFormats.CODE_128
       ],
       verbose: false
     })
     scannerRef.current = html5QrCode
 
     const config = {
-      fps: 20, // Aumentamos para capturar movimentos rápidos
-      qrbox: { width: 300, height: 150 }, // Formato retangular ideal para barras
+      fps: 30, // Aumentamos para 30 para não perder frames no movimento
+      qrbox: { width: 320, height: 180 }, // Caixa retangular para alinhar as barras
       aspectRatio: 1.777778,
-      // Dica de Sênior: Se o mobile estiver frouxo, force uma resolução maior
+      experimentalFeatures: {
+        useBarCodeDetectorIfSupported: true // Tenta usar aceleração de hardware do celular
+      },
       videoConstraints: {
         facingMode: 'environment',
-        focusMode: 'continuous', // Tenta manter o foco automático
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
+        focusMode: 'continuous',
+        // Se o foco estiver ruim, aumentamos a resolução para o sensor enxergar as linhas finas
+        width: { ideal: 1920 },
+        height: { ideal: 1080 }
       }
     }
 
     // 2. Inicia a câmera automaticamente
     // 'facingMode: environment' tenta usar a câmera traseira em celulares
     html5QrCode
-      .start(
-        { facingMode: 'environment' },
-        config,
-        decodedText => {
-          // Sucesso no scan
-          onScanSuccess(decodedText)
+      .start({ facingMode: 'environment' }, config, decodedText => {
+        // Feedback imediato antes de fechar
+        if (navigator.vibrate) navigator.vibrate(100)
 
-          // Opcional: Para a câmera após o primeiro sucesso se desejar
-          // stopScanner()
-        },
-        errorMessage => {
-          // Erros de busca (ignorar para não poluir o console)
-        }
-      )
-      .catch(err => {
-        console.error('Erro ao iniciar a câmera diretamente:', err)
+        onScanSuccess(decodedText)
       })
+      .catch(err => console.error('Erro ao iniciar:', err))
 
-    // 3. Cleanup: Função para garantir que a câmera desligue ao fechar o componente
-    return () => {
-      stopScanner()
-    }
+    return () => stopScanner()
   }, [onScanSuccess])
 
   const stopScanner = async () => {
