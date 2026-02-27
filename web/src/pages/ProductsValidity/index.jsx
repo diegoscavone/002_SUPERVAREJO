@@ -503,7 +503,7 @@ export function ProductsValidity() {
                   </Button>
 
                   {showScanner && (
-                    <div className="my-4">
+                    <div className="my-6 flex justify-center animate-in zoom-in-95 duration-200">
                       <BarcodeScanner onScanSuccess={handleScan} />
                     </div>
                   )}

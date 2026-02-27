@@ -1,37 +1,63 @@
-import { useEffect } from 'react'
-import { Html5QrcodeScanner } from 'html5-qrcode'
+import { useEffect, useRef } from 'react'
+import { Html5Qrcode } from 'html5-qrcode'
 
 export function BarcodeScanner({ onScanSuccess }) {
+  const scannerRef = useRef(null)
+
   useEffect(() => {
-    // Configuração do scanner
-    const scanner = new Html5QrcodeScanner('reader', {
-      fps: 10,
-      qrbox: { width: 280, height: 150 }, // Formato retangular para EAN-13
-      aspectRatio: 1.777778 // 16:9
+    // 1. Instancia o scanner apontando para o ID 'reader'
+    const html5QrCode = new Html5Qrcode("reader")
+    scannerRef.current = html5QrCode
+
+    const config = { 
+      fps: 10, 
+      qrbox: { width: 280, height: 150 },
+      aspectRatio: 1.777778 
+    }
+
+    // 2. Inicia a câmera automaticamente
+    // 'facingMode: environment' tenta usar a câmera traseira em celulares
+    html5QrCode.start(
+      { facingMode: "environment" }, 
+      config,
+      (decodedText) => {
+        // Sucesso no scan
+        onScanSuccess(decodedText)
+        
+        // Opcional: Para a câmera após o primeiro sucesso se desejar
+        // stopScanner()
+      },
+      (errorMessage) => {
+        // Erros de busca (ignorar para não poluir o console)
+      }
+    ).catch((err) => {
+      console.error("Erro ao iniciar a câmera diretamente:", err)
     })
 
-    scanner.render(
-      decodedText => {
-        // Quando ler com sucesso, passamos o código para o componente pai
-        onScanSuccess(decodedText)
-        scanner.clear() // Para a câmera após a leitura
-      },
-      error => {
-        // Erros de leitura (comum enquanto a câmera foca) são ignorados aqui
-      }
-    )
-
-    // Cleanup: Quando fechar o componente, desliga a câmera
+    // 3. Cleanup: Função para garantir que a câmera desligue ao fechar o componente
     return () => {
-      scanner
-        .clear()
-        .catch(error => console.error('Erro ao limpar scanner', error))
+      stopScanner()
     }
   }, [onScanSuccess])
 
+  const stopScanner = async () => {
+    if (scannerRef.current && scannerRef.current.isScanning) {
+      try {
+        await scannerRef.current.stop()
+        scannerRef.current.clear()
+      } catch (err) {
+        console.error("Falha ao parar o scanner no cleanup:", err)
+      }
+    }
+  }
+
   return (
-    <div className="w-full max-w-md mx-auto overflow-hidden rounded-xl border-2 border-orange-500">
-      <div id="reader"></div>
+    <div className="w-full max-w-md mx-auto overflow-hidden rounded-xl border-2 border-orange-500 bg-black relative min-h-[250px]">
+      <div id="reader" className="w-full"></div>
+      {/* Overlay opcional para ajudar o usuário a centralizar o código */}
+      <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
+        <div className="border-2 border-dashed border-white/50 w-[280px] h-[150px] rounded-lg"></div>
+      </div>
     </div>
   )
 }
