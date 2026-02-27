@@ -77,12 +77,20 @@ export function ProductsValidity() {
   const [showScanner, setShowScanner] = useState(false)
 
   // --- LÓGICA DE NEGÓCIO ---
-  const handleScan = code => {
-    setProductSearch({ ...productSearch, id: code })
-    setShowScanner(false)
-    // Opcional: já disparar a busca automática
-    handleProductSearch()
-  }
+  const handleScan = useCallback(
+    code => {
+      if (navigator.vibrate) {
+        navigator.vibrate(100)
+      }
+
+      // Fecha o scanner
+      setShowScanner(false)
+
+      // Executa a busca passando o código diretamente para ignorar o delay do setProductSearch
+      handleProductSearch(code)
+    },
+    [productSearch, userUnit]
+  )
 
   useEffect(() => {
     async function fetchCampaigns() {
@@ -124,20 +132,63 @@ export function ProductsValidity() {
     }
   }, [userUnit, calculateProfit])
 
-  async function handleProductSearch() {
-    if (!productSearch.id) {
-      return toastInfo('Digite um produto para buscar.')
+  // async function handleProductSearch() {
+  //   if (!productSearch.id) {
+  //     return toastInfo('Digite um produto para buscar.')
+  //   }
+
+  //   try {
+  //     // Seguindo o padrão de params da Home
+  //     const response = await apiERP.get(`/products/${productSearch.id}`, {
+  //       params: {
+  //         unit: userUnit
+  //       }
+  //     })
+
+  //     // Lógica de extração de dados igual à Home
+  //     const productInfo =
+  //       response.data.products && response.data.products.length > 0
+  //         ? response.data.products[0]
+  //         : response.data
+
+  //     if (productInfo) {
+  //       setFetchedProduct(productInfo)
+  //       setProductSearch({
+  //         ...productSearch,
+  //         description: productInfo.prod_descricao || productInfo.descricao
+  //       })
+
+  //       // Dica sênior: Se quiser preencher o lote automaticamente caso venha da API
+  //       // setProductBatch(productInfo.lote || '')
+  //     } else {
+  //       toastError('Produto não encontrado.')
+  //       setFetchedProduct(null)
+  //       setProductSearch({ ...productSearch, description: '' })
+  //     }
+  //   } catch (error) {
+  //     console.error('Erro ao buscar produto:', error)
+  //     toastError(`Produto ${productSearch.id} não encontrado.`)
+  //     setFetchedProduct(null)
+  //     setProductSearch({ ...productSearch, description: '' })
+  //   }
+  // }
+
+  // Ajuste na função de adicionar para garantir que use os campos corretos mapeados
+
+  async function handleProductSearch(scannedCode = null) {
+    // Prioriza o código escaneado, se não houver, usa o do estado
+    const targetId = scannedCode || productSearch.id
+
+    if (!targetId) {
+      return toastInfo('Digite ou escaneie um produto para buscar.')
     }
 
     try {
-      // Seguindo o padrão de params da Home
-      const response = await apiERP.get(`/products/${productSearch.id}`, {
-        params: {
-          unit: userUnit
-        }
+      setLoading(true) // Feedback visual de busca
+      const response = await apiERP.get(`/products/${targetId}`, {
+        params: { unit: userUnit }
       })
 
-      // Lógica de extração de dados igual à Home
       const productInfo =
         response.data.products && response.data.products.length > 0
           ? response.data.products[0]
@@ -146,26 +197,24 @@ export function ProductsValidity() {
       if (productInfo) {
         setFetchedProduct(productInfo)
         setProductSearch({
-          ...productSearch,
+          id: targetId, // Garante que o ID no input seja o que foi buscado
           description: productInfo.prod_descricao || productInfo.descricao
         })
-
-        // Dica sênior: Se quiser preencher o lote automaticamente caso venha da API
-        // setProductBatch(productInfo.lote || '')
+        toastSuccess('Produto encontrado!')
       } else {
         toastError('Produto não encontrado.')
         setFetchedProduct(null)
-        setProductSearch({ ...productSearch, description: '' })
+        setProductSearch({ ...productSearch, id: targetId, description: '' })
       }
     } catch (error) {
       console.error('Erro ao buscar produto:', error)
-      toastError(`Produto ${productSearch.id} não encontrado.`)
+      toastError(`Erro ao buscar produto ${targetId}`)
       setFetchedProduct(null)
-      setProductSearch({ ...productSearch, description: '' })
+    } finally {
+      setLoading(false)
     }
   }
 
-  // Ajuste na função de adicionar para garantir que use os campos corretos mapeados
   const handleAddProduct = async () => {
     if (!fetchedProduct || !productValidity) {
       return toastInfo('Preencha a validade antes de adicionar.')
@@ -498,16 +547,33 @@ export function ProductsValidity() {
                     <Search size={18} className="text-white" />
                   </Button>
 
-                  <Button onClick={() => setShowScanner(!showScanner)}>
-                    {showScanner ? 'Fechar Câmera' : 'Escanear Código'}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowScanner(!showScanner)}
+                    className={
+                      showScanner
+                        ? 'border-red-500 text-red-500'
+                        : 'border-orange-500 text-orange-500'
+                    }
+                  >
+                    <Barcode size={20} className="mr-2" />
+                    {showScanner ? 'Parar' : 'Ler'}
                   </Button>
-
                 </div>
-                  {showScanner && (
-                    <div className="my-6 flex justify-center animate-in zoom-in-95 duration-200">
+                {showScanner && (
+                  <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center p-4 lg:relative lg:inset-auto lg:bg-transparent lg:my-4">
+                    <div className="w-full max-w-lg relative">
                       <BarcodeScanner onScanSuccess={handleScan} />
+                      <Button
+                        className="absolute top-2 right-2 bg-white/20 text-white hover:bg-white/40"
+                        onClick={() => setShowScanner(false)}
+                      >
+                        Fechar
+                      </Button>
                     </div>
-                  )}
+                  </div>
+                )}
               </Field>
 
               <Field className="flex flex-col gap-2 lg:col-span-1">
