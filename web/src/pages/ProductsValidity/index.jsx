@@ -547,14 +547,15 @@ export function ProductsValidity() {
                     <Search size={18} className="text-white" />
                   </Button>
 
+
                   <Button
                     type="button"
                     variant="outline"
                     onClick={() => setShowScanner(!showScanner)}
                     className={
                       showScanner
-                        ? 'border-red-500 text-red-500'
-                        : 'border-orange-500 text-orange-500'
+                        ? 'lg:hidden border-red-500 text-red-500 hover:text-white hover:bg-red-500'
+                        : 'lg:hidden border-orange-500 text-orange-500 hover:text-white hover:bg-orange-500'
                     }
                   >
                     <Barcode size={20} className="mr-2" />
