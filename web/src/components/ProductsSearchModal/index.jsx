@@ -28,9 +28,8 @@ export function ProductSearchModal({
   const [showScanner, setShowScanner] = useState(false)
 
   const handleConfirm = () => {
-    onConfirm() // Executa a lógica de adicionar o produto
-    onSearchChange('') // Limpa o termo de busca para resetar a tabela
-    // Pequeno timeout para garantir que o estado de seleção limpou antes de focar
+    onConfirm()
+    onSearchChange('')
     setTimeout(() => {
       if (searchInputRef.current) {
         searchInputRef.current.focus()
@@ -38,20 +37,20 @@ export function ProductSearchModal({
     }, 10)
   }
 
-// Função disparada quando o scanner lê um código
+  // Lógica idêntica ao ProductsValidity para garantir preenchimento e busca
   const handleScanSuccess = (code) => {
-    onSearchChange(code) // Atualiza o termo de busca no pai
+    if (navigator.vibrate) {
+      navigator.vibrate(100)
+    }
+    onSearchChange(code) // Atualiza o input do modal
     setShowScanner(false) // Fecha o scanner
-    // O useEffect do pai ou a lógica de busca baseada em searchTerm cuidará do resto
   }
 
-  // Definição das colunas para a PostersTable dentro do Modal
   const columns = [
     { accessorKey: 'prod_codigo', header: 'Código' },
     { accessorKey: 'prod_cod_barras', header: 'EAN' },
     { accessorKey: 'prod_descricao', header: 'Descrição' },
     { accessorKey: 'prod_complemento', header: 'Complemento' },
-
     {
       accessorKey: 'prod_preco_custo',
       header: 'Custo',
@@ -61,17 +60,16 @@ export function ProductSearchModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border-none">
-        <DialogHeader>
-          <DialogTitle className="text-base bg-muted/20 pb-3 border-b  font-bold flex items-center gap-2 ">
+      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border-none p-0">
+        <DialogHeader className="p-6 pb-0">
+          <DialogTitle className="text-base bg-muted/20 pb-3 border-b font-bold flex items-center gap-2">
             <Search /> Pesquisar Produtos
           </DialogTitle>
         </DialogHeader>
 
-        {/* Barra de Pesquisa */}
         <div className="p-6 flex flex-col flex-1 overflow-hidden">
-{/* Barra de Pesquisa com botão de Scanner */}
-          <div className="flex gap-2 relative">
+          {/* Layout de busca IGUAL ao ProductsValidity */}
+          <div className="flex gap-2 items-center">
             <div className="relative flex-1">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -83,90 +81,76 @@ export function ProductSearchModal({
                 autoFocus
               />
             </div>
-            
-            {/* Botão de Scanner - Visível em mobile/tablet (hidden em LG) ou conforme sua regra de negócio */}
+
+            {/* Botão idêntico ao da tela de Validades */}
             <Button
               type="button"
               variant="outline"
-              size="icon"
-              className="h-11 w-11 lg:hidden border-orange-500 text-orange-600 hover:bg-orange-50"
-              onClick={() => setShowScanner(true)}
+              onClick={() => setShowScanner(!showScanner)}
+              className={
+                showScanner
+                  ? 'lg:hidden border-red-500 text-red-500 hover:text-white hover:bg-red-500 h-11'
+                  : 'lg:hidden border-orange-500 text-orange-500 hover:text-white hover:bg-orange-500 h-11'
+              }
             >
-              <Barcode size={24} />
+              <Barcode size={20} className="mr-2" />
+              {showScanner ? 'Parar' : 'Ler'}
             </Button>
           </div>
 
-          {/* Área do Scanner - Aparece como Overlay no Modal */}
+          {/* Scanner em Overlay Fixo (Z-index superior para cobrir o Dialog) */}
           {showScanner && (
-            <div className="fixed inset-0 z-[60] bg-black flex flex-col items-center justify-center p-4">
+            <div className="fixed inset-0 z-[70] bg-black flex flex-col items-center justify-center p-4">
               <div className="w-full max-w-lg relative">
-                <div className="flex justify-between items-center mb-4 text-white">
-                  <span className="font-bold flex items-center gap-2">
-                    <Barcode /> Escanear Produto
-                  </span>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => setShowScanner(false)}
-                    className="text-white hover:bg-white/20"
-                  >
-                    <X size={24} />
-                  </Button>
-                </div>
-                
                 <BarcodeScanner onScanSuccess={handleScanSuccess} />
-                
-                <Button 
-                  className="w-full mt-4 bg-white text-black hover:bg-gray-200"
+                <Button
+                  className="absolute top-2 right-2 bg-white/20 text-white hover:bg-white/40"
                   onClick={() => setShowScanner(false)}
                 >
-                  Cancelar Leitura
+                  Fechar
                 </Button>
+                <div className="mt-4 text-center text-white/70 text-sm">
+                  Aponte para o código de barras do produto
+                </div>
               </div>
             </div>
           )}
-        </div>
 
-        {/* Container da Tabela com Scroll */}
-        <div
-          className="flex-1 overflow-auto mt-4 min-h-[300px]"
-          onKeyDown={e => {
-            if (e.key === 'Enter' && selectedProductId) {
-              handleConfirm() // Chama o addSelectedProduct da NewOffer
-            }
-          }}
-        >
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground">
-              <Loader2 className="h-8 w-8 animate-spin text-green-600" />
-              <span>Buscando produtos...</span>
-            </div>
-          ) : (
-            <DataTable
-              data={products}
-              columns={columns}
-              showSelectColumn={true} // Reutiliza sua lógica de checkbox
-              onRowSelect={selection => {
-                // Pegamos o ID da seleção (TanStack retorna { [id]: true })
-                const selectedIds = Object.keys(selection)
-                const lastId =
-                  selectedIds.length > 0
-                    ? selectedIds[selectedIds.length - 1]
-                    : null
-                onSelectProduct(lastId)
-              }}
-              // Forçamos a tabela a seguir o estado do pai
-              // Se selectedProductId for null, passamos um objeto vazio {}
-              rowSelection={
-                selectedProductId ? { [String(selectedProductId)]: true } : {}
+          {/* Container da Tabela */}
+          <div
+            className="flex-1 overflow-auto mt-4 min-h-[300px] border rounded-md"
+            onKeyDown={e => {
+              if (e.key === 'Enter' && selectedProductId) {
+                handleConfirm()
               }
-              defaultPageSize={20}
-            />
-          )}
+            }}
+          >
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground py-20">
+                <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+                <span>Buscando produtos...</span>
+              </div>
+            ) : (
+              <DataTable
+                data={products}
+                columns={columns}
+                showSelectColumn={true}
+                onRowSelect={selection => {
+                  const selectedIds = Object.keys(selection)
+                  const lastId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : null
+                  onSelectProduct(lastId)
+                }}
+                rowSelection={
+                  selectedProductId ? { [String(selectedProductId)]: true } : {}
+                }
+                defaultPageSize={10}
+              />
+            )}
+          </div>
         </div>
 
         <DialogFooter className="bg-muted/20 p-4 border-t gap-4">
-          <div className="flex-1 text-sm text-muted-foreground flex items-center">
+          <div className="flex-1 text-sm text-muted-foreground flex items-center px-2">
             {selectedProductId ? (
               <span className="text-green-600 font-bold">
                 ● 1 item selecionado
