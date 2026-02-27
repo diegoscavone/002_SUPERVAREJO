@@ -502,12 +502,12 @@ export function ProductsValidity() {
                     {showScanner ? 'Fechar Câmera' : 'Escanear Código'}
                   </Button>
 
+                </div>
                   {showScanner && (
                     <div className="my-6 flex justify-center animate-in zoom-in-95 duration-200">
                       <BarcodeScanner onScanSuccess={handleScan} />
                     </div>
                   )}
-                </div>
               </Field>
 
               <Field className="flex flex-col gap-2 lg:col-span-1">
