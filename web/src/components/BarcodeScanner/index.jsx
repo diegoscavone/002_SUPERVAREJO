@@ -1,49 +1,63 @@
 import { useEffect, useRef } from 'react'
-import { Html5Qrcode } from 'html5-qrcode'
+import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode'
 
 export function BarcodeScanner({ onScanSuccess }) {
   const scannerRef = useRef(null)
 
   useEffect(() => {
-    // 1. Instancia o scanner apontando para o ID 'reader'
+    // Verificamos se o elemento existe para evitar erros de renderização
+    if (!document.getElementById('reader')) return
+
     const html5QrCode = new Html5Qrcode('reader', {
       formatsToSupport: [
         Html5QrcodeSupportedFormats.EAN_13,
         Html5QrcodeSupportedFormats.EAN_8,
-        Html5QrcodeSupportedFormats.CODE_128
+        Html5QrcodeSupportedFormats.CODE_128,
+        Html5QrcodeSupportedFormats.UPC_A
       ],
       verbose: false
     })
+
     scannerRef.current = html5QrCode
 
     const config = {
-      fps: 30, // Aumentamos para 30 para não perder frames no movimento
-      qrbox: { width: 320, height: 180 }, // Caixa retangular para alinhar as barras
+      fps: 20,
+      qrbox: { width: 300, height: 160 }, // Formato retangular para as barras
       aspectRatio: 1.777778,
-      experimentalFeatures: {
-        useBarCodeDetectorIfSupported: true // Tenta usar aceleração de hardware do celular
-      },
       videoConstraints: {
         facingMode: 'environment',
         focusMode: 'continuous',
-        // Se o foco estiver ruim, aumentamos a resolução para o sensor enxergar as linhas finas
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
       }
     }
 
-    // 2. Inicia a câmera automaticamente
-    // 'facingMode: environment' tenta usar a câmera traseira em celulares
     html5QrCode
-      .start({ facingMode: 'environment' }, config, decodedText => {
-        // Feedback imediato antes de fechar
-        if (navigator.vibrate) navigator.vibrate(100)
-
-        onScanSuccess(decodedText)
+      .start(
+        { facingMode: 'environment' },
+        config,
+        decodedText => {
+          // Vibra e envia o código
+          if (navigator.vibrate) navigator.vibrate(100)
+          onScanSuccess(decodedText)
+        },
+        () => {
+          /* Ignora erros de frame */
+        }
+      )
+      .catch(err => {
+        console.error('Erro ao iniciar câmera:', err)
       })
-      .catch(err => console.error('Erro ao iniciar:', err))
 
-    return () => stopScanner()
+    return () => {
+      // Cleanup seguro
+      if (html5QrCode.isScanning) {
+        html5QrCode
+          .stop()
+          .then(() => html5QrCode.clear())
+          .catch(console.error)
+      }
+    }
   }, [onScanSuccess])
 
   const stopScanner = async () => {
