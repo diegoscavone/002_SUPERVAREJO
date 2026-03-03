@@ -32,42 +32,31 @@ export const Container = styled.div`
 export const DataView = styled.div`
   display: flex;
   flex-direction: column;
-  /* align-items: center; */
   flex-wrap: wrap;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 1rem;
 
   position: absolute;
   z-index: 1;
 
   width: 490px;
-  height: 490px;
+  height: 460px;
 
-  margin-top: 13rem;
+  margin-top: 12rem;
 
   font-family: Arial, Helvetica, sans-serif, sans-serif;
+  border: 1px solid red;
 
   > .description {
-
     border: 1px solid red;
-
     width: 100%;
-    /* height: 150px; */
-    /* > h2 {
-      font-size: 4.5rem;
-      color: ${({ theme }) => theme.COLORS.DARK};
-      text-align: center;
-      text-transform: uppercase;
-      line-height: 4.5rem;
-      letter-spacing: -2px;
-    } */
-    > span {
+    /* > span {
       font-size: 2.7rem;
       font-weight: bold;
       color: ${({ theme }) => theme.COLORS.DARK};
       text-align: center;
       text-transform: uppercase;
-    }
+    } */
   }
   .priceWrapper {
     display: flex;
@@ -101,40 +90,55 @@ export const DataView = styled.div`
     align-items: center;
   }
 
-  .small-price .priceInteger {
-    font-size: 23rem;
+  &.small-price,
+  .small-price {
+    .priceInteger {
+      font-size: 18rem !important;
+      line-height: 0.8;
+    }
+    .priceDecimal {
+      font-size: 8rem !important;
+
+    }
   }
 
-  .small-price .priceDecimal {
-    font-size: 8rem;
-    margin-top: 4rem;
+  &.medium-price,
+  .medium-price {
+    margin-top: 8px;
+    .priceInteger {
+      font-size: 14rem !important;
+      line-height: 0.8;
+    }
+    .priceDecimal {
+      font-size: 7rem !important;
+      margin-top: 2rem;
+    }
   }
 
-  .medium-price .priceInteger {
-    font-size: 24rem;
+  &.large-price,
+  .large-price {
+    margin-top: 40px;
+    .priceInteger {
+      font-size: 10rem !important;
+      line-height: 0.8;
+    }
+    .priceDecimal {
+      font-size: 6rem !important;
+      /* margin-top: 3rem; */
+    }
   }
 
-  .medium-price .priceDecimal {
-    font-size: 7rem;
-    margin-top: 3rem;
-  }
-
-  .large-price .priceInteger {
-    font-size: 16rem;
-  }
-
-  .large-price .priceDecimal {
-    font-size: 7rem;
-    margin-top: 6rem;
-  }
-
-  .x-large-price .priceInteger {
-    font-size: 12rem;
-  }
-
-  .x-large-price .priceDecimal {
-    font-size: 6rem;
-    margin-top: 8rem;
+  &.x-large-price,
+  .x-large-price {
+    margin-top: 60px;
+    .priceInteger {
+      font-size: 7rem !important;
+      line-height: 0.8;
+    }
+    .priceDecimal {
+      font-size: 5rem !important;
+      /* margin-top: 4rem; */
+    }
   }
 
   .date {
@@ -208,7 +212,7 @@ export const DataView = styled.div`
     }
   }
   @media (max-width: ${DEVICE_BREAKPOINTS.XL}) {
-    width: 340px;
+    width: 400px;
     height: 400px;
     margin-top: 18rem;
 
@@ -268,7 +272,7 @@ export const DataView = styled.div`
     }
   }
   @media (max-width: ${DEVICE_BREAKPOINTS.XXL}) {
-    width: 340px;
+    width: 500px;
     height: 400px;
     margin-top: 16rem;
 
@@ -328,50 +332,34 @@ export const DataView = styled.div`
     }
   }
 `
+
+export const DataViewWholesale = styled.div`
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 1rem;
+
+  position: absolute;
+  z-index: 1;
+
+  width: 490px;
+  height: 510px;
+
+  margin-top: 13rem;
+
+  font-family: Arial, Helvetica, sans-serif, sans-serif;
+  `
 export const Wholesale = styled.div`
   display: flex;
   align-items: center;
   flex-direction: column;
   gap: 8px;
-  .infoBox {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    .infoTitle {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      color: ${({ theme }) => theme.COLORS.DARK};
-    }
-    .infoLabel {
-      font-weight: bold;
-      font-size: 1.6rem;
-    }
-    .retailInfo {
-    }
-  }
   .boxPrice {
     color: ${({ theme }) => theme.COLORS.RED};
     .priceValue {
-      display: flex;
-      font-weight: 900;
-      font-size: 14rem;
+      font-size: 7rem;
       line-height: 1; /* Remove espaço extra entre linhas */
-      margin: 0; /* Remove margens padrão */
-      padding: 0; /* Remove padding */
-      display: inline-block; /* Ajusta ao conteúdo */
-
-      /* Remove espaços extras do font */
-      font-kerning: none;
-      letter-spacing: 0;
-
-      /* Ajustes finos para diferentes fontes */
-      vertical-align: top;
-
-      /* Para fontes que ainda deixam espaço */
-      transform: translateY(-0.1em); /* Ajuste fino se necessário */
-      /* line-height: 120px; */
     }
     .boxValue {
       font-size: 2.5rem;
@@ -386,11 +374,7 @@ export const Wholesale = styled.div`
       /* line-height: 120px; */
     }
     .priceCents {
-      font-size: 5rem;
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
-      justify-content: center;
+      font-size: 3rem;
     }
     .unit {
       font-size: 1.6rem;
@@ -398,14 +382,11 @@ export const Wholesale = styled.div`
     }
 
     .priceValueRetail {
-      display: flex;
-      align-items: center;
-      font-weight: 900;
-      font-size: 8rem;
+      font-size: 5rem;
       line-height: 80px;
     }
     .priceCentsRetail {
-      font-size: 5rem;
+      font-size: 3rem;
       display: flex;
       flex-direction: column;
       align-items: flex-end;

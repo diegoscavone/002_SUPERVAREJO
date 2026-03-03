@@ -850,8 +850,8 @@ class PostersPdfController {
             position: absolute; 
             z-index: 2; 
             width: 650px; 
-            height: 750px; 
-            margin-top: 280px; 
+            height: 740px; 
+            margin-top: 290px; 
             display: flex; 
             flex-direction: column; 
             justify-content: space-between; 

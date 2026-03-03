@@ -1,4 +1,4 @@
-import { Container, DataView, Wholesale } from './styles.js'
+import { Container, DataView, DataViewWholesale, Wholesale } from './styles.js'
 export function PosterView({
   product,
   imageCampaign,
@@ -67,10 +67,10 @@ export function PosterView({
         />
 
         {/* Container de Conteúdo Sobreposto */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-4 select-none w-full">
+        <DataView className="absolute inset-0 flex flex-col items-center justify-center p-4 select-none w-full">
           {/* Descrição e Complemento*/}
-          <div className="mt-12 mb-4 w-full px-2 break-words">
-            <h2 className="text-5xl font-bold uppercase leading-none tracking-tighter drop-shadow-sm text-black mb-1">
+          <div className="w-full px-2 break-words text-center">
+            <h2 className="text-5xl  font-bold uppercase leading-none tracking-tighter drop-shadow-sm text-black mb-1">
               {product.description}
             </h2>
             <span className="text-2xl font-bold italic text-black leading-tight block">
@@ -80,20 +80,22 @@ export function PosterView({
 
           {/* Bloco de Preço*/}
           {hasPrice(product.price) && (
-            <div className="flex items-end justify-center w-full max-w-full overflow-hidden scale-90 sm:scale-100">
+            <div
+              className={`${priceClass} flex items-center justify-center w-full max-w-full overflow-hidden scale-90 sm:scale-100 font-['Arimo']`}
+            >
               <span className="text-2xl font-bold text-red-600 mb-5 mr-1">
                 R$
               </span>
 
-              <div className={`${priceClass} flex items-start`}>
+              <div className="flex items-start">
                 {/* Preço Inteiro*/}
-                <span className="text-[240px] font-black text-red-600 leading-[0.8] tracking-[-(0.05em)]">
+                <span className="priceInteger font-black text-red-600 leading-[0.8] tracking-[-(0.05em)]">
                   {product.priceInteger}
                 </span>
 
                 {/* Decimal e Unidade */}
-                <div className="flex flex-col items-end ml-1 mt-2">
-                  <span className="text-[60px] font-bold text-red-600 leading-none">
+                <div className="priceWrapperDecimal flex flex-col items-end ml-1 mt-2">
+                  <span className="priceDecimal font-bold text-red-600 leading-none">
                     {product.priceDecimal}
                   </span>
                   <span className="text-xl font-bold text-red-600 uppercase mr-2">
@@ -107,12 +109,12 @@ export function PosterView({
           {/* Data de Validade */}
           {dateText && (
             <div className="absolute bottom-3 w-full">
-              <span className="bg-white/80 px-4 py-1 rounded-full font-bold text-black uppercase tracking-wider">
+              <span className="ml-6 font-bold text-black uppercase tracking-wider text-left">
                 {dateText}
               </span>
             </div>
           )}
-        </div>
+        </DataView>
       </div>
     )
   }
@@ -124,53 +126,57 @@ export function PosterView({
   return (
     <Container>
       <img src={imageCampaign} alt={`Imagem da Campanha ${imageCampaign}`} />
-      <DataView>
-        <div className="flex flex-col gap-2">
-          <h2 className="font-bold text-lg">{product.description}</h2>
-          <span>{product.complement}</span>
+
+      {/* Passamos a priceClass para o DataView para controlar o tamanho dos preços internamente */}
+      <DataViewWholesale className={priceClass}>
+        <div className="w-full px-2 break-words text-center">
+          <h2 className="text-5xl  font-bold uppercase leading-none tracking-tighter drop-shadow-sm text-black mb-1">
+            {product.description}
+          </h2>
+          <span className="text-2xl font-bold italic text-black leading-tight block">
+            {product.complement}
+          </span>
         </div>
 
         {product.description && (
-          <>
+          <div className={`${priceClass} flex flex-col items-center justify-center w-full max-w-full overflow-hidden scale-90 sm:scale-100 font-['Arimo']`}>
+            {/* BLOCO VAREJO */}
             <Wholesale>
-              <div className="infoBox">
-                <div className="infoTitle">
-                  <span className="infoLabel">PREÇO VAREJO</span>
-                  {/* <span className="retailInfo">{`ATÉ ${product.fator_atacado} UNIDADES`}</span> */}
-                  <span className="retailInfo">
+              <div className="flex flex-col items-center">
+                <div className="text-lg text-black">
+                  <span className="font-bold">PREÇO VAREJO </span>
+                  <span className="uppercase">
                     {formatUnit(product.packaging)}
                   </span>
                 </div>
                 <div className="boxPrice">
-                  <div className="boxPriceValue">
-                    <span className="boxValue">R$</span>
+                  <div className="flex items-center justify-center">
+                    <span className="text-2xl font-bold text-red-600 mr-1">R$</span>
                     <span className="priceValueRetail">
                       {product.price_retail?.split(',')[0] || '0'}
                     </span>
                     <span className="priceCentsRetail">
                       ,{product.price_retail?.split(',')[1] || '00'}
-                      {/* <span className="unit">à unid.</span> */}
                     </span>
                   </div>
                 </div>
               </div>
             </Wholesale>
+
+            {/* BLOCO ATACADO */}
             <Wholesale>
-              <div className="infoBox">
-                <div className="infoTitle">
-                  <span className="infoLabel">PREÇO ATACADO</span>
-                  {/* <span className="min-unidades">
-                    ACIMA DE {product.fator_atacado} UNIDADES
-                  </span> */}
-                  <span className="min-unidades">A PARTIR DE 3 UNIDADES</span>
+              <div className="flex flex-col items-center">
+                <div className="text-lg flex flex-col text-center text-black gap-0">
+                  <span>PREÇO ATACADO</span>
+                  <span>A PARTIR DE 3 UNIDADES</span>
                 </div>
                 <div className="boxPrice">
-                  <div className="boxPriceValue">
-                    <span className="boxValue">R$</span>
+                  <div className="flex items-center justify-center">
+                    <span className="text-2xl font-bold text-red-600 mr-1">R$</span>
                     <span className="priceValue">
                       {product.price_wholesale?.split(',')[0] || '0'}
                     </span>
-                    <span className="priceCents">
+                    <span className="priceCents flex flex-col items-end">
                       ,{product.price_wholesale?.split(',')[1] || '00'}
                       <span className="unit">
                         {formatUnit(product.packaging)}
@@ -180,10 +186,11 @@ export function PosterView({
                 </div>
               </div>
             </Wholesale>
-          </>
+          </div>
         )}
-        {dateText && <span className="date">{dateText}</span>}
-      </DataView>
+
+        {dateText && <span className="text-lg font-bold mt-10 text-black">{dateText}</span>}
+      </DataViewWholesale>
     </Container>
   )
 }

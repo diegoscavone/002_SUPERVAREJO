@@ -29,6 +29,14 @@ import { ConfirmModal } from '@/components/ConfirmModal/index.jsx'
 export function Print() {
   const navigate = useNavigate()
 
+  const [user] = useState(() => {
+    const stored = localStorage.getItem('@posters:user')
+    return stored ? JSON.parse(stored) : null
+  })
+
+  const isAdmin = user?.role === 'admin'
+  const defaultUnit = user?.unit ? String(user.unit) : 'all'
+
   const [posters, setPosters] = useState([])
   const [campaignsSelect, setCampaignsSelect] = useState([])
   const [campaignImages, setCampaignImages] = useState({})
@@ -46,7 +54,7 @@ export function Print() {
   const [campaignFilter, setCampaignFilter] = useState('all')
   const [descriptionFilter, setDescriptionFilter] = useState('')
   const [units, setUnits] = useState([])
-  const [unitsFilter, setUnitsFilter] = useState('all')
+  const [unitsFilter, setUnitsFilter] = useState(defaultUnit)
   const [campaigns, setCampaigns] = useState([])
   const [campaignType, setCampaignType] = useState('all')
 
@@ -421,25 +429,27 @@ export function Print() {
               </Field>
 
               {/* Filtro: Unidade */}
-              <Field className="flex flex-col gap-2">
-                <FieldLabel>Unidade</FieldLabel>
-                <Select onValueChange={setUnitsFilter} value={unitsFilter}>
-                  <SelectTrigger className="shadow-none focus:ring-green-600">
-                    <SelectValue placeholder="Todas" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">Todas as unidades</SelectItem>
-                    {units?.map(unit => (
-                      <SelectItem
-                        key={unit.unid_codigo}
-                        value={String(unit.unid_codigo)}
-                      >
-                        {unit.unid_reduzido}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
+              {isAdmin && (
+                <Field className="flex flex-col gap-2">
+                  <FieldLabel>Unidade</FieldLabel>
+                  <Select onValueChange={setUnitsFilter} value={unitsFilter}>
+                    <SelectTrigger className="shadow-none focus:ring-green-600">
+                      <SelectValue placeholder="Selecione a unidade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Todas as unidades</SelectItem>
+                      {units?.map(unit => (
+                        <SelectItem
+                          key={unit.unid_codigo}
+                          value={String(unit.unid_codigo)}
+                        >
+                          {unit.unid_reduzido}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </Field>
+              )}
 
               {/* Filtro: Descrição */}
               <Field className="flex flex-col gap-2">
@@ -459,7 +469,7 @@ export function Print() {
               <div className="flex flex-col items-center justify-center p-20 gap-4">
                 <Loader2 className="h-10 w-10 animate-spin text-green-600" />
                 <p className="text-slate-500 animate-pulse">
-                  Carregando cartazes...
+                  Carregando cartazes da loja {unitsFilter}
                 </p>
               </div>
             ) : filteredPosters.length > 0 ? (
