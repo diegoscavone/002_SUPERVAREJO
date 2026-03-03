@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="pt-br">
   <head>
     <meta charset="UTF-8" />
@@ -14,7 +14,6 @@
         font-family: 'Epilogue', sans-serif;
         text-align: center;
       }
-
       .view {
         display: flex;
         justify-content: center;
@@ -36,7 +35,7 @@
         position: absolute;
         z-index: 1;
 
-        width: 620px;
+        width: 650px;
         height: 750px;
 
         margin-top: 170px;
@@ -92,6 +91,7 @@
 
       .infoTitle {
         display: flex;
+        gap: 6px;
         flex-direction: column;
         align-items: center;
         margin-bottom: 5px;
@@ -111,8 +111,8 @@
         color: #e4272a;
         display: flex;
         justify-content: center;
-        border: 1px solid red;
       }
+
       .boxValue {
         font-size: 30px;
         font-weight: 900;
@@ -123,13 +123,11 @@
       .boxPriceValue {
         display: flex;
         align-items: flex-start;
-        font-weight: 900;
-        font-size: 14rem;
         /* line-height: 120px; */
       }
 
       .priceValue {
-        font-size: 170px;
+        font-size: 220px;
         font-weight: 900;
         line-height: 1;
         margin: 0;
@@ -144,10 +142,12 @@
 
       .unit {
         font-size: 20px;
+        font-weight: normal;
       }
 
       .priceCents {
-        font-size: 70px;
+        font-size: 110px;
+        font-weight: 900;
         display: flex;
         flex-direction: column;
         gap: 4px;
@@ -155,7 +155,7 @@
       }
 
       .priceValueRetail {
-        font-size: 100px;
+        font-size: 140px;
         font-weight: 900;
         line-height: 1;
         display: flex;
@@ -163,7 +163,8 @@
       }
 
       .priceCentsRetail {
-        font-size: 50px;
+        font-size: 70px;
+        font-weight: 900;
         display: flex;
         flex-direction: column;
         gap: 4px;
@@ -187,6 +188,15 @@
       @media screen and (max-width: 450px) {
         .description h2 {
           font-size: calc(7vw + 10px);
+        }
+      }
+      @media print {
+        body {
+          margin: 0;
+        }
+        .view {
+          page-break-after: always;
+          height: 100vh; /* Garante que o cartaz ocupe a página toda */
         }
       }
     </style>

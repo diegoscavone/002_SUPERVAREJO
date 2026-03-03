@@ -80,7 +80,15 @@ export function Print() {
       accessorKey: 'initial_date',
       header: 'Data Inicial',
       sortable: true,
-      cell: ({ row }) => formatDate(row.original.initial_date)
+      cell: ({ row }) => {
+        const campaign = campaignsSelect.find(
+          c => c.id === row.original.campaign_id
+        )
+        // Se for vencimento, não faz sentido mostrar data inicial
+        if (campaign?.is_vencimento)
+          return <span className="text-slate-300">N/A</span>
+        return formatDate(row.original.initial_date)
+      }
     },
     {
       id: 'final_date',
@@ -171,18 +179,12 @@ export function Print() {
   }
 
   async function fetchPosters() {
+    if (loading) return
     try {
       setLoading(true)
       const response = await api.get('/posters')
 
       setPosters(response.data)
-
-      // Sincronização inicial:
-      // Se você quer que ao carregar já mostre os status '0' (Não impressos)
-      const initialFiltered = response.data.filter(
-        poster => String(poster.status) === statusFilter
-      )
-      setFilteredPosters(initialFiltered)
     } catch (error) {
       console.error('Erro ao buscar cartazes:', error)
       toastError('Erro ao carregar cartazes.')
@@ -240,17 +242,18 @@ export function Print() {
 
   function formatDate(dateString) {
     if (!dateString) {
-      return
+      return '-'
     }
     const date = new Date(dateString)
 
-    if (isNaN(date.getTime())) {
-      return
+    if (isNaN(date.getTime()) || date.getFullYear() <= 1970) {
+      return '-'
     }
     return date.toLocaleDateString('pt-BR', {
       day: '2-digit',
       month: '2-digit',
-      year: 'numeric'
+      year: 'numeric',
+      timeZone: 'UTC'
     })
   }
 
@@ -292,49 +295,20 @@ export function Print() {
   }
 
   async function printPoster() {
-    const newStatus = 1
-    const selectedIds = Object.keys(selectedPosters).filter(
-      id => selectedPosters[id]
-    )
+    // const newStatus = 1
+    const selectedIds = Object.keys(selectedPosters).map(id => Number(id))
 
     if (selectedIds.length === 0) {
-      toastInfo('Selecione pelo menos um cartaz.')
-      return
+      return toastInfo('Selecione pelo menos um cartaz.')
     }
 
     try {
-      // 1. Inicia o loading e abre o Modal de Processamento
       setLoading(true)
       setIsGeneratingPDF(true)
 
-      const selectedPosterIds = selectedIds.map(id => Number(id))
-      const selectedPostersData = posters.filter(poster =>
-        selectedPosterIds.includes(poster.id)
-      )
-
-      const uniqueCampaignIds = [
-        ...new Set(selectedPostersData.map(poster => poster.campaign_id))
-      ]
-      const selectedCampaignImages = {}
-
-      for (const campaignId of uniqueCampaignIds) {
-        const imageData = await fetchCampaignImage(campaignId)
-        if (imageData) {
-          selectedCampaignImages[campaignId] = imageData
-        }
-      }
-
-      const campaignId = campaignsSelect.find(
-        campaign => campaign.id === selectedPostersData[0].campaign_id
-      )
-
       const response = await api.post(
         '/posters-pdf',
-        {
-          selectedPosterIds,
-          campaignImages: selectedCampaignImages,
-          campaignId
-        },
+        { selectedPosterIds: selectedIds },
         { responseType: 'blob' }
       )
 
@@ -344,8 +318,8 @@ export function Print() {
       const printWindow = window.open(url, '_blank')
 
       if (printWindow) {
-        printWindow.document.title = 'Impressão de Cartaz'
-        await alterStatusPoster(selectedPosterIds, newStatus)
+        // printWindow.document.title = 'Impressão de Cartaz'
+        await alterStatusPoster(selectedIds, 1)
         toastSuccess('Cartazes gerados com sucesso!')
       } else {
         toastError('O bloqueador de pop-ups impediu a abertura do PDF.')
@@ -356,7 +330,6 @@ export function Print() {
     } finally {
       setLoading(false)
       setIsGeneratingPDF(false)
-      setSelectedPosters({})
     }
   }
 
@@ -498,7 +471,7 @@ export function Print() {
                 enableRowSelection={true}
               />
             ) : (
-          <div className="flex flex-col items-center justify-center min-h-[300px] w-full p-8 bg-slate-50/50 border-2 border-dashed border-slate-200 rounded-2xl animate-in fade-in duration-500">
+              <div className="flex flex-col items-center justify-center min-h-[300px] w-full p-8 bg-slate-50/50 border-2 border-dashed border-slate-200 rounded-2xl animate-in fade-in duration-500">
                 {/* Círculo de fundo com ícone */}
                 <div className="flex items-center justify-center w-20 h-20 bg-white rounded-full shadow-sm mb-4">
                   <Search
