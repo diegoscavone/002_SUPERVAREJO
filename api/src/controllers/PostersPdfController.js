@@ -8,12 +8,6 @@ class PostersPdfController {
   async create(request, response) {
     const { selectedPosterIds, campaignImages, campaignId } = request.body
 
-    console.log('IDs recebidos:', selectedPosterIds)
-    console.log(
-      'Imagens recebidas (chaves):',
-      Object.keys(campaignImages || {})
-    )
-
     //Função para formatar a data dd/mm/yyyy
     function formatDate(date) {
       if (!date) return ''
@@ -746,6 +740,7 @@ class PostersPdfController {
               poster.price_wholesale || '0,00'
             )
             const retailParts = handlePrince(poster.price_retail || '0,00')
+            const quantityFrom = 3
 
             // Montando o bloco de Atacarejo
             posterContent += `
@@ -780,7 +775,7 @@ class PostersPdfController {
                     <div class="infoBox">
                         <div class="infoTitle">
                             <span class="infoLabel">PREÇO ATACADO</span>
-                            <span class="min-unidades">A PARTIR DE 3 UNIDADES</span>
+                            <span class="min-unidades">A PARTIR DE ${quantityFrom} UNIDADES</span>
                         </div>
                         <div class="boxPrice">
                             <span class="boxValue">R$</span>
@@ -794,7 +789,7 @@ class PostersPdfController {
                         </div>
                     </div>
                 </div>
-                <span class="date">${validityText}</span>
+                <span class="dateWholesale">${validityText}</span>
             </div>
         </div>
         `
@@ -833,10 +828,10 @@ class PostersPdfController {
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8" />
-    <link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Arimo:wght@700&display=swap" rel="stylesheet">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Epilogue', sans-serif; text-align: center; background: white; }
+        body { font-family: 'Arimo', sans-serif; text-align: center; background: white; font-weight: 700;}
 
         /* Estrutura de folha A4 */
         .view { 
@@ -850,13 +845,13 @@ class PostersPdfController {
         }
 
         .view img { width: 100%; height: 100%; object-fit: contain; position: absolute; top: 0; left: 0; z-index: 1; }
-        
+
         .dataView { 
             position: absolute; 
             z-index: 2; 
             width: 650px; 
             height: 750px; 
-            margin-top: 170px; 
+            margin-top: 280px; 
             display: flex; 
             flex-direction: column; 
             justify-content: space-between; 
@@ -864,38 +859,47 @@ class PostersPdfController {
         }
 
         /* Descrição */
-        .description { display: flex; flex-direction: column; gap: 5px; width: 100%; height: 200px; }
-        .description h2 { font-size: 55px; color: black; text-transform: uppercase; margin: 35px 0 0; line-height: 1.1; overflow: hidden; }
+        .description { display: flex; flex-direction: column; gap: 5px; width: 100%; height: 190px;}
+        .description h2 { font-size: 55px; color: black; text-transform: uppercase; line-height: 1.1; overflow: hidden; }
         .description span { font-size: 27px; font-weight: bold; color: black; text-transform: uppercase; }
 
         /* Preços Atacarejo */
-        .wholesale { display: flex; flex-direction: column; align-items: center; width: 100%; margin-top: 10px; }
+        .wholesale { display: flex; flex-direction: column; align-items: center; width: 100%; margin-top: 10px;}
+        .infoBox {width: 100%;}
         .infoTitle { display: flex; gap: 6px; flex-direction: column; align-items: center; margin-bottom: 5px; }
         .infoLabel { font-size: 25px; font-weight: bold; }
         .min-unidades, .retailInfo { font-size: 18px; }
-        .boxPrice { color: #e4272a; display: flex; justify-content: center; }
-        .boxValue { font-size: 30px; font-weight: 900; color: #e4272a; margin: 35px 10px 0 0; }
-        .priceValue { font-size: 220px; font-weight: 900; line-height: 1; margin: 0; }
-        .priceCents { font-size: 110px; font-weight: 900; display: flex; flex-direction: column; align-items: flex-end; }
-        .priceValueRetail { font-size: 140px; font-weight: 900; line-height: 1; display: flex; align-items: center; }
-        .priceCentsRetail { font-size: 70px; font-weight: 900; display: flex; flex-direction: column; align-items: flex-end; }
-
+         .priceValue { font-size: 220px;  line-height: 1; margin: 0; }
+        .priceCents { font-size: 110px;  display: flex; flex-direction: column; align-items: flex-end; }
+        .priceValueRetail { font-size: 140px; line-height: 1; display: flex; align-items: center; }
+        .priceCentsRetail { font-size: 70px;  display: flex; flex-direction: column; align-items: flex-end; }
+        
+        .boxPriceValue {display: flex;}
+        .boxPrice { color: #e4272a; display: flex;align-items: center; justify-content: center; width: 100%;}
+        .boxValue { font-size: 30px; color: #e4272a; margin: 0 10px 0 0; display: flex; align-items: center;}
+       
         /* Preços Padrão */
-        .price { width: 100%; height: 280px; font-weight: 900; display: flex; justify-content: center; color: #E4272A; padding-bottom: 30px; }
-        .priceInteger { display: flex; align-items: center; }
-        .priceWrapperDecimal { display: flex; flex-direction: column; align-items: flex-end; }
-        .priceDecimal { margin-top: -65px; }
+        .price { width: 100%; height: 340px; font-weight: 700; display: flex; justify-content: center; color: #E4272A;}
+        .priceWrapperDecimal { display: flex; flex-direction: column; align-items: flex-end;justify-content: center;}
         
         /* Classes Dinâmicas de Tamanho */
-        .small-price .priceInteger { font-size: 390px; }
+        /*Ex: 9,99*/
+        .small-price .priceInteger { font-size: 390px;}
         .small-price .priceDecimal { font-size: 210px; }
-        .medium-price .priceInteger { font-size: 390px; }
-        .medium-price .priceDecimal { font-size: 100px; margin-top: 20px; }
-        .large-price .priceInteger { font-size: 160px; }
-        .large-price .priceDecimal { font-size: 70px; margin-top: 70px; }
+        /*Ex: 25,99*/
+        .medium-price .priceInteger { font-size: 300px;}
+        .medium-price .priceDecimal { font-size: 150px; margin-top: 20px; }
+        /*Ex: 109,99*/
+        .large-price .priceInteger { font-size: 240px;} 
+        .large-price .priceDecimal { font-size: 120px; margin-top: 10px;}
+        /*Ex: 1.135,99*/
+        .priceInteger { display: flex; align-items: center; font-size: 190px; }
+        .priceDecimal{font-size: 100px;}
 
-        .unit { font-size: 20px; font-weight: normal; color: black; }
-        .date { font-size: 22px; font-weight: bold; text-transform: uppercase; color: black; margin-top: 20px; width: 100%; text-align: left; padding-left: 40px; }
+        .unit { font-size: 28px; font-weight: bold; color: #e4272a; }
+        .date { font-size: 22px; text-transform: uppercase; color: black; width: 100%; text-align: left;}
+        .dateWholesale { font-size: 22px; text-transform: uppercase; color: black; margin-top: 70px; width: 100%; text-align: left;}
+
 
         @media print {
             body { -webkit-print-color-adjust: exact; }

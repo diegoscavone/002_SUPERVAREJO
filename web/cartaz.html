@@ -1,255 +1,222 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-br">
-  <head>
+<head>
     <meta charset="UTF-8" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Epilogue:wght@700;900&display=swap"
-      rel="stylesheet"
-    />
+    <link href="https://fonts.googleapis.com/css2?family=Epilogue:wght@700;900&display=swap" rel="stylesheet">
     <style>
-      body {
-        font-family: 'Epilogue', sans-serif;
-        text-align: center;
-      }
-      .view {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        position: relative;
-      }
-      .view img {
-        width: 100%;
-        height: auto;
-      }
-
-      .dataView {
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        align-items: center;
-        gap: 10px;
-
-        position: absolute;
-        z-index: 1;
-
-        width: 650px;
-        height: 750px;
-
-        margin-top: 170px;
-      }
-
-      .description {
-        display: flex;
-        flex-direction: column;
-        gap: 5px;
-        width: 100%;
-        height: 200px;
-      }
-
-      .description h2 {
-        width: 100%;
-        font-size: 55px;
-        color: black;
-        text-align: center;
-        text-transform: uppercase;
-        margin: 35px 0 0;
-        line-height: 1.1;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .description span {
-        width: 100%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 27px;
-        font-weight: bold;
-        color: black;
-        text-transform: uppercase;
-        overflow: hidden;
-        text-overflow: ellipsis;
-      }
-
-      .wholesale {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 100%;
-        margin-top: 10px;
-      }
-
-      .infoBox {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        width: 100%;
-      }
-
-      .infoTitle {
-        display: flex;
-        gap: 6px;
-        flex-direction: column;
-        align-items: center;
-        margin-bottom: 5px;
-      }
-
-      .infoLabel {
-        font-size: 25px;
-        font-weight: bold;
-      }
-
-      .min-unidades,
-      .retailInfo {
-        font-size: 18px;
-      }
-
-      .boxPrice {
-        color: #e4272a;
-        display: flex;
-        justify-content: center;
-      }
-
-      .boxValue {
-        font-size: 30px;
-        font-weight: 900;
-        color: #e4272a;
-        margin: 35px 10px 0 0;
-      }
-
-      .boxPriceValue {
-        display: flex;
-        align-items: flex-start;
-        /* line-height: 120px; */
-      }
-
-      .priceValue {
-        font-size: 220px;
-        font-weight: 900;
-        line-height: 1;
-        margin: 0;
-        padding: 0;
-        display: inline-block;
-
-        font-kerning: none;
-        letter-spacing: 0;
-
-        vertical-align: top;
-      }
-
-      .unit {
-        font-size: 20px;
-        font-weight: normal;
-      }
-
-      .priceCents {
-        font-size: 110px;
-        font-weight: 900;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        align-items: flex-end;
-      }
-
-      .priceValueRetail {
-        font-size: 140px;
-        font-weight: 900;
-        line-height: 1;
-        display: flex;
-        align-items: center;
-      }
-
-      .priceCentsRetail {
-        font-size: 70px;
-        font-weight: 900;
-        display: flex;
-        flex-direction: column;
-        gap: 4px;
-        align-items: flex-end;
-      }
-
-      .date {
-        display: flex;
-        align-items: center;
-        width: 100%;
-        gap: 5px;
-        margin-top: 20px;
-        font-size: 22px;
-        font-weight: bold;
-        text-transform: uppercase;
-        color: black;
-        justify-content: flex-start;
-        padding-left: 40px;
-      }
-
-      @media screen and (max-width: 450px) {
-        .description h2 {
-          font-size: calc(7vw + 10px);
+        /* Configurações de Reset e Impressão */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        @page {
+            size: A4;
+            margin: 0;
         }
-      }
-      @media print {
+
         body {
-          margin: 0;
+            font-family: 'Epilogue', sans-serif;
+            background: #ccc; /* Fundo cinza para visualizar as folhas no navegador */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
         }
-        .view {
-          page-break-after: always;
-          height: 100vh; /* Garante que o cartaz ocupe a página toda */
+
+        /* Container da Folha A4 */
+        .view { 
+            position: relative; 
+            width: 210mm; 
+            height: 297mm; 
+            background: white;
+            overflow: hidden; 
+            page-break-after: always;
+            box-shadow: 0 0 10px rgba(0,0,0,0.5); /* Apenas para visualização no browser */
+            margin-bottom: 20px; /* Apenas para visualização no browser */
         }
-      }
+
+        /* Imagem de Fundo (Campanha) */
+        .view img.bg-image { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: contain; 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            z-index: 1; 
+        }
+        
+        /* Camada de Dados (Z-index superior à imagem) */
+        .dataView { 
+            position: absolute; 
+            top: 0;
+            left: 0;
+            z-index: 2; 
+            width: 210mm; 
+            height: 297mm; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center;
+        }
+
+        /* Área da Descrição (Ajustada para o topo do cartaz) */
+        .description { 
+            margin-top: 55mm; /* Ajuste aqui para subir/descer o texto no fundo */
+            width: 180mm; 
+            height: 65mm; 
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            text-align: center;
+        }
+
+        .description h2 { 
+            font-size: 52pt; /* Usando PT para precisão de impressão */
+            color: black; 
+            text-transform: uppercase; 
+            line-height: 1.1; 
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2; /* Limita a 2 linhas */
+            -webkit-box-orient: vertical;
+        }
+
+        .description span { 
+            font-size: 24pt; 
+            font-weight: bold; 
+            color: black; 
+            text-transform: uppercase; 
+            margin-top: 5mm;
+        }
+
+        /* Layout ATACAREJO */
+        .wholesale-container {
+            margin-top: 10mm;
+            display: flex;
+            flex-direction: column;
+            gap: 12mm;
+        }
+
+        .wholesale { display: flex; flex-direction: column; align-items: center; width: 100%; }
+        .infoTitle { display: flex; flex-direction: column; align-items: center; margin-bottom: 2mm; }
+        .infoLabel { font-size: 20pt; font-weight: bold; color: #000; }
+        .min-unidades, .retailInfo { font-size: 14pt; font-weight: bold; }
+
+        .boxPrice { color: #e4272a; display: flex; align-items: flex-start; justify-content: center; }
+        .boxValue { font-size: 28pt; font-weight: 900; margin-top: 8mm; margin-right: 2mm; }
+        
+        /* Preço Atacado (Grande) */
+        .priceValue { font-size: 160pt; font-weight: 900; line-height: 0.8; }
+        .priceCents { font-size: 80pt; font-weight: 900; display: flex; flex-direction: column; line-height: 0.8; margin-left: 1mm;}
+
+        /* Preço Varejo (Médio) */
+        .priceValueRetail { font-size: 100pt; font-weight: 900; line-height: 0.8; }
+        .priceCentsRetail { font-size: 50pt; font-weight: 900; display: flex; flex-direction: column; line-height: 0.8; margin-left: 1mm; }
+
+        /* Layout PADRÃO (Preço Único Gigante) */
+        .price-standard { 
+            margin-top: 20mm;
+            display: flex; 
+            justify-content: center; 
+            color: #E4272A; 
+            width: 100%;
+        }
+
+        .price-standard .priceInteger { font-size: 280pt; font-weight: 900; line-height: 0.8; letter-spacing: -5mm; }
+        .priceWrapperDecimal { display: flex; flex-direction: column; margin-left: 2mm; }
+        .priceDecimal { font-size: 140pt; font-weight: 900; line-height: 0.8; margin-top: 5mm; }
+
+        .unit { font-size: 22pt; font-weight: bold; color: black; text-transform: lowercase; margin-top: 5mm;}
+
+        /* Data de Validade */
+        .date { 
+            position: absolute; 
+            bottom: 15mm; 
+            width: 100%; 
+            text-align: center; 
+            font-size: 20pt; 
+            font-weight: bold; 
+            text-transform: uppercase; 
+            color: black; 
+        }
+
+        /* Classes Dinâmicas para Preço Padrão */
+        .small-price .priceInteger { font-size: 280pt; }
+        .medium-price .priceInteger { font-size: 220pt; }
+        .large-price .priceInteger { font-size: 180pt; }
+
+        @media print {
+            body { background: none; }
+            .view { box-shadow: none; margin: 0; }
+        }
     </style>
-  </head>
-  <body>
+</head>
+<body>
+
     <div class="view">
-      <img src="src/assets/054b44f45f3b421e8861-oferta-preco.jpg" />
-      <div class="dataView">
-        <div class="description">
-          <h2>SUCO INTEG PET 1,7L PRATS LARANJA</h2>
-          <span>LARANJA</span>
-        </div>
+        <img class="bg-image" src="src/assets/054b44f45f3b421e8861-oferta-preco.jpg" /> <div class="dataView">
+            <div class="description">
+                <h2>NOME DO PRODUTO DE TESTE COMPLETO</h2>
+                <span>COMPLEMENTO DO PRODUTO 500G</span>
+            </div>
 
-        <div class="wholesale">
-          <div class="infoBox">
-            <div class="infoTitle">
-              <span class="infoLabel">PREÇO VAREJO</span>
-              <span class="retailInfo">À UNIDADE</span>
-            </div>
-            <div class="boxPrice">
-              <span class="boxValue">R$</span>
-              <div class="boxPriceValue">
-                <span class="priceValueRetail">25</span>
-                <span class="priceCentsRetail"
-                  >,90
-                  <span class="unit">à unid.</span>
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+            <div class="wholesale-container">
+                <div class="wholesale">
+                    <div class="infoBox">
+                        <div class="infoTitle">
+                            <span class="infoLabel">PREÇO VAREJO</span>
+                            <span class="retailInfo">À UNIDADE</span>
+                        </div>
+                        <div class="boxPrice">
+                            <span class="boxValue">R$</span>
+                            <span class="priceValueRetail">10</span>
+                            <div class="priceCentsRetail">
+                                ,99
+                                <span class="unit">un</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
-        <div class="wholesale">
-          <div class="infoBox">
-            <div class="infoTitle">
-              <span class="infoLabel">PREÇO ATACADO</span>
-              <span class="min-unidades">A PARTIR DE 3 UNIDADES</span>
+                <div class="wholesale">
+                    <div class="infoBox">
+                        <div class="infoTitle">
+                            <span class="infoLabel">PREÇO ATACADO</span>
+                            <span class="min-unidades">A PARTIR DE 3 UNIDADES</span>
+                        </div>
+                        <div class="boxPrice">
+                            <span class="boxValue">R$</span>
+                            <span class="priceValue">09</span>
+                            <div class="priceCents">
+                                ,90
+                                <span class="unit">un</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
-            <div class="boxPrice">
-              <span class="boxValue">R$</span>
-              <div class="boxPriceValue">
-                <span class="priceValue"> 29 </span>
-                <span class="priceCents"
-                  >,90
-                  <span class="unit">à unid.</span>
-                </span>
-              </div>
-            </div>
-          </div>
+            <span class="date">Validade: 01/03/2026 à 10/03/2026</span>
         </div>
-
-        <span class="date"> ${validityText} </span>
-      </div>
     </div>
-  </body>
+
+    <div class="view">
+        <img class="bg-image" src="src/assets/054b44f45f3b421e8861-oferta-preco.jpg" />
+        <div class="dataView">
+            <div class="description">
+                <h2>ARROZ TIPO 1 INTEGRAL</h2>
+                <span>PACOTE 5KG</span>
+            </div>
+
+            <div class="price-standard small-price">
+                <span class="boxValue">R$</span>
+                <span class="priceInteger">29</span>
+                <div class="priceWrapperDecimal">
+                    <span class="priceDecimal">,90</span>
+                    <span class="unit">un</span>
+                </div>
+            </div>
+
+            <span class="date">Validade: 10/03/2026</span>
+        </div>
+    </div>
+
+</body>
 </html>
