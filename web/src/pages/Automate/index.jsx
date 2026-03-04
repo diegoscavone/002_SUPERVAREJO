@@ -100,8 +100,18 @@ export function Automate() {
 
   function formatDate(dateString) {
     if (!dateString) return '-'
-    const dateFormat = new Date(dateString)
-    return dateFormat.toLocaleDateString('pt-BR')
+
+    // Remove qualquer informação de hora (T00:00:00Z) e pega apenas YYYY-MM-DD
+    const onlyDate = dateString.split('T')[0]
+    const parts = onlyDate.split('-')
+
+    // Verifica se a string está no formato esperado
+    if (parts.length !== 3) return dateString
+
+    const [year, month, day] = parts
+
+    // Retorna no formato brasileiro DD/MM/YYYY
+    return `${day}/${month}/${year}`
   }
 
   async function handleAutomate() {
