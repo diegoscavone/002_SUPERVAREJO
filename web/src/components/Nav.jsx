@@ -75,13 +75,13 @@ export function Nav() {
 
     {
       label: 'Gestão de Validade',
-      roles: ['admin', 'offer_manager',],
+      roles: ['admin', 'offer_manager'],
       items: [
         {
           title: 'Validades',
           url: '/productsValidity',
           icon: CalendarClock,
-          roles: ['admin']
+          roles: ['admin', 'offer_manager']
         }
       ]
     },
