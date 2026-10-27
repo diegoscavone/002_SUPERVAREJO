@@ -639,10 +639,12 @@ class PostersPdfController {
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage',
+          '--disable-dev-shm-usage', 
           '--disable-gpu',
+          '--no-first-run',
           '--no-zygote',
-          '--single-process'
+          '--single-process', 
+          '--disable-extensions'
         ]
       })
 

@@ -42,6 +42,9 @@ class OffersPdfController {
           '--disable-setuid-sandbox',
           '--disable-dev-shm-usage',
           '--disable-gpu',
+          '--no-first-run',
+          '--no-zygote',
+          '--single-process',
           '--disable-extensions',
           '--font-render-hinting=none'
         ]
