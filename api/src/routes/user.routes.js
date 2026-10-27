@@ -33,8 +33,8 @@ usersRoutes.patch(
 )
 
 // 5. Rotas parametrizadas por ID (SEMPRE NO FINAL)
-usersRoutes.get('/:id', usersController.show)
-usersRoutes.put('/:id', usersController.updateUserData)
-usersRoutes.delete('/:id', usersController.delete)
+usersRoutes.get('/:id(\\d+)', usersController.show)
+usersRoutes.put('/:id(\\d+)', usersController.updateUserData)
+usersRoutes.delete('/:id(\\d+)', usersController.delete)
 
 module.exports = usersRoutes
