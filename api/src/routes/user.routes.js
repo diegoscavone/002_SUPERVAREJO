@@ -17,22 +17,23 @@ const usersAvatarController = new UsersAvatarController()
 
 usersRoutes.post('/', usersController.create)
 
+usersRoutes.use(ensureAuthenticated);
+
 usersRoutes.get(
   '/validated',
   ensureAuthenticated,
   usersValidatedController.index
 )
 
-usersRoutes.get('/', ensureAuthenticated, usersController.index)
-usersRoutes.put('/', ensureAuthenticated, usersController.update)
+usersRoutes.get('/', usersController.index)
+usersRoutes.put('/',  usersController.update)
 usersRoutes.patch(
     '/avatar',
-    ensureAuthenticated,
     upload.single('avatar'),
     usersAvatarController.update
   )
 usersRoutes.get('/:id', usersController.show)
-usersRoutes.put('/:id', ensureAuthenticated, usersController.updateUserData)
-usersRoutes.delete('/:id', ensureAuthenticated, usersController.delete)
+usersRoutes.put('/:id', usersController.updateUserData)
+usersRoutes.delete('/:id', usersController.delete)
 
 module.exports = usersRoutes
