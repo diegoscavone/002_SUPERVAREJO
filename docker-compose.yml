@@ -7,9 +7,9 @@ services:
     container_name: supervarejo_teste-proxy
     restart: always
     ports:
-      - '80:80'   # Entrada HTTP (Essencial para o Let's Encrypt)
-      - '443:443' # Entrada HTTPS (Onde os celulares vão conectar)
-      - '81:81'   # Painel Administrativo (Acesse via 192.168.0.198:81)
+      - '80:80'    # Entrada HTTP (Essencial para Let's Encrypt)
+      - '443:443'  # Entrada HTTPS (Onde os celulares e Push conectam)
+      - '81:81'    # Painel Administrativo
     volumes:
       - ./proxy/data:/data
       - ./proxy/letsencrypt:/etc/letsencrypt
@@ -23,7 +23,6 @@ services:
       dockerfile: Dockerfile
     container_name: supervarejo_teste-web-ssl
     restart: always
-    # Removido ports 80:80 para não conflitar com o proxy
     networks:
       - supervarejo-net
 
@@ -53,12 +52,15 @@ services:
     environment:
       - NODE_ENV=production
       - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
-      - DB_HOST=db  # Nome do serviço acima
+      - DB_HOST=db
       - DB_PORT=5432
       - DB_USER=diego
       - DB_PASSWORD=princesa@33
       - DB_DATABASE_PROD=princesa
-    # Porta 3333 fica interna para o Proxy
+      # Configurações de Web Push (VAPID)
+      - VAPID_PUBLIC_KEY=${VAPID_PUBLIC_KEY}
+      - VAPID_PRIVATE_KEY=${VAPID_PRIVATE_KEY}
+      - VAPID_EMAIL=${VAPID_EMAIL}
     volumes:
       - posters_data_ssl:/app/src/database
       - uploads_ssl:/app/src/tmp/uploads
@@ -66,14 +68,12 @@ services:
     networks:
       - supervarejo-net
 
-  # --- API ERP (Ajustada para conversar com o banco isolado) ---
+  # --- API ERP ---
   api-erp:
     build:
       context: ./api-erp
       dockerfile: Dockerfile
     container_name: supervarejo_teste-erp-ssl
-    # Removi network_mode: host para isolar. Se o ERP for externo, 
-    # use o IP real do servidor ERP no DB_HOST.
     network_mode: host
     depends_on:
       - db
@@ -85,8 +85,6 @@ services:
       - DB_PASSWORD=princesa@33
       - DB_DATABASE=erp
     restart: always
-    # networks:
-    #   - supervarejo-net
 
 volumes:
   posters_data_ssl:
