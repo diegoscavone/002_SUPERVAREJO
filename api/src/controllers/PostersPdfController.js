@@ -633,18 +633,19 @@ class PostersPdfController {
       const executablePath = getBrowserExecutablePath()
 
       const browser = await puppeteer.launch({
-        executablePath,
+        executablePath:
+          process.env.PUPPETEER_EXECUTABLE_PATH || '/usr/bin/chromium-browser',
         headless: 'new',
         pipe: true,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
-          '--disable-dev-shm-usage', 
+          '--disable-dev-shm-usage',
           '--disable-gpu',
           '--disable-software-rasterizer',
           '--no-first-run',
           '--no-zygote',
-          '--single-process', 
+          '--single-process',
           '--disable-extensions'
         ]
       })
