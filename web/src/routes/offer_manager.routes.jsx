@@ -11,6 +11,8 @@ import { Details } from '../pages/Details'
 import { Profile } from '../pages/Profile'
 import { NewOffer } from '../pages/NewOffer'
 import { Offers } from '../pages/Offers'
+import { ValidityControl } from '@/components/ValidityControl'
+import { ProductsValidity } from '@/pages/ProductsValidity'
 
 export function OfferManagerRoutes() {
   return (
@@ -24,8 +26,10 @@ export function OfferManagerRoutes() {
       <Route path="/print" element={<Print />} />
       <Route path="/automate" element={<Automate />} />
       <Route path="/users/profile/:id" element={<Profile />} />
-      <Route path="/offers" element={<Offers />} /> 
+      <Route path="/offers" element={<Offers />} />
       <Route path="/offers/new" element={<NewOffer />} />
+      <Route path="/validity-control" element={<ValidityControl />} />
+      <Route path="/productsValidity" element={<ProductsValidity />} />
 
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>
