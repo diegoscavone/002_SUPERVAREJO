@@ -1,51 +1,44 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  ConfirmationModalContainer,
-  ConfirmationModalContent,
-  Container,
-  Content
-} from './styles'
-
-import { Button } from '@/components/ui/button'
-import { Section } from '../../components/Section'
-
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
-import { ToastContainer } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
-import { InputMask } from '../../components/InputMask/index.jsx'
-import { Layout } from '../../components/Layout/index'
-import { useAuth } from '../../hooks/auth'
-import { api, apiERP } from '../../services/api.js'
-import { toastError, toastSuccess } from '../../styles/toastConfig.js'
-
-import { DataTable } from '@/components/DataTable'
-import { Badge } from '@/components/ui/badge'
-import { Field, FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
 import {
   Barcode,
-  BarcodeIcon,
   CalendarDays,
   CloudAlert,
   CloudCheck,
-  CloudUpload,
   Loader2,
+  Minus,
+  PackageOpen,
   Tag,
-  Trash2
+  Trash2,
+  TrendingDown,
+  TrendingUp
 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ConfirmModal } from '../../components/ConfirmModal'
-import { ProductSearchModal } from '../../components/ProductsSearchModal'
-import { useCreatedPoster } from '../../hooks/createdPoster'
-import { PriceCell } from '../../components/PriceCell'
 
-// Custom hook para debounce de pesquisa
+// Serviços e Hooks
+import { useAuth } from '../../hooks/auth'
+import { useCreatedPoster } from '../../hooks/createdPoster'
+import { api, apiERP } from '../../services/api.js'
+import { toastError, toastSuccess } from '../../styles/toastConfig.js'
+
+// Componentes da Aplicação
+import { DataTable } from '@/components/DataTable'
+import { ConfirmModal } from '../../components/ConfirmModal'
+import { InputMask } from '../../components/InputMask.jsx'
+import { Layout } from '../../components/Layout'
+import { PriceCell } from '../../components/PriceCell.jsx'
+import { ProductSearchModal } from '../../components/ProductsSearchModal'
+
+// Componentes shadcn/ui
+import { Button } from '@/components/Button'
+import { SelectCustom } from '@/components/SelectCustom.jsx'
+import { Card, CardContent } from '@/components/ui/card'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger
+} from '@/components/ui/tooltip'
+
 function useDebounce(value, delay) {
   const [debouncedValue, setDebouncedValue] = useState(value)
 
@@ -62,105 +55,47 @@ function useDebounce(value, delay) {
   return debouncedValue
 }
 
-// const PriceCell = React.memo(({ getValue, row, column, table }) => {
-//   const initialValue = getValue()
-//   const [value, setValue] = useState(initialValue === '0,00' ? '' : initialValue)
-
-//  useEffect(() => {
-//     if (initialValue !== undefined && initialValue !== value) {
-//       setValue(initialValue === '0,00' ? '' : initialValue)
-//     }
-//   }, [initialValue])
-
-//  const updateParent = val => {
-//     const finalValue = val.trim() === '' ? '0,00' : val
-//     table.options.meta?.updateData(row.index, column.id, finalValue)
-//   }
-
-//   const handleKeyDown = e => {
-//     if (e.key === 'Enter') {
-//       e.preventDefault()
-//       updateParent(value)
-
-//       const allInputs = Array.from(
-//         document.querySelectorAll('input.offer-price-input')
-//       )
-//       const currentIndex = allInputs.indexOf(e.currentTarget)
-
-//       if (currentIndex !== -1 && currentIndex < allInputs.length - 1) {
-//         setTimeout(() => {
-//           allInputs[currentIndex + 1].focus()
-//           allInputs[currentIndex + 1].select()
-//         }, 10)
-//       }
-//     }
-//   }
-
-//   return (
-//     <Input
-//       type="text"
-//       className="w-24 h-8 text-center font-bold border-green-200 focus:ring-green-600 offer-price-input"
-//       value={value}
-//       placeholder="0,00"
-//       onChange={e => {
-//         setValue(e.target.value)
-//         updateParent(e.target.value)
-//       }}
-//       onBlur={() => updateParent(value)}
-//       onKeyDown={handleKeyDown}
-//       onFocus={e => {
-//         e.target.select();
-//         table.options.meta?.setActiveRowIndex?.(row.index);
-//       }}
-//     />
-//   )
-// })
-
 export function NewOffer() {
   const navigate = useNavigate()
   const handleCreatePoster = useCreatedPoster()
+  const { user } = useAuth()
 
-  // Refs para otimização
+  // Refs de controle de ciclo de vida e concorrência
   const searchInputRef = useRef(null)
   const abortControllerRef = useRef(null)
   const isMountedRef = useRef(false)
   const preventRefetchOnAdd = useRef(false)
   const syncTimeoutRef = useRef({})
 
-  // Estados para gerenciar produtos
+  // Estados de dados
   const [searchTerm, setSearchTerm] = useState('')
   const debouncedSearchTerm = useDebounce(searchTerm, 500)
   const [products, setProducts] = useState([])
-
   const [selectedProducts, setSelectedProducts] = useState([])
   const [selectedProductId, setSelectedProductId] = useState(null)
+
+  // Estados do formulário
   const [offerName, setOfferName] = useState('')
   const [initialDate, setInitialDate] = useState('')
   const [finalDate, setFinalDate] = useState('')
   const [campaignName, setCampaignName] = useState('')
+  const [campaigns, setCampaigns] = useState([])
+  const [campaignSelected, setCampaignSelected] = useState('')
+  const [userUnit, setUserUnit] = useState(null)
 
-  // Estados do modal de busca
+  // Modais e Loaders
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [currentPage, setCurrentPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
-  const [userUnit, setUserUnit] = useState(null)
-  const [campaigns, setCampaigns] = useState([])
-  const [campaignSelected, setCampaignSelected] = useState('')
-  const [showPostersConfirmation, setShowPostersConfirmation] = useState(false)
-  const [savedOfferData, setSavedOfferData] = useState(null)
-
   const [showClearConfirmation, setShowClearConfirmation] = useState(false)
+  const [isSavingOffer, setIsSavingOffer] = useState(false)
 
-  // Estados para controle de sincronia e carregamento
+  // Status de Sincronismo no Backend
   const [isSyncing, setIsSyncing] = useState(false)
   const [syncError, setSyncError] = useState(false)
-  const [isSavingOffer, setIsSavingOffer] = useState(false) // Modal de salvamento global
 
-  const { user } = useAuth()
-
-  // Definir o componente como montado
   useEffect(() => {
     isMountedRef.current = true
     return () => {
@@ -171,7 +106,6 @@ export function NewOffer() {
     }
   }, [])
 
-  // Obter a unidade do usuário logado
   useEffect(() => {
     if (user) {
       const unidadeProperty = user.unit || user.unidade || user.unid_codigo
@@ -183,86 +117,55 @@ export function NewOffer() {
 
   useEffect(() => {
     async function fetchCampaign() {
-      const response = await api.get('campaigns')
-      setCampaigns(response.data)
+      try {
+        const response = await api.get('campaigns')
+        setCampaigns(response.data)
+      } catch (err) {
+        console.error('Erro ao buscar campanhas:', err)
+      }
     }
     fetchCampaign()
   }, [])
 
-  const clearForm = useCallback(
-    (clearAll = true, confirmed = false) => {
-      if (!confirmed) {
-        setShowClearConfirmation(true)
-        return
-      }
+  const clearForm = useCallback((clearAll = true, confirmed = false) => {
+    if (!confirmed) {
+      setShowClearConfirmation(true)
+      return
+    }
 
-      // Usamos diretamente as funções de 'set' do useState
-      setSelectedProductId(null)
+    setSelectedProductId(null)
 
-      if (clearAll) {
-        setOfferName('')
-        setInitialDate('')
-        setFinalDate('')
-        setCampaignName('')
-        setCampaignSelected('0')
-      }
+    if (clearAll) {
+      setOfferName('')
+      setInitialDate('')
+      setFinalDate('')
+      setCampaignName('')
+      setCampaignSelected('0')
+    }
 
-      // Fecha o modal de confirmação após a limpeza
-      setShowClearConfirmation(false)
-    },
-    [
-      // Aqui incluímos apenas as funções de set que o componente usa
-      setSelectedProductId,
-      setOfferName,
-      setInitialDate,
-      setFinalDate,
-      setCampaignName,
-      setCampaignSelected
-    ]
-  )
+    setShowClearConfirmation(false)
+  }, [])
 
   const handleConfirmClear = useCallback(async () => {
     try {
-      // 1. Limpa o rascunho no Banco de Dados (API)
       if (userUnit) {
         await api.delete(`/offers/draft/all/${userUnit}`)
       }
-
-      // 2. Limpa o estado local no Front-end
-      clearForm(true, true) // Executa a limpeza dos campos e produtos
-      setSelectedProducts([]) // Garante que a lista de produtos fique vazia
-
+      clearForm(true, true)
+      setSelectedProducts([])
       toastSuccess('Rascunho e formulário limpos com sucesso')
     } catch (error) {
       console.error('Erro ao limpar rascunho:', error)
-      toastError('Erro ao limpar rascunho no servidor. Verifique sua conexão.')
+      toastError('Erro ao limpar rascunho no servidor.')
     } finally {
       setShowClearConfirmation(false)
     }
   }, [clearForm, userUnit])
 
-  const handleCancelClear = useCallback(() => {
-    setShowClearConfirmation(false)
-  }, [])
-
-  const handleInitialDateChange = useCallback(
-    e => {
-      setInitialDate(e.target.value)
-    },
-    [setInitialDate]
-  )
-
-  const handleFinalDateChange = useCallback(
-    e => {
-      setFinalDate(e.target.value)
-    },
-    [setFinalDate]
-  )
-
   const calculateProfit = useCallback((cost, price) => {
     const nCost = parseFloat(cost) || 0
     const nPrice = parseFloat(price) || 0
-    if (nPrice <= 0) return 0
+    if (nPrice <= 0) return '0.0'
     return (((nPrice - nCost) / nPrice) * 100).toFixed(1)
   }, [])
 
@@ -270,13 +173,104 @@ export function NewOffer() {
     return new Intl.NumberFormat('pt-BR', {
       style: 'currency',
       currency: 'BRL'
-    }).format(value)
+    }).format(value || 0)
   }, [])
 
   const formatSearchTerm = useCallback(term => {
     if (!term || term.length === 0) return ''
     return term.charAt(0).toUpperCase() + term.slice(1)
   }, [])
+
+  // const fetchProducts = useCallback(
+  //   async (term = '', page = 1) => {
+  //     if (!isMountedRef.current || !isModalOpen) return
+
+  //     if (abortControllerRef.current) {
+  //       abortControllerRef.current.abort()
+  //     }
+
+  //     abortControllerRef.current = new AbortController()
+  //     const signal = abortControllerRef.current.signal
+
+  //     setIsLoading(true)
+
+  //     try {
+  //       let url
+  //       if (term && term.length >= 3) {
+  //         setIsSearching(true)
+  //         const formattedTerm = formatSearchTerm(term)
+  //         url = `/products?search=${encodeURIComponent(formattedTerm)}`
+  //         if (userUnit) url += `&unit=${encodeURIComponent(userUnit)}`
+  //       } else {
+  //         setIsSearching(false)
+  //         url = `/products/all?page=${page}&limit=20`
+  //         if (userUnit) url += `&unit=${encodeURIComponent(userUnit)}`
+  //       }
+
+  //       url += '&sort=descricao&order=asc'
+
+  //       const response = await apiERP.get(url, { signal, timeout: 8000 })
+  //       if (signal.aborted) return
+
+  //       if (term && term.length >= 3 && Array.isArray(response.data)) {
+  //         const formattedProducts = response.data.map(product => ({
+  //           id: product.codigo,
+  //           prod_codigo: product.codigo,
+  //           prod_cod_barras: product.codigobarras || 'N/A',
+  //           prod_descricao: product.descricao,
+  //           prod_complemento: product.complemento || '',
+  //           prod_preco_custo: product.custoempresa || 0,
+  //           prod_preco_venda: product.prvenda || 0,
+  //           embalagem: product.embalagem,
+  //           unidade: product.unidade
+  //         }))
+
+  //         setProducts(formattedProducts)
+
+  //         if (
+  //           formattedProducts.length === 0 &&
+  //           term.trim() !== '' &&
+  //           !isLoading
+  //         ) {
+  //           setTimeout(() => {
+  //             if (
+  //               term === debouncedSearchTerm &&
+  //               formattedProducts.length === 0
+  //             ) {
+  //               toastError('Nenhum produto encontrado com este termo.')
+  //             }
+  //           }, 1000)
+  //         }
+
+  //         setTotalPages(1)
+  //         setCurrentPage(1)
+  //       } else if (response.data && response.data.products) {
+  //         const formattedProducts = response.data.products.map(product => ({
+  //           id: product.codigo,
+  //           prod_codigo: product.codigo,
+  //           prod_cod_barras: product.codigobarras || 'N/A',
+  //           prod_descricao: product.descricao,
+  //           prod_complemento: product.complemento || '',
+  //           prod_preco_custo: product.custoempresa || 0,
+  //           prod_preco_venda: product.prvenda || 0,
+  //           embalagem: product.embalagem,
+  //           unidade: product.unidade
+  //         }))
+
+  //         setProducts(formattedProducts)
+  //         setTotalPages(response.data.pagination.totalPages)
+  //         setCurrentPage(response.data.pagination.page)
+  //       }
+  //     } catch (error) {
+  //       // Erros de busca tratados silenciosamente
+  //     } finally {
+  //       if (!signal.aborted && isMountedRef.current) {
+  //         setIsLoading(false)
+  //       }
+  //     }
+  //   },
+  //   [userUnit, isModalOpen, formatSearchTerm, debouncedSearchTerm, isLoading]
+  // )
 
   const fetchProducts = useCallback(
     async (term = '', page = 1) => {
@@ -292,107 +286,66 @@ export function NewOffer() {
       setIsLoading(true)
 
       try {
-        let url
-        // Verifica se está pesquisando ou listando todos
-        if (term && term.length >= 3) {
+        let url = ''
+        const hasSearch = term && term.trim().length >= 3
+
+        if (hasSearch) {
           setIsSearching(true)
           const formattedTerm = formatSearchTerm(term)
           url = `/products?search=${encodeURIComponent(formattedTerm)}`
-          if (userUnit) {
-            url += `&unit=${encodeURIComponent(userUnit)}`
-          }
+          if (userUnit) url += `&unit=${encodeURIComponent(userUnit)}`
         } else {
           setIsSearching(false)
           url = `/products/all?page=${page}&limit=20`
-          if (userUnit) {
-            url += `&unit=${encodeURIComponent(userUnit)}`
-          }
+          if (userUnit) url += `&unit=${encodeURIComponent(userUnit)}`
         }
 
-        // Adicionar ordenação por descrição
         url += '&sort=descricao&order=asc'
 
-        const response = await apiERP.get(url, {
-          signal,
-          timeout: 8000
-        })
-
+        const response = await apiERP.get(url, { signal, timeout: 8000 })
         if (signal.aborted) return
 
-        // Processar resultados da pesquisa
-        if (
-          term &&
-          term.length >= 3 &&
-          response.data &&
-          Array.isArray(response.data)
-        ) {
-          const formattedProducts = response.data.map(product => ({
-            id: product.codigo,
-            prod_codigo: product.codigo,
-            prod_cod_barras: product.codigobarras || 'N/A',
-            prod_descricao: product.descricao,
-            prod_complemento: product.complemento || '',
-            prod_preco_custo: product.custoempresa || 0,
-            prod_preco_venda: product.prvenda || 0,
-            embalagem: product.embalagem,
-            unidade: product.unidade
-          }))
+        // ✅ NORMALIZAÇÃO BLINDADA: extrai a lista quer venha como Array direto ou { products: [...] }
+        const rawList = Array.isArray(response.data)
+          ? response.data
+          : response.data?.products || []
 
-          setProducts(formattedProducts)
+        const formattedProducts = rawList.map(product => ({
+          id: product.codigo || product.prod_codigo,
+          prod_codigo: product.codigo || product.prod_codigo,
+          prod_cod_barras:
+            product.codigobarras || product.prod_codbarras || 'N/A',
+          prod_descricao: product.descricao || product.prod_descricao,
+          prod_complemento:
+            product.complemento || product.prod_complemento || '',
+          prod_preco_custo: product.custoempresa || product.prun_ctempresa || 0,
+          prod_preco_venda: product.prvenda || product.prun_prvenda || 0,
+          embalagem: product.embalagem || product.prod_emb || 'UN',
+          unidade: product.unidade || product.prun_unid_codigo || ''
+        }))
 
-          // Mostrar mensagem apenas se for uma busca deliberada (sem caracteres digitados recentemente)
-          // e nenhum produto for encontrado
-          if (
-            formattedProducts.length === 0 &&
-            term.trim() !== '' &&
-            !isLoading
-          ) {
-            // Verificar se é o mesmo termo depois de um tempo para evitar mensagens durante digitação
-            setTimeout(() => {
-              if (
-                term === debouncedSearchTerm &&
-                formattedProducts.length === 0
-              ) {
-                toastError('Nenhum produto encontrado com este termo.')
-              }
-            }, 1000)
-          }
+        setProducts(formattedProducts)
 
-          // Simplificado: sem paginação complexa para resultados de pesquisa
+        if (hasSearch) {
           setTotalPages(1)
           setCurrentPage(1)
-        }
-        // Processar resultados da listagem
-        else if (response.data && response.data.products) {
-          const formattedProducts = response.data.products.map(product => ({
-            id: product.codigo,
-            prod_codigo: product.codigo,
-            prod_cod_barras: product.codigobarras || 'N/A',
-            prod_descricao: product.descricao,
-            prod_complemento: product.complemento || '',
-            prod_preco_custo: product.custoempresa || 0,
-            prod_preco_venda: product.prvenda || 0,
-            embalagem: product.embalagem,
-            unidade: product.unidade
-          }))
-
-          setProducts(formattedProducts)
-
-          // Manter paginação apenas para listagem completa
+        } else if (response.data?.pagination) {
           setTotalPages(response.data.pagination.totalPages)
           setCurrentPage(response.data.pagination.page)
         }
       } catch (error) {
-        // Remover completamente as mensagens de erro durante a busca
-        // Os erros de servidor serão tratados silenciosamente
-        // As mensagens "nenhum produto encontrado" já são exibidas no caso de sucesso com array vazio
+        // Se for cancelamento de digitação prévia, não limpa a tela
+        if (error?.code !== 'ERR_CANCELED' && !signal.aborted) {
+          setProducts([])
+        }
       } finally {
-        if (!signal.aborted && isMountedRef.current) {
+        // ✅ Garante que o loading seja desativado caso o componente ainda esteja montado
+        if (isMountedRef.current) {
           setIsLoading(false)
         }
       }
     },
-    [userUnit, isModalOpen, formatSearchTerm, debouncedSearchTerm]
+    [userUnit, isModalOpen, formatSearchTerm]
   )
 
   useEffect(() => {
@@ -423,7 +376,7 @@ export function NewOffer() {
       }
       fetchProducts('', 1)
     }, 100)
-  }, [fetchProducts, setSelectedProductId])
+  }, [fetchProducts])
 
   const closeModal = useCallback(() => {
     setIsModalOpen(false)
@@ -440,7 +393,6 @@ export function NewOffer() {
       if (!userUnit || !user?.id) return
 
       setIsSyncing(true)
-      setSyncError(false)
 
       try {
         const sanitizedPrice =
@@ -459,11 +411,13 @@ export function NewOffer() {
           user_id: user.id
         })
 
-        setIsSyncing(false)
+        // Sincronia completada com sucesso: zera qualquer erro prévio
+        setSyncError(false)
       } catch (error) {
-        setIsSyncing(false)
         setSyncError(true)
         console.error('Erro na sincronia:', error)
+      } finally {
+        setIsSyncing(false)
       }
     },
     [userUnit, user]
@@ -475,7 +429,6 @@ export function NewOffer() {
       return
     }
 
-    // Busca o produto no array de resultados da pesquisa do modal
     const product = products.find(
       p => String(p.id) === String(selectedProductId)
     )
@@ -490,7 +443,6 @@ export function NewOffer() {
         return
       }
 
-      // Preparamos o objeto com valores padrão
       const productToAdd = {
         ...product,
         offerPrice: '',
@@ -498,14 +450,9 @@ export function NewOffer() {
       }
 
       try {
-        // Sincronização IMEDIATA com o banco de rascunhos
         await syncItemToDatabase(productToAdd)
-
-        // Só atualizamos o estado local após o sucesso na API
         setSelectedProducts(prev => [...prev, productToAdd])
         toastSuccess('Produto adicionado ao rascunho!')
-
-        // Limpa a seleção para o próximo bip/busca
         setSelectedProductId(null)
 
         if (searchInputRef.current) {
@@ -513,9 +460,7 @@ export function NewOffer() {
         }
       } catch (error) {
         console.error('Erro ao salvar rascunho:', error)
-        toastError(
-          'Falha de rede: Não foi possível adicionar o produto ao rascunho.'
-        )
+        toastError('Falha de rede ao salvar rascunho.')
       }
     }
   }, [
@@ -523,21 +468,28 @@ export function NewOffer() {
     products,
     selectedProducts,
     calculateProfit,
-    syncItemToDatabase,
-    setSelectedProductId
+    syncItemToDatabase
   ])
 
+  // 1. Função removeProduct atualizada:
   const removeProduct = useCallback(
     async productId => {
-      try {
-        // Remove visualmente primeiro (UX mais rápida)
-        setSelectedProducts(prev => prev.filter(p => p.id !== productId))
+      if (!productId) return
 
-        // Remove do banco (passando unit para o controller saber de qual loja é)
-        await api.delete(`/offers/draft/${productId}?unit=${userUnit}`)
+      try {
+        // Exclui no servidor primeiro para garantir persistência
+        await api.delete(`/offers/draft/${String(productId)}`, {
+          params: { unit: userUnit }
+        })
+
+        // Remove do estado local somente após sucesso no banco
+        setSelectedProducts(prev =>
+          prev.filter(p => String(p.prod_codigo || p.id) !== String(productId))
+        )
 
         toastSuccess('Produto removido do rascunho')
       } catch (error) {
+        console.error('Erro ao deletar rascunho:', error)
         toastError('Erro ao sincronizar remoção com o servidor.')
       }
     },
@@ -555,7 +507,6 @@ export function NewOffer() {
       campaignName
     } = data
 
-    // Formatação específica para o PDF
     const produtosPDF = products.map(product => ({
       produto_id: product.prod_codigo || '',
       descricao: product.prod_descricao || '',
@@ -571,7 +522,7 @@ export function NewOffer() {
         {
           produtos: produtosPDF,
           unidade: unit || '',
-          name: name,
+          name,
           initialDate,
           finalDate,
           campaign_id: campaignId || null,
@@ -585,11 +536,8 @@ export function NewOffer() {
       const printWindow = window.open(url, '_blank')
 
       if (!printWindow) {
-        toastError(
-          'PDF gerado, mas o bloqueador de pop-ups impediu a abertura.'
-        )
+        toastError('PDF gerado, mas o navegador bloqueou o pop-up.')
       }
-
       return true
     } catch (error) {
       console.error('Erro ao gerar PDF:', error)
@@ -599,7 +547,6 @@ export function NewOffer() {
   }, [])
 
   const saveOffer = useCallback(async () => {
-    // --- VALIDAÇÕES (Mantidas) ---
     if (!selectedProducts?.length)
       return toastError('Adicione pelo menos um produto')
 
@@ -611,23 +558,23 @@ export function NewOffer() {
       return isNaN(priceValue) || priceValue <= 0
     })
 
-    if (produtosInvalidos.length > 0)
+    if (produtosInvalidos.length > 0) {
       return toastError('Defina preços válidos antes de salvar')
+    }
 
     const finalOfferName = offerName?.trim() || campaignName?.trim()
     if (!finalOfferName) return toastError('Informe um nome ou campanha')
 
-    if (!initialDate || !finalDate) return toastError('Informe as datas')
+    if (!initialDate || !finalDate)
+      return toastError('Informe as datas inicial e final')
 
     const formatDateForAPI = d => d.split('/').reverse().join('-')
     const formattedInitialDate = formatDateForAPI(initialDate)
     const formattedFinalDate = formatDateForAPI(finalDate)
 
-    // --- EXECUÇÃO ---
     setIsSavingOffer(true)
 
     try {
-      // 1. Formatar dados para a API principal
       const productsFormatted = selectedProducts.map(product => ({
         product_id: product.prod_codigo || '',
         description: product.prod_descricao || '',
@@ -640,40 +587,35 @@ export function NewOffer() {
         unit: product.unidade || userUnit || ''
       }))
 
-      // 2. Enviar para o banco
       await api.post('/offers', {
         name: finalOfferName,
         initial_date: formattedInitialDate,
         final_date: formattedFinalDate,
         unit: userUnit,
         products: productsFormatted,
-        campaign_id: campaignSelected || null,
+        campaign_id: campaignSelected === '0' ? null : campaignSelected,
         campaign_name: campaignName || null
       })
 
-      // 3. Limpeza Atômica (Importante: limpa rascunho antes de abrir o PDF)
       await api.delete(`/offers/draft/all/${userUnit}`)
 
-      // 4. Gerar PDF usando a nova função
       await handleGeneratePDF({
         products: selectedProducts,
         unit: userUnit,
         name: finalOfferName,
         initialDate: formattedInitialDate,
         finalDate: formattedFinalDate,
-        campaignId: campaignSelected,
-        campaignName: campaignName
+        campaignId: campaignSelected === '0' ? null : campaignSelected,
+        campaignName
       })
 
-      // 5. Reset do Estado Local
       toastSuccess('Oferta finalizada com sucesso!')
       setSelectedProducts([])
-      setShowPostersConfirmation(true)
       clearForm(true, true)
     } catch (error) {
       console.error('Erro ao salvar oferta:', error)
       toastError(
-        'Erro ao salvar a oferta: ' + (error.message || 'Erro desconhecido')
+        'Erro ao salvar oferta: ' + (error.message || 'Erro de comunicação')
       )
     } finally {
       setIsSavingOffer(false)
@@ -690,153 +632,68 @@ export function NewOffer() {
     clearForm
   ])
 
-  const handleKeyDown = useCallback((event, index) => {
-    // Verificar se a tecla pressionada é Enter
-    if (event.key === 'Enter') {
-      event.preventDefault() // Impedir o comportamento padrão do Enter
-
-      // Encontrar todos os inputs de preço de oferta
-      const inputs = document.querySelectorAll(
-        'input[type="number"].offer-price-input'
-      )
-
-      // Verificar se encontramos algum input
-      if (inputs.length === 0) {
-        console.warn('Nenhum input encontrado com a classe offer-price-input')
-        return
-      }
-
-      // Se houver um próximo input, dar foco a ele e selecionar seu conteúdo
-      if (index < inputs.length - 1) {
-        const nextInput = inputs[index + 1]
-        nextInput.focus()
-        nextInput.select() // Seleciona todo o texto do input
-      } else if (inputs.length > 0) {
-        // Se for o último input, voltar para o primeiro e selecionar seu conteúdo
-        const firstInput = inputs[0]
-        firstInput.focus()
-        firstInput.select() // Seleciona todo o texto do input
-      }
-    }
-  }, [])
-
   function handleCampaignsChange(value) {
-    const campaignId = value // Agora 'value' já é o ID diretamente
-    setCampaignSelected(campaignId)
-
-    if (campaignId && campaignId !== '0') {
-      const selectedCampaign = campaigns.find(
-        c => c.id.toString() === campaignId.toString()
-      )
-      if (selectedCampaign) {
-        setCampaignName(selectedCampaign.name)
-      } else {
-        setCampaignName('')
-      }
+    setCampaignSelected(value)
+    if (value && value !== '0') {
+      const selected = campaigns.find(c => String(c.id) === String(value))
+      setCampaignName(selected ? selected.name : '')
     } else {
       setCampaignName('')
     }
   }
 
-  //  const handleRowUpdate = useCallback(
-  //   (rowIndex, columnId, value) => {
-  //     setSelectedProducts(prev => {
-  //       const newData = [...prev]
-  //       const item = { ...newData[rowIndex] }
-
-  //       if (item[columnId] === value) return prev // Evita renders inúteis
-
-  //       item[columnId] = value
-
-  //       if (columnId === 'offerPrice') {
-  //         const sanitized = String(value)
-  //           .replace(',', '.')
-  //           .replace(/[^\d.]/g, '')
-  //         const validNumber = parseFloat(sanitized) || 0
-  //         item.profit = calculateProfit(item.prod_preco_custo, validNumber)
-
-  //         // Lógica de Debounce
-  //         const productId = item.prod_codigo
-  //         if (syncTimeoutRef.current[productId]) {
-  //           clearTimeout(syncTimeoutRef.current[productId])
-  //         }
-
-  //         syncTimeoutRef.current[productId] = setTimeout(async () => {
-  //           try {
-  //             await syncItemToDatabase(item)
-  //           } catch (err) {
-  //             console.error('Falha ao sincronizar preço:', err)
-  //           }
-  //         }, 800)
-  //       }
-
-  //       newData[rowIndex] = item
-  //       return newData
-  //     })
-  //   },
-  //   [calculateProfit, syncItemToDatabase]
-  // )
-
   const handleRowUpdate = useCallback(
-  (rowIndex, columnId, value) => {
-    setSelectedProducts(prev => {
-      const newData = [...prev];
-      const item = { ...newData[rowIndex] };
+    (rowIndex, columnId, value) => {
+      setSelectedProducts(prev => {
+        const newData = [...prev]
+        const item = { ...newData[rowIndex] }
 
-      // Atualização IMEDIATA para a UI
-      item[columnId] = value;
+        item[columnId] = value
 
-      if (columnId === 'offerPrice') {
-        const sanitized = String(value).replace(',', '.');
-        const validNumber = parseFloat(sanitized) || 0;
-        
-        // Recalcula a margem para o objeto que vai para o estado local agora
-        item.profit = calculateProfit(item.prod_preco_custo, validNumber);
+        if (columnId === 'offerPrice') {
+          const sanitized = String(value).replace(',', '.')
+          const validNumber = parseFloat(sanitized) || 0
 
-        // Lógica de Debounce APENAS para o banco de dados
-        const productId = item.prod_codigo;
-        if (syncTimeoutRef.current[productId]) {
-          clearTimeout(syncTimeoutRef.current[productId]);
+          item.profit = calculateProfit(item.prod_preco_custo, validNumber)
+
+          const productId = item.prod_codigo
+          if (syncTimeoutRef.current[productId]) {
+            clearTimeout(syncTimeoutRef.current[productId])
+          }
+
+          syncTimeoutRef.current[productId] = setTimeout(async () => {
+            try {
+              await syncItemToDatabase(item)
+            } catch (err) {
+              console.error('Falha ao sincronizar preço:', err)
+            }
+          }, 1000)
         }
 
-        syncTimeoutRef.current[productId] = setTimeout(async () => {
-          try {
-            // Sincroniza o 'item' que já contém os valores atualizados
-            await syncItemToDatabase(item);
-          } catch (err) {
-            console.error('Falha ao sincronizar preço:', err);
-          }
-        }, 1000); // 1 segundo de silêncio para disparar o save
-      }
-
-      newData[rowIndex] = item;
-      return newData;
-    });
-  },
-  [calculateProfit, syncItemToDatabase]
-);
+        newData[rowIndex] = item
+        return newData
+      })
+    },
+    [calculateProfit, syncItemToDatabase]
+  )
 
   const MARGIN_THEME = {
     CRITICAL: {
-      min: -Infinity,
       max: 14.9,
-      colorClass:
-        'bg-red-600 hover:bg-red-600 text-white border-none shadow-none',
-      variant: 'destructive'
+      colorClass: 'text-rose-600 dark:text-rose-400',
+      dotClass: 'bg-rose-500 shadow-rose-500/30',
+      icon: TrendingDown
     },
     WARNING: {
-      min: 15,
       max: 25,
-      colorClass:
-        'bg-yellow-500 hover:bg-yellow-500 text-white border-none shadow-none',
-      variant: 'outline'
+      colorClass: 'text-amber-600 dark:text-amber-400',
+      dotClass: 'bg-amber-500 shadow-amber-500/30',
+      icon: Minus
     },
     SUCCESS: {
-      min: 25.1,
-      max: Infinity,
-      colorClass:
-        'bg-green-600 hover:bg-green-600 text-white border-none shadow-none',
-      variant: 'success'
+      colorClass: 'text-emerald-600 dark:text-emerald-400',
+      dotClass: 'bg-emerald-500 shadow-emerald-500/30',
+      icon: TrendingUp
     }
   }
 
@@ -847,12 +704,12 @@ export function NewOffer() {
       { accessorKey: 'prod_complemento', header: 'Complemento' },
       {
         accessorKey: 'prod_preco_custo',
-        header: 'Custo (R$)',
+        header: 'Custo',
         cell: ({ getValue }) => formatCurrency(getValue())
       },
       {
         accessorKey: 'prod_preco_venda',
-        header: 'Preço Venda (R$)',
+        header: 'Preço Venda',
         cell: ({ getValue }) => formatCurrency(getValue())
       },
       {
@@ -861,8 +718,10 @@ export function NewOffer() {
         cell: ({ row }) => (
           <PriceCell
             value={row.original.offerPrice}
-            index={row.index} // <--- Passando o índice da linha da tabela
-            onUpdate={newValue => handleRowUpdate(row.index, 'offerPrice', newValue)}
+            index={row.index}
+            onUpdate={newValue =>
+              handleRowUpdate(row.index, 'offerPrice', newValue)
+            }
           />
         )
       },
@@ -876,44 +735,59 @@ export function NewOffer() {
           const margemNum = preco > 0 ? ((preco - custo) / preco) * 100 : 0
           const margemFormatada = margemNum.toFixed(1)
 
-          // Lógica Dinâmica de Cores
-          let config = MARGIN_THEME.SUCCESS // Default
-
+          let config = MARGIN_THEME.SUCCESS
           if (margemNum <= MARGIN_THEME.CRITICAL.max) {
             config = MARGIN_THEME.CRITICAL
           } else if (margemNum <= MARGIN_THEME.WARNING.max) {
             config = MARGIN_THEME.WARNING
           }
 
+          const IconComponent = config.icon
+
           return (
-            <Badge
-              variant={config.variant}
-              className={`font-bold rounded-md px-2 py-0.5 transition-colors ${config.colorClass}`}
-            >
-              {margemFormatada}%
-            </Badge>
+            <div className="flex items-center gap-1.5 select-none">
+              {/* Ponto indicador de status com glow sutil */}
+              <span
+                className={`h-2 w-2 rounded-full shadow-sm shrink-0 ${config.dotClass}`}
+              />
+
+              {/* Valor numérico com cor direta e sem container/card */}
+              <span
+                className={`font-bold text-sm tracking-tight ${config.colorClass}`}
+              >
+                {margemFormatada}%
+              </span>
+
+              {/* Ícone de tendência da margem */}
+              <IconComponent
+                className={`h-3.5 w-3.5 shrink-0 ${config.colorClass}`}
+                strokeWidth={2.5}
+              />
+            </div>
           )
         }
       },
       {
         id: 'actions',
         header: '',
-        cell: ({ row }) => (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-red-500 h-8 w-8"
-            onClick={() => removeProduct(row.original.id)}
-          >
-            <Trash2 size={18} />
-          </Button>
-        )
+        cell: ({ row }) => {
+          const productCode = row.original.prod_codigo || row.original.id
+
+          return (
+            <button
+              type="button"
+              className="flex h-8 w-8 items-center justify-center rounded-lg text-rose-500 transition-colors hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/30"
+              onClick={() => removeProduct(productCode)}
+              title="Remover produto da oferta"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )
+        }
       }
     ],
-    [formatCurrency, handleRowUpdate] // REMOVIDO selectedProducts e updateOfferPrice daqui
+    [formatCurrency, handleRowUpdate, removeProduct]
   )
-
- 
 
   useEffect(() => {
     async function loadDraft() {
@@ -923,9 +797,8 @@ export function NewOffer() {
         setIsLoading(true)
         const response = await api.get(`/offers/draft/${userUnit}`)
 
-        // Mapeia de volta para o formato que sua DataTable espera
         const mappedProducts = response.data.map(item => ({
-          id: item.product_id, // Usamos o código como ID
+          id: item.product_id,
           prod_codigo: item.product_id,
           prod_descricao: item.description,
           prod_cod_barras: item.barcode,
@@ -940,7 +813,7 @@ export function NewOffer() {
 
         setSelectedProducts(mappedProducts)
       } catch (error) {
-        toastError('Não foi possível recuperar o rascunho da rede.')
+        toastError('Não foi possível recuperar o rascunho anterior.')
       } finally {
         setIsLoading(false)
       }
@@ -949,183 +822,234 @@ export function NewOffer() {
     loadDraft()
   }, [userUnit, calculateProfit])
 
-  // Renderização principal
   return (
     <Layout>
-      <ToastContainer />
-      <Container>
-        <Content className="flex flex-col gap-6 p-6">
-          <div className="flex justify-between items-center bg-white p-4 rounded-xl shadow-none">
-            <h1 className="text-base font-bold text-neutral-600">
-              Gestão de Ofertas
-            </h1>
-            <div className="flex gap-2">
-              <div className="flex items-center gap-2 px-3 py-1 rounded-md border bg-white shadow-sm">
+      <div className="w-full max-w-7xl mx-auto px-4 py-6 md:px-8 space-y-3">
+        {/* Top Header Responsivo */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card border border-border/60 p-4 sm:p-6 rounded-2xl shadow-none">
+          <div>
+            <div className="flex items-center gap-2">
+              <Tag className="h-5 w-5 text-green-600" />
+              <h1 className="text-xl sm:text-xl font-bold tracking-tight text-green-600">
+                Nova Oferta
+              </h1>
+            </div>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+              Crie ofertas, escolha os produtos e defina margens e sincronize em
+              tempo real.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Dock de Conexão / Nuvem */}
+            <TooltipProvider delayDuration={200}>
+              <div
+                className={`flex h-10 items-center gap-2 rounded-xl border px-3 text-xs font-medium transition-all duration-200 shadow-2xs select-none ${
+                  syncError
+                    ? 'border-rose-500/30 bg-rose-500/10 text-rose-600 dark:text-rose-400'
+                    : isSyncing
+                      ? 'border-sky-500/30 bg-sky-500/10 text-sky-600 dark:text-sky-400'
+                      : 'border-border/60 bg-card/60 text-emerald-600 dark:text-emerald-400'
+                }`}
+              >
                 {syncError ? (
-                  <div className="flex items-center gap-2 text-red-600 animate-pulse">
-                    <span className="text-xs font-medium uppercase tracking-tighter italic">
-                      Erro de Conexão
-                    </span>
+                  <div className="flex items-center gap-2">
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="flex items-center gap-1.5 cursor-pointer">
+                          <CloudAlert className="h-4 w-4 shrink-0 text-rose-600 animate-pulse" />
+                          <span className="hidden sm:inline font-semibold">
+                            Erro de sincronia
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent side="bottom" className="text-xs">
+                        Falha ao salvar rascunho. Clique em reconectar.
+                      </TooltipContent>
+                    </Tooltip>
+
                     <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-red-600 hover:bg-red-50"
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-7 px-2 text-xs font-semibold border-rose-500/30 bg-background text-rose-600 hover:bg-rose-500/10 hover:text-rose-700 dark:hover:bg-rose-950/40"
                       onClick={() => {
-                        // Força a sincronização de todos os itens atuais
                         setSyncError(false)
                         selectedProducts.forEach(p => syncItemToDatabase(p))
                       }}
                     >
-                      <CloudAlert />
+                      <RefreshCw className="h-3 w-3 sm:mr-1" />
+                      <span className="hidden sm:inline">Reconectar</span>
                     </Button>
                   </div>
                 ) : isSyncing ? (
-                  <div className="flex items-center gap-2 text-blue-500">
-                    <span className="text-[10px] uppercase font-bold tracking-widest">
-                      Sincronizando...
-                    </span>
-                    <CloudUpload size={20} className="animate-bounce" />
-                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin text-sky-600 dark:text-sky-400" />
+                        <span className="hidden sm:inline text-sky-700 dark:text-sky-300 font-medium">
+                          Salvando rascunho...
+                        </span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-xs">
+                      Sincronizando alterações automaticamente
+                    </TooltipContent>
+                  </Tooltip>
                 ) : (
-                  <div className="flex items-center gap-2 text-green-600">
-                    <span className="text-[10px] uppercase font-bold tracking-widest text-neutral-400">
-                      Salvo na nuvem
-                    </span>
-                    <CloudCheck size={20} />
-                  </div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex items-center gap-2">
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                        </span>
+                        <CloudCheck className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                        <span className="hidden sm:inline font-medium text-muted-foreground">
+                          Rascunho salvo
+                        </span>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom" className="text-xs">
+                      Todas as alterações foram salvas
+                    </TooltipContent>
+                  </Tooltip>
                 )}
               </div>
-              <Button
-                onClick={openModal}
-                className="bg-orange-500 hover:bg-orange-600 transition-colors duration-300 text-white gap-2 shadow-none"
-              >
-                <Barcode /> Produtos
-              </Button>
-            </div>
+            </TooltipProvider>
+
+            <Button
+              type="button"
+              color="orange"
+              label="Produtos"
+              onClick={openModal}
+              icon={Barcode}
+            />
           </div>
+        </div>
 
-          <Section>
-            <div className="flex flex-col gap-6">
-              {/* Formulário de Configuração - Padrão Shadcn */}
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end bg-white  rounded-xl">
-                {/* Campo 1: Campanha */}
-                <Field className="md:col-span-1 flex flex-col gap-2">
-                  <FieldLabel>Campanha</FieldLabel>
-                  <Select
-                    onValueChange={handleCampaignsChange}
-                    value={String(campaignSelected)}
-                  >
-                    <SelectTrigger className="shadow-none w-full">
-                      <SelectValue placeholder="Selecione uma campanha" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0">Selecione</SelectItem>
-                      {campaigns.map(campaign => (
-                        <SelectItem
-                          key={campaign.id}
-                          value={String(campaign.id)}
-                          className="focus:bg-green-100 focus:text-green-600 transition-colors"
-                        >
-                          {campaign.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
-
-                {/* Campo 2: Data Inicial */}
-                <Field className="md:col-span-1 flex flex-col gap-2">
-                  <FieldLabel>Data Inicial</FieldLabel>
-                  <InputMask
-                    mask="00/00/0000"
-                    placeholder="00/00/0000"
-                    onChange={handleInitialDateChange}
-                    name="initial_date"
-                    icon={CalendarDays}
-                    value={initialDate}
-                  />
-                </Field>
-
-                {/* Campo 3: Data Final */}
-                <Field className="md:col-span-1 flex flex-col gap-2">
-                  <FieldLabel>Data Final</FieldLabel>
-                  <InputMask
-                    mask="00/00/0000"
-                    placeholder="00/00/0000"
-                    onChange={handleFinalDateChange}
-                    name="final_date"
-                    icon={CalendarDays}
-                    value={finalDate}
-                  />
-                </Field>
-
-                {/* Botão 2: Salvar */}
-                <Field className="md:col-span-1 flex flex-row gap-2">
-                  <Button
-                    onClick={saveOffer}
-                    className="bg-green-600 hover:bg-green-700 text-white h-10 px-4 w-fit md:w-fit"
-                  >
-                    <Tag /> Salvar Oferta
-                  </Button>
-                  {/* Botão 1: Limpar */}
-                  <Button
-                    variant="outline"
-                    onClick={() => clearForm(true)}
-                    className="text-red-500 hover:bg-red-50 hover:text-red-500 border-red-200 h-10 px-4 w-fit md:w-fit"
-                  >
-                    <Trash2 size={18} /> Limpar
-                  </Button>
-                </Field>
+        {/* Formulário Principal de Oferta */}
+        <Card className="border-border/60 shadow-xs">
+          <CardContent className="p-4 sm:p-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-4 items-end">
+              {/* Seleção de Campanha */}
+              <div className="lg:col-span-4 flex flex-col gap-1.5">
+                <SelectCustom
+                  id="campaign_select"
+                  label="Campanha"
+                  placeholder="Selecione a campanha"
+                  value={String(campaignSelected)}
+                  onValueChange={handleCampaignsChange}
+                >
+                  {campaigns.map(camp => (
+                    <option key={camp.id} value={String(camp.id)}>
+                      {camp.name}
+                    </option>
+                  ))}
+                </SelectCustom>
               </div>
 
-              {/* Ações do Formulário */}
+              {/* Data Inicial */}
+              <div className="lg:col-span-3">
+                <InputMask
+                  id="initial_date"
+                  name="initial_date"
+                  label="Data Inicial"
+                  mask="00/00/0000"
+                  placeholder="00/00/0000"
+                  value={initialDate}
+                  onChange={e => setInitialDate(e.target.value)}
+                  icon={CalendarDays}
+                  showCalendar={true}
+                  className="h-10"
+                />
+              </div>
 
-              {/* Tabela de Produtos Selecionados */}
-              <div className="bg-white rounded-xl overflow-hidden">
-                {selectedProducts.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center p-12 text-muted-foreground gap-2">
-                    <BarcodeIcon size={48} className="opacity-20" />
-                    <p className="text-sm">
-                      Nenhum produto selecionado para oferta.
-                    </p>
-                    <p className="text-xs">
-                      Clique em "Produtos" no topo para começar.
-                    </p>
-                  </div>
-                ) : (
-                  <DataTable
-                    data={selectedProducts}
-                    showSelectColumn={false}
-                    enableRowSelection={false}
-                    columns={tableColumns}
-                    onRowUpdate={handleRowUpdate}
-                    defaultPageSize={80}
-                  />
-                )}
+              {/* Data Final */}
+              <div className="lg:col-span-3">
+                <InputMask
+                  id="final_date"
+                  name="final_date"
+                  label="Data Final"
+                  mask="00/00/0000"
+                  placeholder="00/00/0000"
+                  value={finalDate}
+                  onChange={e => setFinalDate(e.target.value)}
+                  icon={CalendarDays}
+                  showCalendar={true}
+                  className="h-10"
+                />
+              </div>
+
+              {/* Ações: Salvar e Limpar */}
+              <div className="lg:col-span-2 flex items-center gap-2">
+                <Button
+                  type="button"
+                  onClick={saveOffer}
+                  color="green"
+                  icon={Tag}
+                  label="Salvar"
+                />
+
+                <Button
+                  type="button"
+                  color="red"
+                  icon={Trash2}
+                  onClick={() => clearForm(true)}
+                  title="Limpar formulário e rascunho"
+                />
               </div>
             </div>
-          </Section>
-        </Content>
+          </CardContent>
+        </Card>
 
-        {showClearConfirmation && (
-          <ConfirmModal
-            isOpen={showClearConfirmation}
-            onClose={handleCancelClear}
-            onConfirm={handleConfirmClear}
-            title="Confirmar Limpeza"
-            content="Tem certeza que deseja limpar todo o formulário? Esta ação irá remover todos os produtos e resetar os campos."
-            icon={Trash2}
-            variant="destructive"
-            confirmButtonText={
-              <div className="flex items-center gap-2">
-                <Trash2 size={18} />
-                <span>Sim, Limpar Tudo</span>
+        {/* Tabela de Produtos da Oferta / Empty State */}
+        <Card className="border-border/60 shadow-none overflow-hidden">
+          <CardContent className="p-4">
+            {selectedProducts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-12 text-center bg-zinc-50/50 dark:bg-zinc-900/20">
+                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/60 text-muted-foreground mb-3">
+                  <PackageOpen className="h-8 w-8 stroke-[1.5]" />
+                </div>
+                <h3 className="text-base font-semibold text-foreground">
+                  Nenhum produto em oferta
+                </h3>
+                <p className="text-xs sm:text-sm text-muted-foreground max-w-sm mt-1">
+                  Abra a gaveta de produtos pelo botão no topo para selecionar
+                  os itens que farão parte do cartaz.
+                </p>
               </div>
-            }
-          />
-        )}
+            ) : (
+              <DataTable
+                data={selectedProducts}
+                columns={tableColumns}
+                showSelectColumn={false}
+                enableRowSelection={false}
+                onRowUpdate={handleRowUpdate}
+                defaultPageSize={80}
+              />
+            )}
+          </CardContent>
+        </Card>
 
-        {/* Modal de pesquisa de produtos (renderização condicional) */}
+        {/* Modal: Confirmação de Limpeza */}
+        <ConfirmModal
+          isOpen={showClearConfirmation}
+          onClose={() => setShowClearConfirmation(false)}
+          onConfirm={handleConfirmClear}
+          title="Confirmar Limpeza"
+          icon={Trash2}
+          variant="destructive"
+          confirmButtonText="Sim, limpar rascunho"
+          content={
+            <p className="text-sm text-muted-foreground">
+              Tem certeza que deseja limpar todo o formulário? Esta ação
+              removerá os produtos adicionados da sessão e reiniciará as datas.
+            </p>
+          }
+        />
+
+        {/* Modal de Pesquisa no Catálogo ERP */}
         {isModalOpen && (
           <ProductSearchModal
             isOpen={isModalOpen}
@@ -1141,29 +1065,28 @@ export function NewOffer() {
           />
         )}
 
-        {isSavingOffer && (
-          <ConfirmModal
-            isOpen={isSavingOffer}
-            title="Processando Oferta"
-            content={
-              <div className="flex flex-col gap-2">
-                <p>
-                  Estamos salvando no banco de dados, limpando rascunhos e
-                  gerando seu PDF.
-                </p>
-                <p className="font-medium text-green-600">
-                  Por favor, aguarde um instante...
-                </p>
-              </div>
-            }
-            icon={() => (
-              <Loader2 className="h-6 w-6 animate-spin text-green-600" />
-            )}
-            variant="success"
-            isLoading={true}
-          />
-        )}
-      </Container>
+        {/* Modal: Processamento / Geração do Cartaz */}
+        <ConfirmModal
+          isOpen={isSavingOffer}
+          title="Finalizando Oferta"
+          variant="success"
+          isLoading={true}
+          icon={() => (
+            <Loader2 className="h-6 w-6 animate-spin text-green-600" />
+          )}
+          content={
+            <div className="space-y-1.5 text-sm text-muted-foreground">
+              <p>
+                Salvando os registros no banco de dados, limpando rascunhos e
+                compilando o PDF.
+              </p>
+              <p className="font-semibold text-green-600">
+                Por favor, aguarde...
+              </p>
+            </div>
+          }
+        />
+      </div>
     </Layout>
   )
 }

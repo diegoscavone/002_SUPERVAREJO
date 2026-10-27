@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ToastContainer } from 'react-toastify'
+import { Check, CloudUpload, FileImage, Loader2, X } from 'lucide-react'
 
 import { api } from '../../services/api'
 import { toastError, toastSuccess } from '../../styles/toastConfig'
 
 import { Layout } from '@/components/Layout'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/Button'
 import {
   Card,
   CardContent,
@@ -15,11 +15,10 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card'
-import { FieldLabel } from '@/components/ui/field'
+import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
 import { Switch } from '@/components/ui/switch'
-import { Check, CloudUpload, FileImage } from 'lucide-react'
-import { Container, Content } from './styles'
+import { InputCustom } from '@/components/InputCustom'
 
 export function CampaignDetails() {
   const navigate = useNavigate()
@@ -27,47 +26,66 @@ export function CampaignDetails() {
 
   const [campaignName, setCampaignName] = useState('')
   const [campaignImage, setCampaignImage] = useState(null)
-  const [previewURL, setPreviewURL] = useState('') // Para o visualizador
+  const [previewURL, setPreviewURL] = useState('')
   const [loading, setLoading] = useState(false)
+  const [fetching, setFetching] = useState(true)
 
   const [isVencimento, setIsVencimento] = useState(false)
-const [isPriceRequired, setIsPriceRequired] = useState(true)
+  const [isPriceRequired, setIsPriceRequired] = useState(true)
 
-  // 1. Efeito para carregar os dados iniciais
+  // 1. Carregamento inicial da campanha
   useEffect(() => {
     async function fetchCampaign() {
       try {
+        setFetching(true)
         const response = await api.get(`/campaigns/details/${id}`)
-        const { name, image, is_vencimento, is_price_required} = response.data
+        const { name, image, is_vencimento, is_price_required } = response.data
 
         setCampaignName(name || '')
-        setIsVencimento(is_vencimento)
-        setIsPriceRequired(is_price_required)
+        setIsVencimento(Boolean(is_vencimento))
+        setIsPriceRequired(Boolean(is_price_required))
 
         if (image) {
-          // Define a URL inicial vinda do backend
           setPreviewURL(`${api.defaults.baseURL}/tmp/uploads/${image}`)
         }
       } catch (error) {
         toastError('Erro ao carregar dados da campanha.')
+      } finally {
+        setFetching(false)
       }
     }
-    fetchCampaign()
+
+    if (id) {
+      fetchCampaign()
+    }
   }, [id])
 
-  // 2. Lógica do Visualizador de Imagem (Preview)
+  // Limpeza de memory leak do URL.createObjectURL
+  useEffect(() => {
+    return () => {
+      if (previewURL && previewURL.startsWith('blob:')) {
+        URL.revokeObjectURL(previewURL)
+      }
+    }
+  }, [previewURL])
+
+  // 2. Manipulação de upload da imagem e preview
   function handleImageChange(event) {
-    const file = event.target.files[0]
+    const file = event.target.files?.[0]
     if (file) {
+      if (previewURL && previewURL.startsWith('blob:')) {
+        URL.revokeObjectURL(previewURL)
+      }
       setCampaignImage(file)
-      // Cria uma URL temporária para o preview imediato
-      const url = URL.createObjectURL(file)
-      setPreviewURL(url)
+      setPreviewURL(URL.createObjectURL(file))
     }
   }
 
+  // 3. Atualização da Campanha
   async function handleUpdateCampaign() {
-    if (!campaignName.trim()) return toastError('O nome é obrigatório!')
+    if (!campaignName.trim()) {
+      return toastError('O nome da campanha é obrigatório!')
+    }
 
     try {
       setLoading(true)
@@ -75,200 +93,215 @@ const [isPriceRequired, setIsPriceRequired] = useState(true)
       formData.append('name', campaignName.trim())
       formData.append('is_vencimento', isVencimento)
       formData.append('is_price_required', isPriceRequired)
+
       if (campaignImage) {
         formData.append('image', campaignImage)
       }
 
-      console.log(isVencimento)
-
-
       await api.patch(`/campaign-image/${id}`, formData)
 
       toastSuccess('Campanha atualizada com sucesso!')
-      setTimeout(() => navigate('/campaigns'), 1500)
+      setTimeout(() => navigate('/campaigns'), 1200)
     } catch (error) {
-      toastError('Erro ao atualizar. Verifique os dados.')
+      toastError('Erro ao atualizar a campanha. Verifique os dados enviados.')
     } finally {
       setLoading(false)
     }
   }
 
-  // Quando ligar Vencimento, desliga Preço Obrigatório
-function handleVencimentoChange(value) {
-  setIsVencimento(value);
-  if (value === true) {
-    setIsPriceRequired(false);
+  function handleVencimentoChange(checked) {
+    setIsVencimento(checked)
+    if (checked) setIsPriceRequired(false)
   }
-}
 
-// Quando ligar Preço Obrigatório, desliga Vencimento
-function handlePriceRequiredChange(value) {
-  setIsPriceRequired(value);
-  if (value === true) {
-    setIsVencimento(false);
+  function handlePriceRequiredChange(checked) {
+    setIsPriceRequired(checked)
+    if (checked) setIsVencimento(false)
   }
-}
 
   return (
     <Layout>
-      <ToastContainer />
-      <Container>
-        <Content>
-          <div className="container max-w-4xl py-10 px-4 mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-              {/* Coluna do Formulário */}
-              <div className="md:col-span-7">
-                <Card className="border-none shadow-none">
-                  <CardHeader>
-                    <CardTitle className="text-green-600">
-                      Configurações Gerais
-                    </CardTitle>
-                    <CardDescription>
-                      Altere o nome e a identidade visual da campanha.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid w-full items-center gap-1.5">
-                      <FieldLabel className="text-neutral-500" htmlFor="name">
-                        Nome da Campanha
-                      </FieldLabel>
-                      <Input
-                        id="name"
-                        value={campaignName}
-                        onChange={e => setCampaignName(e.target.value)}
-                        placeholder="Ex: Ofertas da Semana"
-                        className="text-neutral-600"
-                      />
-                    </div>
+      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {fetching ? (
+          <div className="flex flex-col items-center justify-center min-h-[400px] gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-green-600" />
+            <p className="text-sm font-medium text-muted-foreground animate-pulse">
+              Carregando dados da campanha...
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            {/* Coluna 1: Formulário de Configurações */}
+            <section className="lg:col-span-6">
+              <Card className="border border-slate-200 shadow-sm">
+                <CardHeader className="space-y-1 pb-4">
+                  <CardTitle className="text-lg font-semibold text-green-600">
+                    Configurações da Campanha
+                  </CardTitle>
+                  <CardDescription className="text-sm text-slate-500">
+                    Edite as informações cadastrais, regras de precificação e o
+                    cartaz modelo.
+                  </CardDescription>
+                </CardHeader>
 
-                    <div className="grid w-full items-center gap-1.5">
-                      <FieldLabel className="text-neutral-500" htmlFor="image">
-                        Imagem do Cartaz (Template)
-                      </FieldLabel>
+                <CardContent className="space-y-6">
+                  {/* Nome da Campanha */}
+                  <div className="flex flex-col gap-2">
+                    <InputCustom
+                      label="Nome da Campanha"
+                      id="campaign-name"
+                      value={campaignName}
+                      onChange={e => setCampaignName(e.target.value)}
+                      placeholder="Ex: Ofertas de Fim de Semana"
+                    />
+                  </div>
 
-                      {/* Container do Input Customizado */}
-                      <div className="relative">
-                        <input
-                          id="image"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageChange}
-                          className="hidden" // Escondemos o input original
-                        />
+                  {/* Upload do Cartaz */}
+                  <div className="flex flex-col gap-2">
+                    <Label className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
+                      Imagem do Cartaz (Template)
+                    </Label>
 
-                        <FieldLabel
-                          htmlFor="image"
-                          className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer bg-slate-50 hover:bg-orange-50 hover:border-orange-300 transition-all group
-"
-                        >
-                          <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                            <div className="p-3 bg-white rounded-full shadow-sm mb-3 group-hover:scale-110 transition-transform">
-                              <CloudUpload
-                                size={24}
-                                className="text-orange-500"
-                              />
-                            </div>
-                            <p className="text-sm text-slate-600 font-bold">
-                              Clique para selecionar
-                            </p>
-                            <p className="text-xs text-slate-400 mt-1">
-                              PNG, JPG ou JPEG (Recomendado: Vertical)
-                            </p>
-                          </div>
-                        </FieldLabel>
+                    <label
+                      htmlFor="campaign-image"
+                      className="flex flex-col items-center justify-center w-full min-h-[140px] px-4 py-6 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer bg-slate-50/50 hover:bg-emerald-50/30 hover:border-emerald-400 transition-all group"
+                    >
+                      <div className="p-2.5 bg-white rounded-full shadow-xs mb-2 group-hover:scale-105 transition-transform">
+                        <CloudUpload className="h-5 w-5 text-emerald-600" />
                       </div>
-                    </div>
-
-                   {/* Seção de Regras de Negócio (Switches) */}
-<div className="flex flex-col gap-4 pt-4 border-t">
-  <div className="flex items-center justify-between space-x-2">
-    <div className="flex flex-col space-y-1">
-      <FieldLabel htmlFor="vencimento-mode" className="text-neutral-500">
-        Modo Vencimento
-      </FieldLabel>
-      <p className="text-xs text-neutral-500">
-        Ativado irá mostrar somente o campo de validade do produto.
-      </p>
-    </div>
-    <Switch
-      id="vencimento-mode"
-      checked={isVencimento}
-      onCheckedChange={handleVencimentoChange} // Função customizada
-      className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-slate-200"
-    />
-  </div>
-
-  <div className="flex items-center justify-between space-x-2">
-    <div className="flex flex-col space-y-1">
-      <FieldLabel htmlFor="price-required" className="text-neutral-500 ">
-        Preço Obrigatório
-      </FieldLabel>
-      <p className="text-xs text-neutral-500">
-       Ativado irá mostrar somente o campo de preço do produto.
-      </p>
-    </div>
-    <Switch
-      id="price-required"
-      checked={isPriceRequired}
-      onCheckedChange={handlePriceRequiredChange} // Função customizada
-      className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-slate-200"
-    />
-  </div>
-</div>
-                  </CardContent>
-                  <CardFooter className="flex justify-end gap-2 border-t pt-4 pb-4">
-                    <Button
-                      variant="ghost"
-                      onClick={() => navigate('/campaigns')}
-                      className="text-neutral-500 hover:text-neutral-500"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      onClick={handleUpdateCampaign}
-                      disabled={loading}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      {loading ? (
-                        'Salvando...'
-                      ) : (
-                        <>
-                          <Check /> Salvar
-                        </>
-                      )}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </div>
-
-              {/* Coluna do Visualizador (Preview) */}
-              <div className="md:col-span-5">
-                <Card className="h-full overflow-hidden border-none shadow-none">
-                  <CardContent className="p-0 flex items-center justify-center bg-slate-100 min-h-[400px]">
-                    {previewURL ? (
-                      <img
-                        src={previewURL}
-                        alt="Preview"
-                        className="w-full h-full object-contain max-h-[500px]"
+                      <p className="text-sm font-medium text-slate-700">
+                        Clique para selecionar ou arraste o arquivo
+                      </p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        PNG, JPG ou JPEG (Recomendado formato vertical)
+                      </p>
+                      <input
+                        id="campaign-image"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleImageChange}
+                        className="hidden"
                       />
-                    ) : (
-                      <div className="text-center text-slate-400 p-10">
-                        <FileImage
-                          size={60}
-                          className="mx-auto mb-2 opacity-20"
-                        />
-                        <p className="text-sm font-medium">
-                          Nenhuma imagem carregada
+                    </label>
+                  </div>
+
+                  {/* Regras de Exibição / Switches */}
+                  <div className="space-y-4 pt-4 border-t border-slate-100">
+                    <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+                      Comportamento dos Cartazes
+                    </h4>
+
+                    {/* Switch: Modo Vencimento */}
+                    <div className="flex items-center justify-between gap-4 p-3 rounded-lg border border-slate-100 bg-slate-50/50">
+                      <div className="space-y-0.5">
+                        <Label
+                          htmlFor="vencimento-mode"
+                          className="text-sm font-medium text-slate-800 cursor-pointer"
+                        >
+                          Modo Vencimento
+                        </Label>
+                        <p className="text-xs text-slate-500">
+                          Prioriza o campo de validade do lote em vez da
+                          precificação padrão.
                         </p>
                       </div>
+                      <Switch
+                        id="vencimento-mode"
+                        checked={isVencimento}
+                        onCheckedChange={handleVencimentoChange}
+                        className="data-[state=checked]:bg-green-600 shrink-0"
+                      />
+                    </div>
+
+                    {/* Switch: Preço Obrigatório */}
+                    <div className="flex items-center justify-between gap-4 p-3 rounded-lg border border-slate-100 bg-slate-50/50">
+                      <div className="space-y-0.5">
+                        <Label
+                          htmlFor="price-required"
+                          className="text-sm font-medium text-slate-800 cursor-pointer"
+                        >
+                          Preço Obrigatório
+                        </Label>
+                        <p className="text-xs text-slate-500">
+                          Exige o preenchimento obrigatório de valor para
+                          geração do cartaz.
+                        </p>
+                      </div>
+                      <Switch
+                        id="price-required"
+                        checked={isPriceRequired}
+                        onCheckedChange={handlePriceRequiredChange}
+                        className="data-[state=checked]:bg-green-600 shrink-0"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+
+                <CardFooter className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-4 border-t border-slate-100">
+                  <Button
+                    type="button"
+                    color="cancel"
+                    onClick={() => navigate('/campaigns')}
+                  >
+                    <X className="h-4 w-4 mr-1.5" /> Cancelar
+                  </Button>
+
+                  <Button
+                    type="button"
+                    color="green"
+                    onClick={handleUpdateCampaign}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Salvando...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="h-4 w-4" />
+                        Salvar Alterações
+                      </>
                     )}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
+                  </Button>
+                </CardFooter>
+              </Card>
+            </section>
+
+            {/* Coluna 2: Visualizador do Template (Preview) */}
+            <aside className="lg:col-span-4">
+              <Card className="border border-slate-200 shadow-sm overflow-hidden sticky top-6">
+                <CardHeader className="py-3 px-4 border-b border-slate-100 bg-slate-50/60">
+                  <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-600">
+                    Pré-visualização do Template
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="p-4 flex items-center justify-center bg-slate-100/60 min-h-[350px] sm:min-h-[440px]">
+                  {previewURL ? (
+                    <div className="relative w-full flex items-center justify-center rounded-lg overflow-hidden border border-slate-200 bg-white p-2">
+                      <img
+                        src={previewURL}
+                        alt="Pré-visualização da campanha"
+                        className="max-h-[480px] w-auto max-w-full object-contain rounded shadow-xs"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-center p-6 text-slate-400">
+                      <FileImage className="h-14 w-14 mb-2 stroke-[1.25] text-slate-300" />
+                      <p className="text-sm font-medium text-slate-600">
+                        Nenhum cartaz carregado
+                      </p>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Selecione um arquivo de imagem para visualizar o cartaz.
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </aside>
           </div>
-        </Content>
-      </Container>
+        )}
+      </main>
     </Layout>
   )
 }

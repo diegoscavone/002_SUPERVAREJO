@@ -1,91 +1,82 @@
 import { useState } from 'react'
 import { useAuth } from '../../hooks/auth'
-
-import { Container } from './styles'
-
-import { Button } from '@/components/ui/button'
-import { Field, FieldLabel } from '@/components/ui/field'
-
+import { InputCustom } from '../../components/InputCustom'
+import { Button } from '../../components/Button'
 import brand from '../../assets/logo_princesa.svg'
-
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput
-} from '@/components/ui/input-group'
+import backgroundImg from '../../assets/background.jpg'
 import { Lock, UserRound } from 'lucide-react'
-import { PiLockKey, PiUser } from 'react-icons/pi'
-import { ToastContainer } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
-import { toastInfo } from '../../styles/toastConfig'
+import { toastInfo } from '../../styles/toastConfig' // Já apontando para o Alert novo!
 
 export function SignIn() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-
+  const [isLoading, setIsLoading] = useState(false)
   const { signIn } = useAuth()
 
-  function handleSignIn() {
-    if (username.length === 0 || password.length === 0) {
+  async function handleSignIn(event) {
+    if (event) event.preventDefault()
+
+    if (!username.trim() || !password.trim()) {
       toastInfo('Preencha todos os campos.')
       return
     }
-    signIn({ username, password })
-  }
 
-  function handleKeyEnter(event) {
-    if (event.key === 'Enter') {
-      handleSignIn()
+    try {
+      setIsLoading(true)
+      await signIn({ username: username.trim(), password })
+    } finally {
+      setIsLoading(false)
     }
   }
 
   return (
-    <Container>
-      <ToastContainer />
-      <Field className="w-96 bg-white rounded-3xl p-8 flex flex-col items-center">
-        <img
-          src={brand}
-          alt="Logo Supermercados Princesa com as cores verde, vermelho e preto"
-          className="max-h-24 w-auto"
-        />
-        <Field className="flex gap-1">
-          <FieldLabel htmlFor="username">Usuário</FieldLabel>
-          <InputGroup>
-            <InputGroupInput
-              id="username"
-              type="text"
-              onChange={e => setUsername(e.target.value)}
-              onKeyDown={handleKeyEnter}
-            />
-            <InputGroupAddon align="inline-start">
-              <UserRound className="text-muted-foreground" />
-            </InputGroupAddon>
-          </InputGroup>
-        </Field>
-        <Field className="flex gap-1">
-          <FieldLabel htmlFor="password">Senha</FieldLabel>
-          <InputGroup>
-            <InputGroupInput
-              id="password"
-              type="password"
-              onChange={e => setPassword(e.target.value)}
-              onKeyDown={handleKeyEnter}
-            />
-            <InputGroupAddon align="inline-start">
-              <Lock className="text-muted-foreground" />
-            </InputGroupAddon>
-          </InputGroup>
-        </Field>
-        <Field>
+    <div
+      className="relative flex min-h-screen w-full items-center justify-center bg-zinc-950 bg-cover bg-center bg-no-repeat p-4"
+      style={{ backgroundImage: `url(${backgroundImg})` }}
+    >
+
+      <div className="relative z-10 w-full max-w-sm rounded-3xl border border-border/80 bg-white p-8 shadow-2xl backdrop-blur-md flex flex-col items-center">
+        <header className="mb-8 flex flex-col items-center w-full">
+          <img
+            src={brand}
+            alt="Logo Supermercados Princesa"
+            className="h-28 sm:h-24 w-auto max-w-full object-contain"
+          />
+        </header>
+
+        <form onSubmit={handleSignIn} className="flex w-full flex-col gap-4">
+          <InputCustom
+            id="username"
+            label="Usuário"
+            placeholder="Digite seu usuário"
+            type="text"
+            autoComplete="username"
+            autoFocus
+            icon={UserRound}
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+
+          <InputCustom
+            id="password"
+            label="Senha"
+            placeholder="Digite sua senha"
+            type="password"
+            autoComplete="current-password"
+            icon={Lock}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+
           <Button
             type="submit"
-            onClick={handleSignIn}
-            className="bg-green-600 hover:bg-green-700 text-white w-full"
+            disabled={isLoading}
+            className="mt-2 w-full bg-green-600 hover:bg-green-700 text-white font-medium h-11 transition-all"
           >
-            Entrar
+            {isLoading ? 'Entrando...' : 'Entrar no Sistema'}
           </Button>
-        </Field>
-      </Field>
-    </Container>
+        </form>
+      </div>
+    </div>
   )
 }

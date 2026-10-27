@@ -7,85 +7,42 @@ import { Cards } from '../../components/Cards'
 
 import { Button } from '../../components/Button'
 
-
 export function CampaignType() {
   return (
     <Container>
       <Brand>
-        <Header/>
+        <Header />
       </Brand>
 
       <Action>
-        <div className='buttonSection'>
-          <Button 
-           title="Nova Campanha"
-           icon={PiNewspaperClippingBold}
-           />
+        <div className="buttonSection">
+          <Button title="Nova Campanha" icon={PiNewspaperClippingBold} />
         </div>
       </Action>
 
       <Section>
-        <Cards
-          title="Dia D"
-          img={ViewImg}
-        />
+        <Cards title="Dia D" img={ViewImg} />
 
-        <Cards
-          title="Dia D"
-          img={ViewImg}
-        />
+        <Cards title="Dia D" img={ViewImg} />
 
-        <Cards
-          title="Dia D"
-          img={ViewImg}
-        />
+        <Cards title="Dia D" img={ViewImg} />
 
-        <Cards
-          title="Dia D"
-          img={ViewImg}
-        />
+        <Cards title="Dia D" img={ViewImg} />
 
-        <Cards
-          title="Dia D"
-          img={ViewImg}
-        />
+        <Cards title="Dia D" img={ViewImg} />
 
-        <Cards
-          title="Dia D"
-          img={ViewImg}
-        />
-        <Cards
-          title="Dia D"
-          img={ViewImg}
-        />  
-                <Cards
-          title="Dia D"
-          img={ViewImg}
-        />
+        <Cards title="Dia D" img={ViewImg} />
+        <Cards title="Dia D" img={ViewImg} />
+        <Cards title="Dia D" img={ViewImg} />
 
-        <Cards
-          title="Dia D"
-          img={ViewImg}
-        />
-        <Cards
-          title="Dia D"
-          img={ViewImg}
-        />     
-                <Cards
-          title="Dia D"
-          img={ViewImg}
-        />
+        <Cards title="Dia D" img={ViewImg} />
+        <Cards title="Dia D" img={ViewImg} />
+        <Cards title="Dia D" img={ViewImg} />
 
-        <Cards
-          title="Dia D"
-          img={ViewImg}
-        />
-        <Cards
-          title="Dia D"
-          img={ViewImg}
-        />          
+        <Cards title="Dia D" img={ViewImg} />
+        <Cards title="Dia D" img={ViewImg} />
       </Section>
-      <Footer/>
+      <Footer />
     </Container>
   )
 }

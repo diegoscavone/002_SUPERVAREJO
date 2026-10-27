@@ -1,39 +1,38 @@
-import { Container, Content, Form } from './styles'
-import { FormatCurrency } from '../../hooks/formatCurrency'
-import { InputMask } from '../../components/InputMask'
-import { Layout } from '../../components/Layout'
-import { Section } from '../../components/Section'
 import { useEffect, useState } from 'react'
+import { useNavigate, useParams } from 'react-router-dom'
+import { format, parseISO } from 'date-fns'
+import {
+  CalendarDays,
+  Image as ImageIcon,
+  Save,
+  ArrowLeft,
+  Loader2,
+  Barcode
+} from 'lucide-react'
+
 import { api } from '../../services/api'
 import { useUpdatePoster } from '../../hooks/updatePoster'
-import { Field, FieldLabel } from '@/components/ui/field'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '@/components/ui/select'
-import { useNavigate, useParams } from 'react-router-dom'
-import { ToastContainer } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
+import { FormatCurrency } from '../../hooks/formatCurrency'
+import { toastError, toastSuccess } from '../../styles/toastConfig'
+
+// Componentes da Aplicação
+import { Layout } from '../../components/Layout'
+import { Section } from '../../components/Section'
 import { PosterView } from '../../components/PosterView'
-import { toastError, toastInfo, toastSuccess } from '../../styles/toastConfig'
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput
-} from '@/components/ui/input-group'
-import { Textarea } from '@/components/ui/textarea'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { CalendarDays, Save, Search } from 'lucide-react'
-import { format, parseISO } from 'date-fns'
+import { InputMask } from '../../components/InputMask'
+import { InputCustom } from '@/components/InputCustom'
+import { TextareaCustom } from '@/components/TextareaCustom'
+import { SelectCustom } from '@/components/SelectCustom'
+import { Button } from '@/components/Button'
+import { Label } from '@/components/ui/label'
 
 export function Details() {
   const { id } = useParams()
   const navigate = useNavigate()
   const handleUpdatePoster = useUpdatePoster()
+
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
 
   const [priceClass, setPriceClass] = useState('')
   const [price, setPrice] = useState('')
@@ -44,6 +43,7 @@ export function Details() {
   const [campaignTypeSelected, setCampaignTypeSelected] = useState('')
   const [campaigns, setCampaigns] = useState([])
   const [campaignSelected, setCampaignSelected] = useState('')
+  const [selectedCampaignData, setSelectedCampaignData] = useState(null)
   const [urlImageCampaigns, setUrlImageCampaigns] = useState('')
 
   const [dateInitial, setDateInitial] = useState('')
@@ -64,18 +64,35 @@ export function Details() {
     fator_atacado: ''
   })
 
-  // 1. CARREGAMENTO DOS DADOS INICIAIS (POSTER E CAMPANHAS)
+  function calculatePriceClass(priceInteger) {
+    if (!priceInteger) return
+    const str = String(priceInteger)
+    if (str.length <= 4) setPriceClass('small-price')
+    else if (str.length === 5) setPriceClass('medium-price')
+    else if (str.length === 6) setPriceClass('large-price')
+    else setPriceClass('x-large-price')
+  }
+
+  // 1. Carregamento dos dados iniciais
   useEffect(() => {
     async function loadData() {
       try {
+        setLoading(true)
         const [resTypes, resCamps, resPoster] = await Promise.all([
           api.get('campaigns-type'),
           api.get('campaigns'),
           api.get(`/posters/${id}`)
         ])
 
-        setCampaignsType(resTypes.data)
-        setCampaigns(resCamps.data)
+        const formattedCampaigns = (resCamps.data || []).map(camp => ({
+          ...camp,
+          imageUrl: camp.image
+            ? `${api.defaults.baseURL}/tmp/uploads/${camp.image}`
+            : ''
+        }))
+
+        setCampaignsType(resTypes.data || [])
+        setCampaigns(formattedCampaigns)
 
         const poster = resPoster.data
 
@@ -88,7 +105,7 @@ export function Details() {
           : ''
 
         // Preço Inteiro/Decimal para PosterView
-        const [pInt, pDec] = String(poster.price).split(',')
+        const [pInt, pDec] = String(poster.price || '').split(',')
 
         setProductInputs({
           product_id: poster.product_id,
@@ -106,33 +123,36 @@ export function Details() {
         })
 
         // Sincroniza estados de exibição
-        setPrice(`R$ ${poster.price}`)
-        setRetailPrice(`R$ ${poster.price_retail || poster.price}`)
-        setWholesalePrice(`R$ ${poster.price_wholesale || poster.price}`)
+        setPrice(poster.price ? `R$ ${poster.price}` : '')
+        setRetailPrice(poster.price_retail ? `R$ ${poster.price_retail}` : (poster.price ? `R$ ${poster.price}` : ''))
+        setWholesalePrice(poster.price_wholesale ? `R$ ${poster.price_wholesale}` : (poster.price ? `R$ ${poster.price}` : ''))
         setDateInitial(dInitial)
         setDateFinally(dFinal)
-        setCampaignTypeSelected(String(poster.campaign_type_id))
-        setCampaignSelected(String(poster.campaign_id))
+        setCampaignTypeSelected(String(poster.campaign_type_id || ''))
+        setCampaignSelected(String(poster.campaign_id || ''))
 
-        calculatePriceClass(String(poster.price))
+        calculatePriceClass(String(poster.price || ''))
 
-        // Carregar imagem da campanha
-        const currentCamp = resCamps.data.find(
+        // Identifica e sincroniza os dados da campanha ativa
+        const currentCamp = formattedCampaigns.find(
           c => String(c.id) === String(poster.campaign_id)
         )
         if (currentCamp) {
-          setUrlImageCampaigns(
-            `${api.defaults.baseURL}/tmp/uploads/${currentCamp.image}`
-          )
+          setSelectedCampaignData(currentCamp)
+          setUrlImageCampaigns(currentCamp.imageUrl)
         }
       } catch (error) {
         toastError('Erro ao carregar dados do cartaz.')
+      } finally {
+        setLoading(false)
       }
     }
-    loadData()
+
+    if (id) {
+      loadData()
+    }
   }, [id])
 
-  // FUNÇÕES DE MANIPULAÇÃO (Mantidas da lógica da Home)
   function handleProductInputChange(event) {
     const { name, value } = event.target
     setProductInputs(prev => ({ ...prev, [name]: value }))
@@ -144,9 +164,7 @@ export function Details() {
     const { name } = event.target
     const inputValue = event.target.value.replace(/[^\d]/g, '')
     const numericValue = parseFloat(inputValue) / 100
-    const formattedValue = isNaN(numericValue)
-      ? ''
-      : FormatCurrency(numericValue)
+    const formattedValue = isNaN(numericValue) ? '' : FormatCurrency(numericValue)
     const cleanValue = formattedValue.replace('R$', '').trim()
 
     if (name === 'retailPrice') {
@@ -168,15 +186,21 @@ export function Details() {
     calculatePriceClass(cleanValue)
   }
 
-  function calculatePriceClass(priceInteger) {
-    if (priceInteger.length <= 4) setPriceClass('small-price')
-    else if (priceInteger.length === 5) setPriceClass('medium-price')
-    else if (priceInteger.length === 6) setPriceClass('large-price')
-    else setPriceClass('x-large-price')
+  function handleSelectCampaign(value) {
+    setCampaignSelected(value)
+    const selected = campaigns.find(c => String(c.id) === String(value))
+    if (selected) {
+      setSelectedCampaignData(selected)
+      setUrlImageCampaigns(selected.imageUrl)
+    } else {
+      setSelectedCampaignData(null)
+      setUrlImageCampaigns('')
+    }
   }
 
   async function updatePoster() {
     try {
+      setSaving(true)
       await handleUpdatePoster(
         id,
         productInputs,
@@ -186,188 +210,309 @@ export function Details() {
         campaignTypeSelected
       )
       toastSuccess('Cartaz atualizado com sucesso!')
-      setTimeout(() => navigate('/print'), 2000)
+      setTimeout(() => navigate('/print'), 1500)
     } catch (error) {
       toastError('Erro ao atualizar cartaz.')
+    } finally {
+      setSaving(false)
     }
+  }
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex flex-col items-center justify-center min-h-[500px] gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+          <p className="text-sm font-medium text-slate-500 animate-pulse">
+            Carregando dados para edição...
+          </p>
+        </div>
+      </Layout>
+    )
   }
 
   return (
     <Layout>
-      <ToastContainer />
-      <Container>
-        <Content>
-          <Form>
-            <Section title="Layout do Cartaz">
-              <div className="flex flex-row gap-4 w-full">
-                <Field className="flex flex-col gap-2 flex-1">
-                  <FieldLabel>Tipo de Campanha</FieldLabel>
-                  <Select
-                    onValueChange={setCampaignTypeSelected}
-                    value={campaignTypeSelected}
-                  >
-                    <SelectTrigger className="w-full shadow-none border-input">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {campaignsType.map(type => (
-                        <SelectItem key={type.id} value={String(type.id)}>
-                          {type.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
+      <div className="w-full max-w-7xl mx-auto p-4 md:p-6 space-y-4">
+        
+        {/* Barra superior de navegação */}
+        <div className="flex items-center justify-between">
+          <Button
+            type="button"
+            color="cancel"
+            icon={ArrowLeft}
+            label="Voltar"
+            onClick={() => navigate('/print')}
+            className="h-9 px-4 text-xs font-semibold"
+          />
+        </div>
 
-                <Field className="flex flex-col gap-2 flex-1">
-                  <FieldLabel>Campanha</FieldLabel>
-                  <Select
-                    onValueChange={val => {
-                      setCampaignSelected(val)
-                      const camp = campaigns.find(c => String(c.id) === val)
-                      if (camp)
-                        setUrlImageCampaigns(
-                          `${api.defaults.baseURL}/tmp/uploads/${camp.image}`
-                        )
-                    }}
-                    value={campaignSelected}
+        {/* Grid idêntico ao da Home: Form (6 cols) + Preview (6 cols) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start w-full">
+          
+          {/* Coluna do Formulário */}
+          <form
+            onSubmit={e => {
+              e.preventDefault()
+              updatePoster()
+            }}
+            className="lg:col-span-6 flex flex-col gap-4 w-full bg-card p-6 rounded-2xl border border-border shadow-sm"
+          >
+            {/* Seção 1: Seleção de Campanha e Tipo */}
+            <Section title="Layout do Cartaz">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+                {/* Tipo de Campanha */}
+                <div className="flex flex-col gap-1.5 w-full">
+                  <SelectCustom
+                    id="campaign-type"
+                    label="Tipo de Campanha"
+                    placeholder="Escolha o tipo de campanha"
+                    value={campaignTypeSelected || undefined}
+                    onChangeType={value => setCampaignTypeSelected(value)}
                   >
-                    <SelectTrigger className="w-full shadow-none border-input">
-                      <SelectValue placeholder="Selecione" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {campaigns.map(camp => (
-                        <SelectItem key={camp.id} value={String(camp.id)}>
-                          {camp.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </Field>
+                    {campaignsType.map(type => (
+                      <option key={type.id} value={String(type.id)}>
+                        {type.name}
+                      </option>
+                    ))}
+                  </SelectCustom>
+                </div>
+
+                {/* Seleção do Template com Imagem */}
+                <div className="flex flex-col gap-1.5 w-full">
+                  <SelectCustom
+                    id="campaign-select"
+                    label="Campanha Promocional"
+                    placeholder="Selecione uma campanha"
+                    value={campaignSelected}
+                    onChangeType={handleSelectCampaign}
+                  >
+                    {campaigns.map(camp => (
+                      <option
+                        key={camp.id}
+                        id={String(camp.id)}
+                        value={String(camp.id)}
+                        data-image={camp.imageUrl}
+                      >
+                        {camp.name}
+                      </option>
+                    ))}
+                  </SelectCustom>
+                </div>
               </div>
             </Section>
 
+            {/* Seção 2: Identificação do Produto */}
             <Section title="Informações do Produto">
-              <div className="flex flex-col md:flex-row gap-4 w-full">
-                <Field className="flex flex-col gap-2 flex-1">
-                  <FieldLabel>Código do Produto</FieldLabel>
-                  <Input
-                    type="number"
-                    name="product_id"
-                    value={productInputs.product_id}
-                    onChange={handleProductInputChange}
-                    readOnly // Geralmente código não se altera na edição
-                  />
-                </Field>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+                <InputCustom
+                  id="product_id"
+                  name="product_id"
+                  label="Código do Produto"
+                  icon={Barcode}
+                  value={productInputs.product_id}
+                  readOnly
+                  className="bg-slate-50 cursor-not-allowed font-mono"
+                />
 
-                <Field className="flex flex-col gap-2 flex-1">
-                  <FieldLabel>Preço de Venda</FieldLabel>
-                  <Input
+                {campaignTypeSelected !== '2' && (
+                  <InputCustom
+                    id="price"
                     name="price"
+                    label="Preço de Venda"
+                    placeholder="R$ 0,00"
                     value={price}
                     onChange={handleInputChange}
-                    placeholder="R$ 0,00"
                   />
-                </Field>
+                )}
               </div>
 
-              <div className="flex flex-col md:flex-row gap-4 w-full mt-4">
-                <Field className="flex flex-col gap-2 flex-1">
-                  <FieldLabel>Descrição Principal</FieldLabel>
-                  <Textarea
-                    name="description"
+              {/* Descrições para o cartaz */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full mt-2">
+                <div className="flex flex-col gap-1.5">
+                  <TextareaCustom
+                    label="Descrição Principal"
+                    placeholder="Ex: Refrigerante Coca-Cola 2L"
                     value={productInputs.description}
-                    onChange={handleProductInputChange}
                     maxLength={30}
-                    className="resize-none min-h-[60px]"
-                  />
-                </Field>
-
-                <Field className="flex flex-col gap-2 flex-1">
-                  <FieldLabel>Complemento</FieldLabel>
-                  <Textarea
-                    name="complement"
-                    value={productInputs.complement}
                     onChange={handleProductInputChange}
-                    maxLength={19}
-                    className="resize-none min-h-[60px]"
+                    name="description"
                   />
-                </Field>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <TextareaCustom
+                    label="Complemento"
+                    placeholder="Ex: Tipo 1 Pacote"
+                    value={productInputs.complement}
+                    maxLength={19}
+                    onChange={handleProductInputChange}
+                    name="complement"
+                  />
+                </div>
               </div>
             </Section>
 
+            {/* Seção 3: Preços Atacarejo */}
             {campaignTypeSelected === '2' && (
-              <Section title="Atacado">
-                <div className="flex flex-col md:flex-row gap-4 w-full">
-                  <Field className="flex flex-col gap-2 flex-1">
-                    <FieldLabel>Preço de Atacado</FieldLabel>
-                    <Input
-                      name="wholesalePrice"
-                      value={wholesalePrice}
-                      onChange={handleInputChange}
-                    />
-                  </Field>
-                  <Field className="flex flex-col gap-2 flex-1">
-                    <FieldLabel>Preço de Varejo</FieldLabel>
-                    <Input
-                      name="retailPrice"
-                      value={retailPrice}
-                      onChange={handleInputChange}
-                    />
-                  </Field>
+              <Section title="Preços Atacarejo">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+                  <InputCustom
+                    id="retailPrice"
+                    name="retailPrice"
+                    label="Preço Varejo"
+                    placeholder="R$ 0,00"
+                    value={retailPrice}
+                    onChange={handleInputChange}
+                  />
+
+                  <InputCustom
+                    id="wholesalePrice"
+                    name="wholesalePrice"
+                    label="Preço Atacado"
+                    placeholder="R$ 0,00"
+                    value={wholesalePrice}
+                    onChange={handleInputChange}
+                  />
                 </div>
               </Section>
             )}
 
-            <Section title="Validade">
-              <div className="flex flex-col md:flex-row gap-4 w-full">
-                <Field className="flex flex-col gap-2 flex-1">
-                  <FieldLabel>Data Inicial</FieldLabel>
-                  <InputMask
-                    name="initial_date"
-                    mask="00/00/0000"
-                    value={dateInitial}
-                    onChange={handleProductInputChange}
-                    icon={CalendarDays}
-                  />
-                </Field>
-                <Field className="flex flex-col gap-2 flex-1">
-                  <FieldLabel>Data Final</FieldLabel>
-                  <InputMask
-                    name="final_date"
-                    mask="00/00/0000"
-                    value={dateFinal}
-                    onChange={handleProductInputChange}
-                    icon={CalendarDays}
-                  />
-                </Field>
-              </div>
-            </Section>
+            {/* Seção 4: Validades (Conforme Regras da Campanha) */}
+            {selectedCampaignData && !selectedCampaignData.is_price_required ? (
+              <Section
+                title={
+                  selectedCampaignData.is_vencimento
+                    ? 'Validade do Produto'
+                    : 'Validade da Campanha'
+                }
+              >
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+                  {!selectedCampaignData.is_vencimento && (
+                    <div className="flex flex-col gap-1.5">
+                      <Label
+                        htmlFor="initial_date"
+                        className="text-sm font-normal text-zinc-700 dark:text-zinc-300"
+                      >
+                        Data Inicial
+                      </Label>
+                      <InputMask
+                        id="initial_date"
+                        name="initial_date"
+                        mask="00/00/0000"
+                        placeholder="00/00/0000"
+                        type="text"
+                        value={dateInitial}
+                        onChange={handleProductInputChange}
+                        icon={CalendarDays}
+                      />
+                    </div>
+                  )}
 
-            <Section>
-              <div className="flex justify-start w-full">
-                <Button
-                  type="button"
-                  onClick={updatePoster}
-                  className="bg-green-600 hover:bg-green-700 text-white w-full md:w-auto"
-                >
-                  <Save className="mr-2 h-4 w-4" /> Salvar Alterações
-                </Button>
-              </div>
-            </Section>
-          </Form>
+                  <div className="flex flex-col gap-1.5">
+                    <Label
+                      htmlFor="final_date"
+                      className="text-sm font-normal text-zinc-700 dark:text-zinc-300"
+                    >
+                      {selectedCampaignData.is_vencimento
+                        ? 'Data de Vencimento'
+                        : 'Data Final'}
+                    </Label>
+                    <InputMask
+                      id="final_date"
+                      name="final_date"
+                      mask="00/00/0000"
+                      placeholder="00/00/0000"
+                      type="text"
+                      value={dateFinal}
+                      onChange={handleProductInputChange}
+                      icon={CalendarDays}
+                    />
+                  </div>
+                </div>
+              </Section>
+            ) : (
+              <Section title="Período de Validade">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full">
+                  <div className="flex flex-col gap-1.5">
+                    <Label
+                      htmlFor="initial_date"
+                      className="text-sm font-normal text-zinc-700 dark:text-zinc-300"
+                    >
+                      Data Inicial
+                    </Label>
+                    <InputMask
+                      id="initial_date"
+                      name="initial_date"
+                      mask="00/00/0000"
+                      placeholder="00/00/0000"
+                      type="text"
+                      value={dateInitial}
+                      onChange={handleProductInputChange}
+                      icon={CalendarDays}
+                    />
+                  </div>
 
-          {urlImageCampaigns && (
-            <PosterView
-              imageCampaign={urlImageCampaigns}
-              product={productInputs}
-              priceClass={priceClass}
-              campaignType={campaignTypeSelected}
-              campaignSelected={campaignSelected}
-            />
-          )}
-        </Content>
-      </Container>
+                  <div className="flex flex-col gap-1.5">
+                    <Label
+                      htmlFor="final_date"
+                      className="text-sm font-normal text-zinc-700 dark:text-zinc-300"
+                    >
+                      Data Final
+                    </Label>
+                    <InputMask
+                      id="final_date"
+                      name="final_date"
+                      mask="00/00/0000"
+                      placeholder="00/00/0000"
+                      type="text"
+                      value={dateFinal}
+                      onChange={handleProductInputChange}
+                      icon={CalendarDays}
+                    />
+                  </div>
+                </div>
+              </Section>
+            )}
+
+            {/* Ação de Submissão */}
+            <div className="pt-2">
+              <Button
+                type="submit"
+                label="Salvar Alterações"
+                color="green"
+                icon={Save}
+                isLoading={saving}
+              />
+            </div>
+          </form>
+
+          {/* Coluna de Visualização do Cartaz (Sticky) */}
+          <aside className="lg:col-span-6 w-full sticky top-6">
+            {urlImageCampaigns ? (
+              <PosterView
+                imageCampaign={urlImageCampaigns}
+                product={productInputs}
+                priceClass={priceClass}
+                campaignType={campaignTypeSelected}
+                campaignSelected={campaignSelected}
+              />
+            ) : (
+              <div className="w-full aspect-[1/1.414] rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800 bg-zinc-50/60 dark:bg-zinc-900/40 flex flex-col items-center justify-center p-8 text-center transition-all">
+                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-400 mb-3">
+                  <ImageIcon className="h-6 w-6" />
+                </div>
+                <h4 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                  Pré-visualização do Cartaz
+                </h4>
+                <p className="text-xs text-muted-foreground mt-1 max-w-[240px]">
+                  Selecione um modelo de campanha acima para visualizar o cartaz em tempo real.
+                </p>
+              </div>
+            )}
+          </aside>
+        </div>
+      </div>
     </Layout>
   )
 }

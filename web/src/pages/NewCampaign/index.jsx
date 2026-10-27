@@ -1,12 +1,13 @@
-import { useState } from 'react'
+import { Check, CloudUpload, FileImage, Loader2, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ToastContainer } from 'react-toastify'
 
 import { api } from '../../services/api'
 import { toastError, toastInfo, toastSuccess } from '../../styles/toastConfig'
 
+import { InputCustom } from '@/components/InputCustom'
 import { Layout } from '@/components/Layout'
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/Button'
 import {
   Card,
   CardContent,
@@ -15,10 +16,7 @@ import {
   CardHeader,
   CardTitle
 } from '@/components/ui/card'
-import { FieldLabel } from '@/components/ui/field'
-import { Input } from '@/components/ui/input'
-import { Check, CloudUpload, FileImage } from 'lucide-react'
-import { Container, Content } from './styles'
+import { Label } from '@/components/ui/label'
 import { Switch } from '@/components/ui/switch'
 
 export function NewCampaign() {
@@ -26,42 +24,50 @@ export function NewCampaign() {
 
   const [campaignName, setCampaignName] = useState('')
   const [campaignImage, setCampaignImage] = useState(null)
-  const [previewURL, setPreviewURL] = useState('') // Visualizador em tempo real
+  const [previewURL, setPreviewURL] = useState('')
   const [loading, setLoading] = useState(false)
 
-  const [isVencimento, setIsVencimento] = useState(false);
-const [isPriceRequired, setIsPriceRequired] = useState(true);
+  const [isVencimento, setIsVencimento] = useState(false)
+  const [isPriceRequired, setIsPriceRequired] = useState(true)
 
-// Lógica de exclusividade mútua
-function handleVencimentoChange(value) {
-  setIsVencimento(value);
-  if (value === true) {
-    setIsPriceRequired(false);
+  // Prevenção de memory leak com URLs temporárias de preview
+  useEffect(() => {
+    return () => {
+      if (previewURL && previewURL.startsWith('blob:')) {
+        URL.revokeObjectURL(previewURL)
+      }
+    }
+  }, [previewURL])
+
+  // Exclusividade mútua das regras de negócio
+  function handleVencimentoChange(checked) {
+    setIsVencimento(checked)
+    if (checked) {
+      setIsPriceRequired(false)
+    }
   }
-}
 
-function handlePriceRequiredChange(value) {
-  setIsPriceRequired(value);
-  if (value === true) {
-    setIsVencimento(false);
+  function handlePriceRequiredChange(checked) {
+    setIsPriceRequired(checked)
+    if (checked) {
+      setIsVencimento(false)
+    }
   }
-}
 
-  // Lógica para capturar a imagem e gerar o preview
   function handleImageChange(event) {
-    const file = event.target.files[0]
+    const file = event.target.files?.[0]
     if (file) {
+      if (previewURL && previewURL.startsWith('blob:')) {
+        URL.revokeObjectURL(previewURL)
+      }
       setCampaignImage(file)
-      // Gera URL temporária para o componente de visualização
-      const url = URL.createObjectURL(file)
-      setPreviewURL(url)
+      setPreviewURL(URL.createObjectURL(file))
     }
   }
 
   async function handleCampaign() {
     if (!campaignName.trim() || !campaignImage) {
-      toastInfo('Por favor, preencha o nome e selecione uma imagem!')
-      return
+      return toastInfo('Por favor, preencha o nome e selecione uma imagem!')
     }
 
     try {
@@ -77,9 +83,9 @@ function handlePriceRequiredChange(value) {
       })
 
       toastSuccess('Campanha criada com sucesso!')
-      setTimeout(() => navigate('/campaigns'), 2000)
+      setTimeout(() => navigate('/campaigns'), 1500)
     } catch (error) {
-      toastError('Erro ao criar campanha!')
+      toastError(error.response?.data?.message || 'Erro ao criar campanha!')
     } finally {
       setLoading(false)
     }
@@ -87,167 +93,183 @@ function handlePriceRequiredChange(value) {
 
   return (
     <Layout>
-      <ToastContainer />
-      <Container>
-        <Content>
-          <div className="container max-w-4xl py-10 px-4 mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-              {/* Formulário - Coluna Esquerda */}
-              <div className="md:col-span-7">
-                <Card className="border-none shadow-none">
-                  <CardHeader>
-                    <CardTitle className="text-green-600">
-                      Configurações Gerais
-                    </CardTitle>
-                    <CardDescription>
-                      Cadastre o nome e a identidade visual da campanha.
-                    </CardDescription>
-                  </CardHeader>
+      <main className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* Formulário - Coluna Principal */}
+          <section className="lg:col-span-7">
+            <Card className="border border-slate-200 shadow-sm">
+              <CardHeader className="space-y-1 pb-4">
+                <CardTitle className="text-lg font-semibold text-green-600">
+                  Nova Campanha
+                </CardTitle>
+                <CardDescription className="text-sm text-slate-500">
+                  Cadastre o nome, a imagem base do cartaz e as regras de
+                  precificação.
+                </CardDescription>
+              </CardHeader>
 
-                  <CardContent className="space-y-2">
-                    {/* Input Nome */}
-                    <div className="space-y-2">
-                      <FieldLabel htmlFor="name" className="text-neutral-500">
-                        Nome da campanha
-                      </FieldLabel>
-                      <Input
-                        id="name"
-                        placeholder="Ex: Quarta do Hortifruti"
-                        value={campaignName}
-                        onChange={e => setCampaignName(e.target.value)}
-                        className="text-neutral-600"
-                      />
+              <CardContent className="space-y-6">
+                {/* Nome da Campanha */}
+                <div className="flex flex-col gap-2">
+                  <InputCustom
+                    label="Nome da Campanha"
+                    placeholder="Ex: Quarta do Hortifruti"
+                    value={campaignName}
+                    onChange={e => setCampaignName(e.target.value)}
+                  />
+                </div>
+
+                {/* Dropzone Upload */}
+                <div className="flex flex-col gap-2">
+                  <Label className="text-sm font-medium text-zinc-600 dark:text-zinc-300">
+                    Imagem do Cartaz (Template)
+                  </Label>
+
+                  <label
+                    htmlFor="image-upload"
+                    className="flex flex-col items-center justify-center w-full min-h-[150px] px-4 py-6 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer bg-slate-50/50 hover:bg-green-50/30 hover:border-green-400 transition-all group"
+                  >
+                    <div className="p-2.5 bg-white rounded-full shadow-xs mb-2 group-hover:scale-105 transition-transform">
+                      <CloudUpload className="h-6 w-6 text-green-600" />
                     </div>
 
-                    {/* Upload Estilizado (Dropzone Style) */}
-                    <div className="space-y-2">
-                      <FieldLabel className="text-neutral-500">
-                        Imagem do Cartaz (Template)
-                      </FieldLabel>
-                      <div className="relative">
-                        <input
-                          id="image-upload"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageChange}
-                          className="hidden"
-                        />
-                        <FieldLabel
-                          htmlFor="image-upload"
-                          className="flex flex-col items-center justify-center w-full h-40 border-2 border-dashed border-slate-200 rounded-xl cursor-pointer bg-slate-50 hover:bg-orange-50 hover:border-orange-300 transition-all group"
-                        >
-                          <div className="flex flex-col items-center justify-center text-center px-4">
-                            <div className="p-3 bg-white rounded-full shadow-sm mb-3 group-hover:scale-110 transition-transform">
-                              <CloudUpload
-                                size={28}
-                                className="text-orange-500"
-                              />
-                            </div>
-                            <p className="text-sm text-slate-600 font-bold">
-                              {campaignImage
-                                ? campaignImage.name
-                                : 'Clique para selecionar'}
-                            </p>
-                            <p className="text-xs text-slate-400 mt-1">
-                              PNG, JPG ou JPEG (Recomendado: Vertical)
-                            </p>
-                          </div>
-                        </FieldLabel>
-                      </div>
+                    <p className="text-sm font-semibold text-slate-700 text-center">
+                      {campaignImage
+                        ? campaignImage.name
+                        : 'Clique para selecionar uma imagem'}
+                    </p>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      PNG, JPG ou JPEG (Recomendado: formato vertical)
+                    </p>
+
+                    <input
+                      id="image-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                  </label>
+                </div>
+
+                {/* Switches de Regra de Negócio */}
+                <div className="space-y-3 pt-4 border-t border-slate-100">
+                  <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                    Regras de Exibição
+                  </h4>
+
+                  {/* Switch Vencimento */}
+                  <div className="flex items-center justify-between gap-4 p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+                    <div className="space-y-0.5">
+                      <Label
+                        htmlFor="vencimento-mode"
+                        className="text-sm font-medium text-slate-800 cursor-pointer"
+                      >
+                        Modo Vencimento
+                      </Label>
+                      <p className="text-xs text-slate-500">
+                        Ativado exibirá apenas o campo de validade do produto no
+                        cartaz.
+                      </p>
                     </div>
+                    <Switch
+                      id="vencimento-mode"
+                      checked={isVencimento}
+                      onCheckedChange={handleVencimentoChange}
+                      className="data-[state=checked]:bg-green-600 shrink-0"
+                    />
+                  </div>
 
-                                       {/* Seção de Regras de Negócio (Switches) */}
-                    <div className="flex flex-col gap-4 pt-4 border-t">
-                      <div className="flex items-center justify-between space-x-2">
-                        <div className="flex flex-col space-y-1">
-                          <FieldLabel htmlFor="vencimento-mode" className="text-neutral-500">
-                            Modo Vencimento
-                          </FieldLabel>
-                          <p className="text-xs text-neutral-500">
-                            Ativado irá mostrar somente o campo de validade do produto.
-                          </p>
-                        </div>
-                        <Switch
-                          id="vencimento-mode"
-                          checked={isVencimento}
-                          onCheckedChange={handleVencimentoChange} // Função customizada
-                          className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-slate-200"
-                        />
-                      </div>
-                    
-                      <div className="flex items-center justify-between space-x-2">
-                        <div className="flex flex-col space-y-1">
-                          <FieldLabel htmlFor="price-required" className="text-neutral-500 ">
-                            Preço Obrigatório
-                          </FieldLabel>
-                          <p className="text-xs text-neutral-500">
-                           Ativado irá mostrar somente o campo de preço do produto.
-                          </p>
-                        </div>
-                        <Switch
-                          id="price-required"
-                          checked={isPriceRequired}
-                          onCheckedChange={handlePriceRequiredChange} // Função customizada
-                          className="data-[state=checked]:bg-green-600 data-[state=unchecked]:bg-slate-200"
-                        />
-                      </div>
+                  {/* Switch Preço Obrigatório */}
+                  <div className="flex items-center justify-between gap-4 p-3 rounded-xl border border-slate-100 bg-slate-50/50">
+                    <div className="space-y-0.5">
+                      <Label
+                        htmlFor="price-required"
+                        className="text-sm font-medium text-slate-800 cursor-pointer"
+                      >
+                        Preço Obrigatório
+                      </Label>
+                      <p className="text-xs text-slate-500">
+                        Ativado exigirá o valor de venda do produto para gerar o
+                        cartaz.
+                      </p>
                     </div>
-                  </CardContent>
+                    <Switch
+                      id="price-required"
+                      checked={isPriceRequired}
+                      onCheckedChange={handlePriceRequiredChange}
+                      className="data-[state=checked]:bg-green-600 shrink-0"
+                    />
+                  </div>
+                </div>
+              </CardContent>
 
-                  <CardFooter className="flex justify-end gap-2 border-t pt-4 pb-4">
-                    <Button
-                      variant="ghost"
-                      onClick={() => navigate('/campaigns')}
-                      className="text-neutral-500 hover:text-neutral-500"
-                    >
-                      Cancelar
-                    </Button>
-                    <Button
-                      onClick={handleCampaign}
-                      disabled={loading}
-                      className="bg-green-600 hover:bg-green-700 text-white min-w-[120px]"
-                    >
-                      {loading ? (
-                        'Criando...'
-                      ) : (
-                        <>
-                          <Check /> Salvar
-                        </>
-                      )}
-                    </Button>
-                  </CardFooter>
-                </Card>
-              </div>
+              {/* Ações / Footer */}
+              <CardFooter className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-end gap-2 pt-4 border-t border-slate-100">
+                <Button
+                  type="button"
+                  color="cancel"
+                  onClick={() => navigate('/campaigns')}
+                  label="Cancelar"
+                  icon={X}
+                />
 
-              {/* Visualizador - Coluna Direita */}
-              <div className="md:col-span-5">
-                <Card className="sticky top-6 overflow-hidden shadow-none h-fit">
-                  <CardContent className="p-0 flex items-center justify-center bg-slate-200 min-h-[450px]">
-                    {previewURL ? (
-                      <img
-                        src={previewURL}
-                        alt="Preview"
-                        className="w-full h-full object-contain max-h-[600px] shadow-2xl animate-in fade-in zoom-in duration-300"
-                        style={{ objectPosition: 'top' }} // Alinhado ao topo como na listagem
-                      />
-                    ) : (
-                      <div className="text-center p-12 text-slate-400">
-                        <FileImage
-                          size={80}
-                          className="mx-auto mb-4 opacity-10"
-                        />
-                        <p className="text-sm font-medium italic">
-                          Selecione uma imagem para visualizar
-                        </p>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </div>
-        </Content>
-      </Container>
+                <Button
+                  type="button"
+                  color="green"
+                  onClick={handleCampaign}
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Criando...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="h-4 w-4" />
+                      <span>Salvar Campanha</span>
+                    </>
+                  )}
+                </Button>
+              </CardFooter>
+            </Card>
+          </section>
+
+          {/* Visualizador - Coluna Direita (Sticky) */}
+          <aside className="lg:col-span-5">
+            <Card className="border border-slate-200 shadow-sm overflow-hidden sticky top-6">
+              <CardHeader className="py-3 px-4 border-b border-slate-100 bg-slate-50/60">
+                <CardTitle className="text-xs font-semibold uppercase tracking-wider text-slate-600">
+                  Visualização do Template
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 flex items-center justify-center bg-slate-100/60 min-h-[350px] sm:min-h-[460px]">
+                {previewURL ? (
+                  <div className="relative w-full flex items-center justify-center rounded-lg overflow-hidden border border-slate-200 bg-white p-2">
+                    <img
+                      src={previewURL}
+                      alt="Pré-visualização do cartaz"
+                      className="max-h-[520px] w-auto max-w-full object-contain rounded shadow-xs animate-in fade-in zoom-in-95 duration-200"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center text-center p-6 text-slate-400">
+                    <FileImage className="h-16 w-16 mb-2 stroke-[1.2] text-slate-300 opacity-60" />
+                    <p className="text-sm font-medium text-slate-600">
+                      Nenhuma imagem selecionada
+                    </p>
+                    <p className="text-xs text-slate-400 mt-1 max-w-[200px]">
+                      Faça o upload do cartaz ao lado para visualizar a prévia
+                      aqui.
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </aside>
+        </div>
+      </main>
     </Layout>
   )
 }

@@ -76,7 +76,6 @@ function useCreatedPoster() {
       const response = await api.post('/posters', data)
 
       if (response && response.data) {
-        alert('Poster criado com sucesso!')
         return response.data
       }
 

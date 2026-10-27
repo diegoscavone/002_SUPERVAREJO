@@ -86,10 +86,10 @@ export function Notification() {
       <DropdownMenuContent align="end" className="w-80 p-0 shadow-xl border-slate-200">
         <DropdownMenuLabel className="px-4 py-3 flex items-center justify-between bg-slate-50/50">
           <div className="flex items-center gap-2 text-slate-700">
-            <AlertCircle size={16} className="text-orange-500" />
-            <span className="font-bold text-xs uppercase tracking-tight">Alertas de Vencimento</span>
+            <AlertCircle size={16} className="text-red-500" />
+            <span className="font-bold text-xs uppercase tracking-tight">Alerta de Vencimento</span>
           </div>
-          <Badge variant="secondary" className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-none text-[10px]">
+          <Badge variant="secondary" className="bg-red-100 text-red-700 hover:bg-red-100 border-none text-[10px]">
             {products.length} itens
           </Badge>
         </DropdownMenuLabel>
@@ -101,7 +101,8 @@ export function Notification() {
             {products.length === 0 ? (
               <div className="px-4 py-8 text-center flex flex-col items-center gap-2">
                 <Bell size={32} className="text-slate-200" />
-                <p className="text-sm text-slate-400 italic">Nenhum vencimento para os próximos 20 dias.</p>
+                <p className="text-sm text-slate-400">Nenhum vencimento para os
+                   próximos 20 dias.</p>
               </div>
             ) : (
               products.map((product) => (

@@ -3,198 +3,147 @@
 @tailwind components;
 @tailwind utilities;
 
-/* O shadcn vai injetar as variáveis de cor aqui depois do init */
-
 @layer base {
-  :root {
-    body,
-    input,
-    button,
-    label,
-    select,
-    textarea,
-    fieldset legend {
-      font-family: 'Inter', sans-serif;
-      font-size: 1rem;
-      outline: none;
-    }
-    /* Remove o scroll visual durante qualquer transição da sidebar */
-    [data-sidebar='sidebar'] * {
-      -ms-overflow-style: none; /* IE and Edge */
-      scrollbar-width: none; /* Firefox */
-    }
+  * {
+    @apply border-border;
+  }
 
-    [data-sidebar='sidebar'] *::-webkit-scrollbar {
-      display: none; /* Chrome, Safari and Opera */
-    }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', sans-serif;
+  }
 
-    /* Garante que o container de animação não vaze conteúdo */
-    .sidebar-content-wrapper,
-    [data-sidebar='footer'] {
-      overflow: hidden !important;
-    }
-
-    /* Reset Global de Sombras para Componentes de Formulário */
-    input, 
-  textarea, 
-  select, 
+  /* Herança correta de fontes e reset de redimensionamento */
+  input,
   button,
-  [role="combobox"], /* Gatilhos de Select do Radix/Shadcn */
+  label,
+  select,
+  textarea,
+  fieldset legend {
+    font-family: inherit;
+  }
+
+  textarea {
+    resize: none !important;
+  }
+
+  /* Remove o scroll visual durante transições da sidebar */
+  [data-sidebar='sidebar'] * {
+    -ms-overflow-style: none; /* IE e Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  [data-sidebar='sidebar'] *::-webkit-scrollbar {
+    display: none; /* Chrome, Safari e Opera */
+  }
+
+  .sidebar-content-wrapper,
+  [data-sidebar='footer'] {
+    overflow: hidden !important;
+  }
+
+  /* Remove sombras pesadas e resíduos nativos do navegador */
+  input,
+  textarea,
+  select,
   .shadow-sm {
-      box-shadow: none !important;
-    }
+    box-shadow: none;
+  }
 
-input:focus-visible,
-textarea:focus-visible,
-[data-radix-select-trigger]:focus {
-  /* Força a cor da borda */
-  border-color: hsl(var(--ring)) !important;
-  
-  /* Usa um outline limpo sem offset para parecer uma borda natural */
-  /* outline: 1px solid hsl(var(--ring)) !important;
-  outline-offset: -1px;  */
-  
-  /* Remove o ring do Tailwind que usa box-shadow */
-  --tw-ring-offset-width: 0px !important;
-  box-shadow: none !important;
-}
+  /* Foco unificado com o anel verde de 2px nos inputs e textareas nativos */
+  input:focus-visible,
+  textarea:focus-visible {
+    border-color: hsl(var(--ring)) !important;
+    outline: none !important;
+    box-shadow: 0 0 0 1px hsl(var(--ring)) !important;
+  }
 
-    /* Garante que o Textarea não seja redimensionado em lugar nenhum */
-    textarea {
-      resize: none !important;
-    }
+  /* Anel verde de 2px no SelectTrigger do Radix/shadcn */
+  button[role='combobox']:focus,
+  button[role='combobox']:focus-visible,
+  button[role='combobox'][data-state='open'],
+  [data-radix-select-trigger]:focus,
+  [data-radix-select-trigger]:focus-visible,
+  [data-radix-select-trigger][data-state='open'] {
+    border-color: hsl(var(--ring)) !important;
+    outline: none !important;
+    box-shadow: 0 0 0 1px hsl(var(--ring)) !important;
+  }
 
+  /* VARIÁVEIS DE TEMA (LIGHT) */
+  :root {
     --background: 0 0% 100%;
-
     --foreground: 240 10% 3.9%;
-
     --card: 0 0% 100%;
-
     --card-foreground: 240 10% 3.9%;
-
     --popover: 0 0% 100%;
-
     --popover-foreground: 240 10% 3.9%;
-
     --primary: 240 5.9% 10%;
-
     --primary-foreground: 0 0% 98%;
-
     --secondary: 240 4.8% 95.9%;
-
     --secondary-foreground: 240 5.9% 10%;
-
     --muted: 240 4.8% 95.9%;
-
     --muted-foreground: 240 3.8% 46.1%;
-
     --accent: 240 4.8% 95.9%;
-
     --accent-foreground: 240 5.9% 10%;
-
     --destructive: 0 84.2% 60.2%;
-
     --destructive-foreground: 0 0% 98%;
 
+    /* Borda cinza suave padrão shadcn (corrigido de 75% para 90%) */
     --border: 240 5.9% 90%;
-
-    --input: 240 5.9% 75%;
+    --input: 240 5.9% 90%;
 
     --ring: 142.1 76.2% 36.3%;
-
     --chart-1: 12 76% 61%;
-
     --chart-2: 173 58% 39%;
-
     --chart-3: 197 37% 24%;
-
     --chart-4: 43 74% 66%;
-
     --chart-5: 27 87% 67%;
-
     --radius: 0.5rem;
-
     --sidebar-width-icon: 4.5rem;
-
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
+  /* VARIÁVEIS DE TEMA (DARK) */
   .dark {
     --background: 240 10% 3.9%;
-
     --foreground: 0 0% 98%;
-
     --card: 240 10% 3.9%;
-
     --card-foreground: 0 0% 98%;
-
     --popover: 240 10% 3.9%;
-
     --popover-foreground: 0 0% 98%;
-
     --primary: 142.1 76.2% 36.3%;
-
     --primary-foreground: 240 5.9% 10%;
-
     --secondary: 240 3.7% 15.9%;
-
     --secondary-foreground: 0 0% 98%;
-
     --muted: 240 3.7% 15.9%;
-
     --muted-foreground: 240 5% 64.9%;
-
     --accent: 240 3.7% 15.9%;
-
     --accent-foreground: 0 0% 98%;
-
     --destructive: 0 62.8% 30.6%;
-
     --destructive-foreground: 0 0% 98%;
-
     --border: 240 3.7% 15.9%;
-
     --input: 240 3.7% 15.9%;
-
     --ring: 240 4.9% 83.9%;
-
     --chart-1: 220 70% 50%;
-
     --chart-2: 160 60% 45%;
-
     --chart-3: 30 80% 55%;
-
     --chart-4: 280 65% 60%;
-
     --chart-5: 340 75% 55%;
-
     --sidebar-background: 240 5.9% 10%;
-
     --sidebar-foreground: 240 4.8% 95.9%;
-
     --sidebar-primary: 224.3 76.3% 48%;
-
     --sidebar-primary-foreground: 0 0% 100%;
-
     --sidebar-accent: 240 3.7% 15.9%;
-
     --sidebar-accent-foreground: 240 4.8% 95.9%;
-
     --sidebar-border: 240 3.7% 15.9%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 }

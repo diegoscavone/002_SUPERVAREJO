@@ -9,6 +9,7 @@ const imageCampaignRouter = require('./imagecampaings.routes')
 const posterPDFRouter = require('./posterpdf.routes')
 const offersRouter = require('./offers.routes')
 const productsValidityRouter = require('./productsvalidity.routes')
+const notificationRoutes = require('./notification.routes')
 
 const routes = Router()
 
@@ -21,5 +22,6 @@ routes.use('/campaigns-type', campaignTypeRouter)
 routes.use('/posters-pdf', posterPDFRouter)
 routes.use('/offers', offersRouter)
 routes.use('/productsValidity', productsValidityRouter)
+routes.use('/notifications', notificationRoutes)
 
 module.exports = routes

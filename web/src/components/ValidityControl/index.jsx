@@ -38,18 +38,18 @@ import {
 } from './styles'
 
 // Componentes originais mantidos
-import { Button } from '../../components/Button'
+import { Button } from '../Button'
 import { Footer } from '../../components/Footer'
 import { Header } from '../../components/Header'
-import { Nav } from '../../components/Nav'
-import { Section } from '../../components/Section'
+import { Nav } from '../Nav'
+import { Section } from '../Section'
 
 // Imports adicionais
 import { PiBarcode, PiCalendarDots, PiTrash } from 'react-icons/pi'
-import { ToastContainer } from 'react-toastify'
-import 'react-toastify/dist/ReactToastify.css'
-import { InputMask } from '../../components/InputMask/index.jsx'
-import { Select } from '../../components/Select/index.jsx'
+// import { ToastContainer } from 'react-toastify'
+// import 'react-toastify/dist/ReactToastify.css'
+import { InputMask } from '../InputMask.jsx'
+import { SelectCustom } from '../SelectCustom.jsx'
 import { useAuth } from '../../hooks/auth'
 import { api, apiERP } from '../../services/api.js'
 import { toastError, toastSuccess } from '../../styles/toastConfig.js'
@@ -970,8 +970,8 @@ export function ValidityControl() {
       offerName && offerName.trim()
         ? offerName.trim()
         : campaignName && campaignName.trim()
-        ? campaignName.trim()
-        : ''
+          ? campaignName.trim()
+          : ''
 
     if (!finalOfferName) {
       toastError('Digite um nome para a oferta ou selecione uma campanha')
@@ -1330,306 +1330,306 @@ export function ValidityControl() {
   }
 
   // Renderização principal
-  return (
-    <Container>
-      <Header />
-      <Nav />
-      <ToastContainer />
-      <Content>
-        <div className="content-header">
-          <Button
-            title="Produtos"
-            icon={PiBarcode}
-            color="ORANGE"
-            onClick={openModal}
-          />
-        </div>
+  // return (
+  //   <Container>
+  //     <Header />
+  //     <Nav />
+  //     <ToastContainer />
+  //     <Content>
+  //       <div className="content-header">
+  //         <Button
+  //           title="Produtos"
+  //           icon={PiBarcode}
+  //           color="ORANGE"
+  //           onClick={openModal}
+  //         />
+  //       </div>
 
-        <Section title="Gestão de Ofertas">
-          <Card>
-            <CardHeader>
-              <Form>
-                <InputWrapper>
-                  <Label>Campanha</Label>
-                  <Select
-                    onChange={handleCampaignsChange}
-                    value={campaignSelected}
-                  >
-                    <option value="0">Selecione</option>
-                    {campaigns.map(campaign => (
-                      <option
-                        key={campaign.id}
-                        value={campaign.id}
-                        data-image={campaign.image}
-                      >
-                        {campaign.name}
-                      </option>
-                    ))}
-                  </Select>
-                </InputWrapper>
+  //       <Section title="Gestão de Ofertas">
+  //         <Card>
+  //           <CardHeader>
+  //             <Form>
+  //               <InputWrapper>
+  //                 <Label>Campanha</Label>
+  //                 <SelectCustom
+  //                   onChange={handleCampaignsChange}
+  //                   value={campaignSelected}
+  //                 >
+  //                   <option value="0">Selecione</option>
+  //                   {campaigns.map(campaign => (
+  //                     <option
+  //                       key={campaign.id}
+  //                       value={campaign.id}
+  //                       data-image={campaign.image}
+  //                     >
+  //                       {campaign.name}
+  //                     </option>
+  //                   ))}
+  //                 </SelectCustom>
+  //               </InputWrapper>
 
-                <InputWrapper>
-                  <Label>Data Inicial</Label>
-                  <InputMask
-                    mask="00/00/0000"
-                    placeholder="00/00/0000"
-                    type="text"
-                    onChange={handleInitialDateChange}
-                    name="initial_date"
-                    icon={PiCalendarDots}
-                    value={initialDate}
-                  />
-                </InputWrapper>
+  //               <InputWrapper>
+  //                 <Label>Data Inicial</Label>
+  //                 <InputMask
+  //                   mask="00/00/0000"
+  //                   placeholder="00/00/0000"
+  //                   type="text"
+  //                   onChange={handleInitialDateChange}
+  //                   name="initial_date"
+  //                   icon={PiCalendarDots}
+  //                   value={initialDate}
+  //                 />
+  //               </InputWrapper>
 
-                <InputWrapper>
-                  <Label>Data Final</Label>
-                  <InputMask
-                    mask="00/00/0000"
-                    placeholder="00/00/0000"
-                    type="text"
-                    onChange={handleFinalDateChange}
-                    name="final_date"
-                    icon={PiCalendarDots}
-                    value={finalDate}
-                  />
-                </InputWrapper>
+  //               <InputWrapper>
+  //                 <Label>Data Final</Label>
+  //                 <InputMask
+  //                   mask="00/00/0000"
+  //                   placeholder="00/00/0000"
+  //                   type="text"
+  //                   onChange={handleFinalDateChange}
+  //                   name="final_date"
+  //                   icon={PiCalendarDots}
+  //                   value={finalDate}
+  //                 />
+  //               </InputWrapper>
 
-                <ActionButtons>
-                  <Button
-                    title="Limpar"
-                    icon={PiTrash}
-                    color="RED"
-                    onClick={() => clearForm(true)}
-                  />
-                  <Button title="Salvar" color="GREEN" onClick={saveOffer} />
-                </ActionButtons>
-              </Form>
-            </CardHeader>
-            <CardBody>
-              {selectedProducts.length === 0 ? (
-                <div className="empty-state">
-                  Nenhum produto selecionado para oferta. Clique em "Produtos"
-                  para começar.
-                </div>
-              ) : (
-                <>
-                  {/* Contador de produtos */}
-                  <ProductCounter>
-                    <span>
-                      {selectedProducts.length} produto
-                      {selectedProducts.length !== 1 ? 's' : ''} adicionado
-                      {selectedProducts.length !== 1 ? 's' : ''}
-                    </span>
-                  </ProductCounter>
+  //               <ActionButtons>
+  //                 <Button
+  //                   title="Limpar"
+  //                   icon={PiTrash}
+  //                   color="RED"
+  //                   onClick={() => clearForm(true)}
+  //                 />
+  //                 <Button title="Salvar" color="GREEN" onClick={saveOffer} />
+  //               </ActionButtons>
+  //             </Form>
+  //           </CardHeader>
+  //           <CardBody>
+  //             {selectedProducts.length === 0 ? (
+  //               <div className="empty-state">
+  //                 Nenhum produto selecionado para oferta. Clique em "Produtos"
+  //                 para começar.
+  //               </div>
+  //             ) : (
+  //               <>
+  //                 {/* Contador de produtos */}
+  //                 <ProductCounter>
+  //                   <span>
+  //                     {selectedProducts.length} produto
+  //                     {selectedProducts.length !== 1 ? 's' : ''} adicionado
+  //                     {selectedProducts.length !== 1 ? 's' : ''}
+  //                   </span>
+  //                 </ProductCounter>
 
-                  <Table>
-                    <thead>
-                      <tr>
-                        <TableHeader>Código</TableHeader>
-                        <TableHeader>Código de Barras</TableHeader>
-                        <TableHeader>Descrição</TableHeader>
-                        <TableHeader>Validade</TableHeader>
-                        <TableHeader>Custo (R$)</TableHeader>
-                        <TableHeader>Preço Atual (R$)</TableHeader>
-                        <TableHeader className="column-price">
-                          Preço Oferta (R$)
-                        </TableHeader>
-                        <TableHeader className="column-profit">
-                          Margem (%)
-                        </TableHeader>
-                        <TableHeader></TableHeader>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selectedProducts.map((product, index) => (
-                        <TableRow key={product.id}>
-                          <TableCell>{product.prod_codigo}</TableCell>
-                          <TableCell>{product.prod_cod_barras}</TableCell>
-                          <TableCell>{product.prod_descricao}</TableCell>
-                          <TableCell>{product.prod_descricao}</TableCell>
-                          <TableCell>
-                            {formatCurrency(product.prod_preco_custo)}
-                          </TableCell>
-                          <TableCell>
-                            {formatCurrency(product.prod_preco_venda)}
-                          </TableCell>
-                          <TableCell>
-                            <OfferPriceInput
-                              type="number"
-                              min="0"
-                              step="0.01"
-                              className="offer-price-input"
-                              value={product.offerPrice}
-                              onChange={e =>
-                                updateOfferPrice(product.id, e.target.value)
-                              }
-                              onKeyDown={e => handleKeyDown(e, index)}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <ProfitIndicator
-                              className={getProfitClass(product.profit)}
-                            >
-                              {product.profit}%
-                            </ProfitIndicator>
-                          </TableCell>
-                          <TableCell>
-                            <ActionButton
-                              onClick={() => removeProduct(product.id)}
-                            >
-                              Remover
-                            </ActionButton>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </tbody>
-                  </Table>
-                </>
-              )}
-            </CardBody>
-          </Card>
-        </Section>
-      </Content>
+  //                 <Table>
+  //                   <thead>
+  //                     <tr>
+  //                       <TableHeader>Código</TableHeader>
+  //                       <TableHeader>Código de Barras</TableHeader>
+  //                       <TableHeader>Descrição</TableHeader>
+  //                       <TableHeader>Validade</TableHeader>
+  //                       <TableHeader>Custo (R$)</TableHeader>
+  //                       <TableHeader>Preço Atual (R$)</TableHeader>
+  //                       <TableHeader className="column-price">
+  //                         Preço Oferta (R$)
+  //                       </TableHeader>
+  //                       <TableHeader className="column-profit">
+  //                         Margem (%)
+  //                       </TableHeader>
+  //                       <TableHeader></TableHeader>
+  //                     </tr>
+  //                   </thead>
+  //                   <tbody>
+  //                     {selectedProducts.map((product, index) => (
+  //                       <TableRow key={product.id}>
+  //                         <TableCell>{product.prod_codigo}</TableCell>
+  //                         <TableCell>{product.prod_cod_barras}</TableCell>
+  //                         <TableCell>{product.prod_descricao}</TableCell>
+  //                         <TableCell>{product.prod_descricao}</TableCell>
+  //                         <TableCell>
+  //                           {formatCurrency(product.prod_preco_custo)}
+  //                         </TableCell>
+  //                         <TableCell>
+  //                           {formatCurrency(product.prod_preco_venda)}
+  //                         </TableCell>
+  //                         <TableCell>
+  //                           <OfferPriceInput
+  //                             type="number"
+  //                             min="0"
+  //                             step="0.01"
+  //                             className="offer-price-input"
+  //                             value={product.offerPrice}
+  //                             onChange={e =>
+  //                               updateOfferPrice(product.id, e.target.value)
+  //                             }
+  //                             onKeyDown={e => handleKeyDown(e, index)}
+  //                           />
+  //                         </TableCell>
+  //                         <TableCell>
+  //                           <ProfitIndicator
+  //                             className={getProfitClass(product.profit)}
+  //                           >
+  //                             {product.profit}%
+  //                           </ProfitIndicator>
+  //                         </TableCell>
+  //                         <TableCell>
+  //                           <ActionButton
+  //                             onClick={() => removeProduct(product.id)}
+  //                           >
+  //                             Remover
+  //                           </ActionButton>
+  //                         </TableCell>
+  //                       </TableRow>
+  //                     ))}
+  //                   </tbody>
+  //                 </Table>
+  //               </>
+  //             )}
+  //           </CardBody>
+  //         </Card>
+  //       </Section>
+  //     </Content>
 
-      {showClearConfirmation && (
-        <ConfirmationModalContainer>
-          <ConfirmationModalContent>
-            <ConfirmationModalHeader>
-              <ConfirmationModalTitle>Confirmar Limpeza</ConfirmationModalTitle>
-            </ConfirmationModalHeader>
-            <ConfirmationModalBody>
-              <p>
-                Tem certeza que deseja limpar todo o formulário? Esta ação irá
-                remover todos os produtos selecionados e limpar todos os campos.
-              </p>
-            </ConfirmationModalBody>
-            <ConfirmationModalFooter>
-              <Button
-                title="Cancelar"
-                color="GRAY"
-                onClick={handleCancelClear}
-              />
-              <Button
-                title="Sim, Limpar Tudo"
-                icon={PiTrash}
-                color="RED"
-                onClick={handleConfirmClear}
-              />
-            </ConfirmationModalFooter>
-          </ConfirmationModalContent>
-        </ConfirmationModalContainer>
-      )}
+  //     {showClearConfirmation && (
+  //       <ConfirmationModalContainer>
+  //         <ConfirmationModalContent>
+  //           <ConfirmationModalHeader>
+  //             <ConfirmationModalTitle>Confirmar Limpeza</ConfirmationModalTitle>
+  //           </ConfirmationModalHeader>
+  //           <ConfirmationModalBody>
+  //             <p>
+  //               Tem certeza que deseja limpar todo o formulário? Esta ação irá
+  //               remover todos os produtos selecionados e limpar todos os campos.
+  //             </p>
+  //           </ConfirmationModalBody>
+  //           <ConfirmationModalFooter>
+  //             <Button
+  //               title="Cancelar"
+  //               color="GRAY"
+  //               onClick={handleCancelClear}
+  //             />
+  //             <Button
+  //               title="Sim, Limpar Tudo"
+  //               icon={PiTrash}
+  //               color="RED"
+  //               onClick={handleConfirmClear}
+  //             />
+  //           </ConfirmationModalFooter>
+  //         </ConfirmationModalContent>
+  //       </ConfirmationModalContainer>
+  //     )}
 
-      {/* Modal de pesquisa de produtos (renderização condicional) */}
-      {isModalOpen && (
-        <ModalContainer
-          onClick={e => {
-            if (e.target === e.currentTarget) closeModal()
-          }}
-        >
-          <Modal>
-            <ModalHeader>
-              <ModalTitle>Pesquisar Produtos</ModalTitle>
-              <CloseButton onClick={closeModal}>&times;</CloseButton>
-            </ModalHeader>
-            <ModalBody>
-              <SearchContainer>
-                <SearchInput
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Buscar por código, descrição ou código de barras..."
-                  value={searchTerm}
-                  onChange={e => setSearchTerm(e.target.value)}
-                />
-              </SearchContainer>
-              <Table>
-                <thead>
-                  <tr>
-                    <TableHeader></TableHeader>
-                    <TableHeader>Código</TableHeader>
-                    <TableHeader>Código de Barras</TableHeader>
-                    <TableHeader>Descrição</TableHeader>
-                    <TableHeader>Complemento</TableHeader>
-                    <TableHeader>Custo (R$)</TableHeader>
-                  </tr>
-                </thead>
-                <tbody>
-                  {products.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan="6" className="empty-result">
-                        Nenhum produto encontrado. Tente outro termo de busca.
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    products.map(product => (
-                      <TableRow
-                        key={product.id}
-                        className={
-                          selectedProductId === product.id ? 'selected-row' : ''
-                        }
-                        tabIndex={0}
-                        onKeyDown={e => handleProductKeyDown(e, product.id)}
-                      >
-                        <TableCell>
-                          <TableCheckbox>
-                            <input
-                              type="radio"
-                              checked={selectedProductId === product.id}
-                              onChange={() => selectProduct(product.id)}
-                            />
-                            <span className="radio-custom"></span>
-                          </TableCheckbox>
-                        </TableCell>
-                        <TableCell>{product.prod_codigo}</TableCell>
-                        <TableCell>{product.prod_cod_barras}</TableCell>
-                        <TableCell>{product.prod_descricao}</TableCell>
-                        <TableCell>{product.prod_complemento}</TableCell>
-                        <TableCell>
-                          {formatCurrency(product.prod_preco_custo)}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </tbody>
-              </Table>
+  //     {/* Modal de pesquisa de produtos (renderização condicional) */}
+  //     {isModalOpen && (
+  //       <ModalContainer
+  //         onClick={e => {
+  //           if (e.target === e.currentTarget) closeModal()
+  //         }}
+  //       >
+  //         <Modal>
+  //           <ModalHeader>
+  //             <ModalTitle>Pesquisar Produtos</ModalTitle>
+  //             <CloseButton onClick={closeModal}>&times;</CloseButton>
+  //           </ModalHeader>
+  //           <ModalBody>
+  //             <SearchContainer>
+  //               <SearchInput
+  //                 ref={searchInputRef}
+  //                 type="text"
+  //                 placeholder="Buscar por código, descrição ou código de barras..."
+  //                 value={searchTerm}
+  //                 onChange={e => setSearchTerm(e.target.value)}
+  //               />
+  //             </SearchContainer>
+  //             <Table>
+  //               <thead>
+  //                 <tr>
+  //                   <TableHeader></TableHeader>
+  //                   <TableHeader>Código</TableHeader>
+  //                   <TableHeader>Código de Barras</TableHeader>
+  //                   <TableHeader>Descrição</TableHeader>
+  //                   <TableHeader>Complemento</TableHeader>
+  //                   <TableHeader>Custo (R$)</TableHeader>
+  //                 </tr>
+  //               </thead>
+  //               <tbody>
+  //                 {products.length === 0 ? (
+  //                   <TableRow>
+  //                     <TableCell colSpan="6" className="empty-result">
+  //                       Nenhum produto encontrado. Tente outro termo de busca.
+  //                     </TableCell>
+  //                   </TableRow>
+  //                 ) : (
+  //                   products.map(product => (
+  //                     <TableRow
+  //                       key={product.id}
+  //                       className={
+  //                         selectedProductId === product.id ? 'selected-row' : ''
+  //                       }
+  //                       tabIndex={0}
+  //                       onKeyDown={e => handleProductKeyDown(e, product.id)}
+  //                     >
+  //                       <TableCell>
+  //                         <TableCheckbox>
+  //                           <input
+  //                             type="radio"
+  //                             checked={selectedProductId === product.id}
+  //                             onChange={() => selectProduct(product.id)}
+  //                           />
+  //                           <span className="radio-custom"></span>
+  //                         </TableCheckbox>
+  //                       </TableCell>
+  //                       <TableCell>{product.prod_codigo}</TableCell>
+  //                       <TableCell>{product.prod_cod_barras}</TableCell>
+  //                       <TableCell>{product.prod_descricao}</TableCell>
+  //                       <TableCell>{product.prod_complemento}</TableCell>
+  //                       <TableCell>
+  //                         {formatCurrency(product.prod_preco_custo)}
+  //                       </TableCell>
+  //                     </TableRow>
+  //                   ))
+  //                 )}
+  //               </tbody>
+  //             </Table>
 
-              {/* Componente de paginação - só aparece quando não está em busca */}
-              {paginationComponent}
-            </ModalBody>
-            <ModalFooter>
-              <div className="selection-info">
-                <span>
-                  {selectedProductId
-                    ? '1 item selecionado'
-                    : 'Nenhum item selecionado'}
-                </span>
-              </div>
-              <Button
-                title="Adicionar Produto"
-                onClick={addSelectedProduct}
-                color="GREEN"
-                disabled={!selectedProductId}
-              />
-            </ModalFooter>
-          </Modal>
-        </ModalContainer>
-      )}
-      <Footer />
-      {showPostersConfirmation && (
-        <ConfirmationModalContainer>
-          <ConfirmationModalContent>
-            <ConfirmationModalHeader>
-              <ConfirmationModalTitle>Gerar Cartazes</ConfirmationModalTitle>
-            </ConfirmationModalHeader>
-            <ConfirmationModalBody>
-              <p>A oferta foi salva com sucesso.</p>
-            </ConfirmationModalBody>
-            <ConfirmationModalFooter>
-              <Button title="Não" color="GRAY" onClick={handleCancelPosters} />
-            </ConfirmationModalFooter>
-          </ConfirmationModalContent>
-        </ConfirmationModalContainer>
-      )}
-    </Container>
-  )
+  //             {/* Componente de paginação - só aparece quando não está em busca */}
+  //             {paginationComponent}
+  //           </ModalBody>
+  //           <ModalFooter>
+  //             <div className="selection-info">
+  //               <span>
+  //                 {selectedProductId
+  //                   ? '1 item selecionado'
+  //                   : 'Nenhum item selecionado'}
+  //               </span>
+  //             </div>
+  //             <Button
+  //               title="Adicionar Produto"
+  //               onClick={addSelectedProduct}
+  //               color="GREEN"
+  //               disabled={!selectedProductId}
+  //             />
+  //           </ModalFooter>
+  //         </Modal>
+  //       </ModalContainer>
+  //     )}
+  //     <Footer />
+  //     {showPostersConfirmation && (
+  //       <ConfirmationModalContainer>
+  //         <ConfirmationModalContent>
+  //           <ConfirmationModalHeader>
+  //             <ConfirmationModalTitle>Gerar Cartazes</ConfirmationModalTitle>
+  //           </ConfirmationModalHeader>
+  //           <ConfirmationModalBody>
+  //             <p>A oferta foi salva com sucesso.</p>
+  //           </ConfirmationModalBody>
+  //           <ConfirmationModalFooter>
+  //             <Button title="Não" color="GRAY" onClick={handleCancelPosters} />
+  //           </ConfirmationModalFooter>
+  //         </ConfirmationModalContent>
+  //       </ConfirmationModalContainer>
+  //     )}
+  //   </Container>
+  // )
 }

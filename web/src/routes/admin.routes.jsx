@@ -30,6 +30,7 @@ export function AdminRoutes() {
       <Route path="/users/new" element={<NewUser />} />
       <Route path="/users" element={<Users />} />
       <Route path="/users/profile/:id" element={<Profile />} />
+      <Route path="/profile" element={<Profile />} />
       <Route path="/offers" element={<Offers />} /> 
       <Route path="/offers/new" element={<NewOffer />} />
       <Route path="/validity-control" element={<ValidityControl />} />

@@ -24,7 +24,7 @@ usersRoutes.patch(
     upload.single('avatar'),
     usersAvatarController.update
   )
-usersRoutes.get('/details/:id', usersController.show)
+usersRoutes.get('/:id', usersController.show)
 usersRoutes.put('/:id', ensureAuthenticated, usersController.updateUserData)
 usersRoutes.delete('/:id', ensureAuthenticated, usersController.delete)
 usersRoutes.get(

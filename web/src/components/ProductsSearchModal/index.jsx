@@ -1,23 +1,33 @@
-import React, { useRef, useState } from 'react'
+import { BarcodeScanner } from '@/components/BarcodeScanner'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
-  DialogTitle,
-  DialogFooter
+  DialogTitle
 } from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Search, Loader2, Barcode, X } from 'lucide-react'
-import { DataTable } from '../../components/DataTable'
-import { BarcodeScanner } from '@/components/BarcodeScanner'
+import { cn } from '@/lib/utils'
+import {
+  Barcode,
+  CheckCircle2,
+  Loader2,
+  PackageOpen,
+  Search,
+  X
+} from 'lucide-react'
+import { useRef, useState } from 'react'
+import { DataTable } from '../DataTable'
+import { InputCustom } from '../InputCustom'
 
 export function ProductSearchModal({
   isOpen,
   onClose,
   searchTerm,
   onSearchChange,
-  products,
+  products = [],
   isLoading,
   selectedProductId,
   onSelectProduct,
@@ -31,21 +41,19 @@ export function ProductSearchModal({
     onConfirm()
     onSearchChange('')
     setTimeout(() => {
-      if (searchInputRef.current) {
-        searchInputRef.current.focus()
-      }
-    }, 10)
+      searchInputRef.current?.focus()
+    }, 50)
   }
 
-  // Lógica idêntica ao ProductsValidity para garantir preenchimento e busca
-  const handleScanSuccess = (code) => {
+  const handleScanSuccess = code => {
     if (navigator.vibrate) {
       navigator.vibrate(100)
     }
-    onSearchChange(code) // Atualiza o input do modal
-    setShowScanner(false) // Fecha o scanner
+    onSearchChange(code)
+    setShowScanner(false)
   }
 
+  // Colunas para visualização Desktop (>= sm)
   const columns = [
     { accessorKey: 'prod_codigo', header: 'Código' },
     { accessorKey: 'prod_cod_barras', header: 'EAN' },
@@ -60,65 +68,87 @@ export function ProductSearchModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border-none p-0">
-        <DialogHeader className="p-6 pb-0">
-          <DialogTitle className="text-base bg-muted/20 pb-3 border-b font-bold flex items-center gap-2">
-            <Search /> Pesquisar Produtos
-          </DialogTitle>
+      <DialogContent className="w-full max-w-4xl h-[100dvh] sm:h-[88vh] max-h-[100dvh] sm:max-h-[88vh] flex flex-col p-0 gap-0 border-none sm:border sm:border-border sm:rounded-2xl overflow-hidden bg-background">
+        {/* Cabeçalho */}
+        <DialogHeader className="p-4 sm:p-5 border-b border-border bg-card shrink-0">
+          <div className="flex items-center justify-between">
+            <DialogTitle className="text-base sm:text-lg font-bold flex items-center gap-2 text-green-600">
+              <Search className="h-5 w-5 text-green-600" />
+              <span>Pesquisar Produtos</span>
+            </DialogTitle>
+          </div>
         </DialogHeader>
 
-        <div className="p-6 flex flex-col flex-1 overflow-hidden">
-          {/* Layout de busca IGUAL ao ProductsValidity */}
-          <div className="flex gap-2 items-center">
+        {/* Container Principal */}
+        <div className="flex flex-col flex-1 overflow-hidden p-3 sm:p-6 gap-3">
+          {/* Input de Busca + Botão Scanner */}
+          <div className="flex items-center gap-2 shrink-0">
             <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
+              <InputCustom
                 ref={searchInputRef}
-                placeholder="Buscar por código, descrição ou barras..."
-                className="pl-10 h-11 border-input focus:ring-green-600 shadow-none"
+                placeholder="Código, descrição ou EAN..."
+                icon={Search}
                 value={searchTerm}
                 onChange={e => onSearchChange(e.target.value)}
                 autoFocus
               />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onSearchChange('')
+                    searchInputRef.current?.focus()
+                  }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
             </div>
 
-            {/* Botão idêntico ao da tela de Validades */}
-            <Button
+            {/* Leitor de código de barras visível no mobile */}
+            {/* <Button
               type="button"
               variant="outline"
+              size="icon"
               onClick={() => setShowScanner(!showScanner)}
-              className={
+              className={cn(
+                'h-11 w-11 shrink-0 rounded-xl transition-all sm:hidden',
                 showScanner
-                  ? 'lg:hidden border-red-500 text-red-500 hover:text-white hover:bg-red-500 h-11'
-                  : 'lg:hidden border-orange-500 text-orange-500 hover:text-white hover:bg-orange-500 h-11'
-              }
+                  ? 'border-rose-500 text-rose-500 bg-rose-50 dark:bg-rose-950/30'
+                  : 'border-orange-500 text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/30'
+              )}
+              title="Escanear com a câmera"
             >
-              <Barcode size={20} className="mr-2" />
-              {showScanner ? 'Parar' : 'Ler'}
-            </Button>
+              <Barcode className="h-5 w-5" />
+            </Button> */}
           </div>
 
-          {/* Scanner em Overlay Fixo (Z-index superior para cobrir o Dialog) */}
-          {showScanner && (
-            <div className="fixed inset-0 z-[70] bg-black flex flex-col items-center justify-center p-4">
-              <div className="w-full max-w-lg relative">
-                <BarcodeScanner onScanSuccess={handleScanSuccess} />
+          {/* Scanner Overlay */}
+          {/* {showScanner && (
+            <div className="fixed inset-0 z-[100] bg-black/95 flex flex-col items-center justify-center p-4 animate-in fade-in">
+              <div className="w-full max-w-sm relative flex flex-col items-center gap-4">
+                <div className="w-full aspect-square rounded-2xl overflow-hidden border-2 border-orange-500 relative">
+                  <BarcodeScanner onScanSuccess={handleScanSuccess} />
+                </div>
+                <p className="text-white/80 text-xs text-center font-medium">
+                  Aponte a câmera para o código de barras
+                </p>
                 <Button
-                  className="absolute top-2 right-2 bg-white/20 text-white hover:bg-white/40"
+                  type="button"
+                  variant="outline"
+                  className="text-white border-white/20 bg-white/10 hover:bg-white/20 w-full rounded-xl"
                   onClick={() => setShowScanner(false)}
                 >
-                  Fechar
+                  Fechar Scanner
                 </Button>
-                <div className="mt-4 text-center text-white/70 text-sm">
-                  Aponte para o código de barras do produto
-                </div>
               </div>
             </div>
-          )}
+          )} */}
 
-          {/* Container da Tabela */}
+          {/* Área de Listagem (Mobile Cards vs Desktop Table) */}
           <div
-            className="flex-1 overflow-auto mt-4 min-h-[300px] border rounded-md"
+            className=" overflow-y-auto rounded-xl border border-border bg-card p-1 sm:p-0"
             onKeyDown={e => {
               if (e.key === 'Enter' && selectedProductId) {
                 handleConfirm()
@@ -126,49 +156,147 @@ export function ProductSearchModal({
             }}
           >
             {isLoading ? (
-              <div className="flex flex-col items-center justify-center h-full gap-2 text-muted-foreground py-20">
-                <Loader2 className="h-8 w-8 animate-spin text-green-600" />
-                <span>Buscando produtos...</span>
+              <div className="flex flex-col items-center justify-center h-full min-h-[220px] gap-2 text-muted-foreground py-12">
+                <Loader2 className="h-7 w-7 animate-spin text-green-600" />
+                <span className="text-xs sm:text-sm font-medium">
+                  Buscando catálogo...
+                </span>
+              </div>
+            ) : products.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-full min-h-[220px] p-6 text-center text-muted-foreground gap-2">
+                <PackageOpen className="h-10 w-10 stroke-[1.2] opacity-40" />
+                <p className="text-sm font-medium text-foreground">
+                  Nenhum produto encontrado
+                </p>
+                <p className="text-xs max-w-xs">
+                  Digite ao menos 3 letras ou escaneie o código de barras.
+                </p>
               </div>
             ) : (
-              <DataTable
-                data={products}
-                columns={columns}
-                showSelectColumn={true}
-                onRowSelect={selection => {
-                  const selectedIds = Object.keys(selection)
-                  const lastId = selectedIds.length > 0 ? selectedIds[selectedIds.length - 1] : null
-                  onSelectProduct(lastId)
-                }}
-                rowSelection={
-                  selectedProductId ? { [String(selectedProductId)]: true } : {}
-                }
-                defaultPageSize={10}
-              />
+              <>
+                {/* 1. VISUALIZAÇÃO MOBILE (< sm): Touch Cards */}
+                <div className="flex flex-col gap-2 p-2 sm:hidden">
+                  {products.map(prod => {
+                    const isSelected =
+                      String(selectedProductId) === String(prod.id)
+                    return (
+                      <div
+                        key={prod.id}
+                        onClick={() =>
+                          onSelectProduct(isSelected ? null : prod.id)
+                        }
+                        className={cn(
+                          'flex items-center gap-3 p-3.5 rounded-xl border transition-all cursor-pointer select-none active:scale-[0.99]',
+                          isSelected
+                            ? 'bg-green-500/10 border-green-600 dark:bg-green-950/20 shadow-xs'
+                            : 'bg-background border-border/80 hover:bg-muted/40'
+                        )}
+                      >
+                        <Checkbox
+                          checked={isSelected}
+                          onCheckedChange={() =>
+                            onSelectProduct(isSelected ? null : prod.id)
+                          }
+                          className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600 h-5 w-5 shrink-0"
+                        />
+
+                        <div className="flex-1 min-w-0 space-y-1">
+                          <p className="text-sm font-semibold text-zinc-800 dark:text-zinc-100 leading-snug line-clamp-2">
+                            {prod.prod_descricao}
+                          </p>
+
+                          <div className="flex flex-wrap items-center gap-1.5 text-[11px] text-zinc-500 dark:text-zinc-400">
+                            <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-zinc-700 dark:text-zinc-300">
+                              #{prod.prod_codigo}
+                            </span>
+                            {prod.prod_cod_barras &&
+                              prod.prod_cod_barras !== 'N/A' && (
+                                <span className="font-mono">
+                                  {prod.prod_cod_barras}
+                                </span>
+                              )}
+                            {prod.prod_complemento && (
+                              <Badge
+                                variant="outline"
+                                className="text-[10px] py-0 px-1 font-normal"
+                              >
+                                {prod.prod_complemento}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="text-[10px] text-muted-foreground block">
+                            Custo
+                          </span>
+                          <span className="text-xs sm:text-sm font-bold text-foreground">
+                            {formatCurrency(prod.prod_preco_custo)}
+                          </span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* 2. VISUALIZAÇÃO DESKTOP (>= sm): DataTable */}
+                <div className="hidden sm:block p-4">
+                  <DataTable
+                    data={products}
+                    columns={columns}
+                    showSelectColumn={true}
+                    onRowSelect={selection => {
+                      const selectedIds = Object.keys(selection)
+                      const lastId =
+                        selectedIds.length > 0
+                          ? selectedIds[selectedIds.length - 1]
+                          : null
+                      onSelectProduct(lastId)
+                    }}
+                    rowSelection={
+                      selectedProductId
+                        ? { [String(selectedProductId)]: true }
+                        : {}
+                    }
+                    defaultPageSize={30}
+                  />
+                </div>
+              </>
             )}
           </div>
         </div>
 
-        <DialogFooter className="bg-muted/20 p-4 border-t gap-4">
-          <div className="flex-1 text-sm text-muted-foreground flex items-center px-2">
+        {/* Rodapé Fixo */}
+        <DialogFooter className="p-3 sm:p-4 border-t border-border bg-card shrink-0 flex flex-row items-center justify-between gap-2">
+          <div className="text-xs text-muted-foreground">
             {selectedProductId ? (
-              <span className="text-green-600 font-bold">
-                ● 1 item selecionado
+              <span className="inline-flex items-center gap-1.5 text-green-600 dark:text-green-400 font-semibold">
+                <CheckCircle2 className="h-4 w-4" /> 1 item selecionado
               </span>
             ) : (
-              'Nenhum item selecionado'
+              <span>Selecione 1 produto</span>
             )}
           </div>
-          <Button variant="ghost" onClick={onClose} className="shadow-none">
-            Cancelar
-          </Button>
-          <Button
-            disabled={!selectedProductId || isLoading}
-            onClick={handleConfirm}
-            className="bg-green-600 hover:bg-green-700 text-white px-8 shadow-none"
-          >
-            Inserir na Oferta
-          </Button>
+
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onClose}
+              className="h-10 px-3 text-xs sm:text-sm text-zinc-600 dark:text-zinc-400"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              disabled={!selectedProductId || isLoading}
+              onClick={handleConfirm}
+              className="h-10 px-4 sm:px-6 bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm font-semibold rounded-xl shadow-xs"
+            >
+              Inserir na Oferta
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>

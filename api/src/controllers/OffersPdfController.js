@@ -1,5 +1,6 @@
 // No seu controlador de ofertas (ou criar um novo controlador)
 const puppeteer = require('puppeteer')
+const { getBrowserExecutablePath } = require('../utils/getBrowserPath')
 const path = require('path')
 const fs = require('fs')
 const os = require('os')
@@ -11,6 +12,8 @@ class OffersPdfController {
     this.generateOfferTableHTML = this.generateOfferTableHTML.bind(this)
   }
   async generateOfferPDF(request, response) {
+    let browser
+
     try {
       const { produtos, name, initialDate, finalDate } = request.body
 
@@ -20,7 +23,7 @@ class OffersPdfController {
         })
       }
 
-      // Criar HTML para a tabela de ofertas
+      // Criação do template HTML
       const html = this.generateOfferTableHTML(
         produtos,
         name,
@@ -28,24 +31,29 @@ class OffersPdfController {
         finalDate
       )
 
-      // Gerar nome de arquivo temporário
-      const tmpDir = os.tmpdir()
-      const pdfPath = path.join(tmpDir, `ofertas-${Date.now()}.pdf`)
+      // Resolução dinâmica do executável (Windows, Linux, macOS ou Docker)
+      const executablePath = getBrowserExecutablePath()
 
-      // Configurar e iniciar o Puppeteer
-      const browser = await puppeteer.launch({
-        headless: true,
-        args: ['--no-sandbox', '--disable-setuid-sandbox']
+      browser = await puppeteer.launch({
+        executablePath,
+        headless: 'new', // compatível com versões recentes do Puppeteer
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu',
+          '--disable-extensions',
+          '--font-render-hinting=none'
+        ]
       })
 
       const page = await browser.newPage()
 
-      // Definir o conteúdo da página
+      // Renderiza o HTML no navegador
       await page.setContent(html, { waitUntil: 'networkidle0' })
 
-      // Gerar o PDF - Mantido em formato vertical
-      await page.pdf({
-        path: pdfPath,
+      // Gera o PDF diretamente como Buffer na memória (sem depender do disco rígido)
+      const pdfBuffer = await page.pdf({
         format: 'A4',
         landscape: false,
         printBackground: true,
@@ -57,62 +65,50 @@ class OffersPdfController {
         }
       })
 
-      await browser.close()
-
-      // Enviar o arquivo para o cliente com header para visualização em vez de download
+      // Headers para visualização inline no navegador
       response.setHeader('Content-Type', 'application/pdf')
       response.setHeader(
         'Content-Disposition',
         'inline; filename=tabela-ofertas.pdf'
       )
+      response.setHeader('Content-Length', pdfBuffer.length)
 
-      const fileStream = fs.createReadStream(pdfPath)
-      fileStream.pipe(response)
-
-      // Remover o arquivo temporário após o envio
-      fileStream.on('end', () => {
-        fs.unlinkSync(pdfPath)
-      })
+      return response.end(pdfBuffer)
     } catch (error) {
-      console.error('Erro ao gerar PDF:', error)
+      console.error('Erro ao gerar PDF de ofertas:', error)
       return response.status(500).json({
         error: 'Erro ao gerar o PDF',
         details: error.message
       })
+    } finally {
+      // Garante que o processo do Chromium seja encerrado mesmo se houver erro
+      if (browser) {
+        await browser.close()
+      }
     }
   }
 
   generateOfferTableHTML(produtos, offerName, initalDateStr, finalDateStr) {
-    // Título dinâmico com o nome da oferta
     const title = offerName ? `${offerName.toUpperCase()}` : 'TABELA DE OFERTAS'
-    // Formatar as datas para o formato brasileiro DD/MM/YYYY
-    const formatDate = (dateStr) => {
-      if (!dateStr) return '';
-      
+
+    const formatDate = dateStr => {
+      if (!dateStr) return ''
       try {
-        // Verificar se já está no formato DD/MM/YYYY
-        if (dateStr.includes('/')) {
-          return dateStr;
-        }
-        
-        // Converter de YYYY-MM-DD para DD/MM/YYYY
-        const parts = dateStr.split('-');
+        if (dateStr.includes('/')) return dateStr
+        const parts = dateStr.split('-')
         if (parts.length === 3) {
-          return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`;
+          return `${parts[2].padStart(2, '0')}/${parts[1].padStart(2, '0')}/${parts[0]}`
         }
-        
-        // Se não conseguir formatar, retorna a string original
-        return dateStr;
+        return dateStr
       } catch (error) {
-        console.error('Erro ao formatar data:', error);
-        return dateStr;
+        console.error('Erro ao formatar data:', error)
+        return dateStr
       }
-    };
+    }
 
-    const formattedInitialDate = formatDate(initalDateStr);
-    const formattedFinalDate = formatDate(finalDateStr);
+    const formattedInitialDate = formatDate(initalDateStr)
+    const formattedFinalDate = formatDate(finalDateStr)
 
-    // Criar o HTML com a tabela - Layout otimizado e simplificado
     return `
       <!DOCTYPE html>
       <html lang="pt-BR">
@@ -125,7 +121,7 @@ class OffersPdfController {
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            font-size: 12px; /* Fonte aumentada */
+            font-size: 12px;
           }
           table {
             width: 100%;
@@ -138,7 +134,7 @@ class OffersPdfController {
             font-weight: bold;
             text-align: center;
             padding: 6px;
-            font-size: 12px; /* Fonte aumentada */
+            font-size: 12px;
           }
           td {
             padding: 6px;
@@ -155,7 +151,7 @@ class OffersPdfController {
             color: red;
             font-weight: bold;
             text-align: right;
-            font-size: 13px; /* Preço de oferta ligeiramente maior */
+            font-size: 13px;
           }
           .price {
             text-align: right;
@@ -177,10 +173,10 @@ class OffersPdfController {
             font-weight: bold;
             text-align: center;
             margin-top: 20px;
-            font-size: 14px; /* Fonte aumentada */
+            font-size: 14px;
           }
           .description {
-            max-width: 320px; /* Mais espaço para descrição */
+            max-width: 320px;
             word-wrap: break-word;
           }
           .id {
@@ -188,7 +184,6 @@ class OffersPdfController {
             width: 50px;
             font-size: 12px;
           }
-          /* Definir larguras das colunas para formato vertical */
           .col-price {
             width: 70px;
           }
@@ -218,7 +213,6 @@ class OffersPdfController {
           <tbody>
             ${produtos
               .map(product => {
-                // Calcular a margem de lucro
                 const custo = parseFloat(product.custo) || 0
                 const preco = parseFloat(product.preco_oferta) || 0
                 const margem =
@@ -226,7 +220,6 @@ class OffersPdfController {
                     ? (((preco - custo) / preco) * 100).toFixed(2)
                     : '0.00'
 
-                // Determinar a classe para a margem
                 let margemClass = 'positive'
                 if (parseFloat(margem) < 15) margemClass = 'negative'
                 else if (parseFloat(margem) < 30) margemClass = 'warning'
@@ -234,14 +227,12 @@ class OffersPdfController {
                 return `
                 <tr>
                   <td class="id">${product.produto_id || 'N/A'}</td>
-                  <td class="description">${
-                    product.descricao || 'Sem descrição'
-                  }</td>
+                  <td class="description">${product.descricao || 'Sem descrição'}</td>
                   <td class="price">${custo.toFixed(2)}</td>
                   <td class="price-offer">${preco.toFixed(2)}</td>
                   <td class="margin ${margemClass}">${margem}%</td>
                 </tr>
-              `
+                `
               })
               .join('')}
           </tbody>

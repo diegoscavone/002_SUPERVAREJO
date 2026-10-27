@@ -1,5 +1,6 @@
 const knex = require('../database/knex')
 const puppeteer = require('puppeteer')
+const { getBrowserExecutablePath } = require('../utils/getBrowserPath')
 const fs = require('fs')
 const path = require('path')
 const AppError = require('../utils/AppError')
@@ -629,13 +630,10 @@ class PostersPdfController {
     //     }
 
     async function generatePdf(selectedPosterIds) {
-      const isDocker = process.env.PUPPETEER_EXECUTABLE_PATH !== undefined
-      const exePath = isDocker
-        ? process.env.PUPPETEER_EXECUTABLE_PATH
-        : process.env.CHROME_PATH
+      const executablePath = getBrowserExecutablePath()
 
       const browser = await puppeteer.launch({
-        executablePath: exePath,
+        executablePath,
         headless: 'new',
         pipe: true,
         args: [

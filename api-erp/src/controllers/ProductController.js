@@ -3,65 +3,71 @@ const knex = require('../database/knex')
 class ProductController {
   async index(request, response) {
     const { id } = request.params
-    const { campaignType, unit } = request.query  // Adicionar unit também
-    
+    const { campaignType, unit } = request.query // Adicionar unit também
+
     // Determinar a unidade do usuário (semelhante ao método show)
     let userUnit = unit
 
     if (!userUnit && request.user && request.user.unit) {
       userUnit = request.user.unit
     }
-    
+
     // Se não tiver unidade, retornar erro
     if (!userUnit) {
       return response.status(400).json({
-        error: 'Unidade não identificada. Forneça o parâmetro unit ou use um usuário associado a uma unidade.'
-      });
+        error:
+          'Unidade não identificada. Forneça o parâmetro unit ou use um usuário associado a uma unidade.'
+      })
     }
 
     // const formattedUnit = userUnit.toString().padStart(3, '0')
-    
+
     // Definir campos base a serem selecionados - SEMPRE use a qualificação de tabela
     let selectFields = [
       'prod.prod_codigo',
       'prod.prod_descricao',
-      'prod.prod_complemento', 
+      'prod.prod_complemento',
       'prod.prod_emb',
-      'produ.prun_prvenda AS prvenda'  // Sempre incluir o preço normal
-    ];
-    
+      'produ.prun_prvenda AS prvenda' // Sempre incluir o preço normal
+    ]
+
     // Adicionar campos de atacarejo se necessário
     if (campaignType === '2') {
-      selectFields.push('produ.prun_fatorpr3 AS fator_atacado');
-      selectFields.push('produ.prun_prvenda3 AS preco_atacado');
+      selectFields.push('produ.prun_fatorpr3 AS fator_atacado')
+      selectFields.push('produ.prun_prvenda3 AS preco_atacado')
     }
-       
+
     try {
       const product = await knex
         .select(selectFields)
         .from('produtos AS prod')
-        .join('produn AS produ', function() {
-          this.on('prod.prod_codigo', '=', 'produ.prun_prod_codigo')
-              .andOn('produ.prun_unid_codigo', '=', knex.raw('?', [userUnit]));
+        .join('produn AS produ', function () {
+          this.on('prod.prod_codigo', '=', 'produ.prun_prod_codigo').andOn(
+            'produ.prun_unid_codigo',
+            '=',
+            knex.raw('?', [userUnit])
+          )
         })
         .where(function () {
-          this.where({ 'prod.prod_codigo': id }).orWhere({ 'prod.prod_codbarras': id })
+          this.where({ 'prod.prod_codigo': id }).orWhere({
+            'prod.prod_codbarras': id
+          })
         })
-        .where('produ.prun_ativo', 'S')  // Garantir que o produto está ativo
-        .where('produ.prun_unid_codigo', userUnit)  // Reforçar o filtro por unidade
-        .first();
-      
+        .where('produ.prun_ativo', 'S') // Garantir que o produto está ativo
+        .where('produ.prun_unid_codigo', userUnit) // Reforçar o filtro por unidade
+        .first()
+
       if (!product) {
         return response.status(404).json('Produto não encontrado')
       }
-      
+
       return response.json(product)
     } catch (error) {
-      console.error("Erro ao buscar produto:", error);
+      console.error('Erro ao buscar produto:', error)
       return response.status(500).json({
         error: 'Erro ao buscar produto',
         details: error.message
-      });
+      })
     }
   }
 
@@ -69,15 +75,12 @@ class ProductController {
     const { search, unit } = request.query
 
     try {
-      // Determine the user's unit (following the same pattern as listAll)
       let userUnit = unit
 
-      // If not provided in query and available in user object, use from user
       if (!userUnit && request.user && request.user.unit) {
         userUnit = request.user.unit
       }
 
-      // Require a unit to be specified
       if (!userUnit) {
         return response.status(400).json({
           error:
@@ -85,105 +88,63 @@ class ProductController {
         })
       }
 
-      // First, get distinct product codes matching the search criteria AND the user's unit
-      const distinctProductCodes = await knex('produtos AS prod')
-        .distinct('prod.prod_codigo')
+      // Consulta unificada sem N+1 queries
+      const query = knex('produtos AS prod')
         .join('produn AS produ', function () {
           this.on('prod.prod_codigo', '=', 'produ.prun_prod_codigo').andOn(
             'produ.prun_unid_codigo',
             '=',
             knex.raw('?', [userUnit])
-          ) // Filter by unit in JOIN
-        })
-        .where(function () {
-          // If no search term, return all products (limited by backend)
-          if (!search || search.trim() === '') {
-            return
-          }
-
-          // Simplified search:
-          // 1. First check if it's a code or barcode (exact search)
-          if (!isNaN(search) && search.trim() !== '') {
-            this.where('prod.prod_codigo', search.trim())
-            this.orWhere('prod.prod_codbarras', search.trim())
-          }
-
-          // 2. Search by description - simple and direct version
-          if (search && search.trim() !== '') {
-            // Create a single LIKE condition for the full term
-            this.orWhereRaw('LOWER(prod.prod_descricao) LIKE ?', [
-              `%${search.toLowerCase()}%`
-            ])
-
-            // Also search in the complement field
-            this.orWhereRaw('LOWER(prod.prod_complemento) LIKE ?', [
-              `%${search.toLowerCase()}%`
-            ])
-          }
-        })
-        .where('produ.prun_ativo', 'S')
-        // .where('produ.prun_ctempresa', '>', 0)
-        .where('produ.prun_unid_codigo', userUnit) // Explicit unit filter
-
-      // If no products found, return 404 error
-      if (!distinctProductCodes || distinctProductCodes.length === 0) {
-        return response
-          .status(404)
-          .json({ error: 'Produto não encontrado para esta unidade' })
-      }
-
-      // Array to store unique product codes
-      const uniqueProductCodes = distinctProductCodes.map(
-        item => item.prod_codigo
-      )
-
-      // Now, for each product code, fetch only the product details for the user's unit
-      const products = []
-
-      for (const productCode of uniqueProductCodes) {
-        const productDetails = await knex('produtos AS prod')
-          .join('produn AS produ', function () {
-            this.on('prod.prod_codigo', '=', 'produ.prun_prod_codigo').andOn(
-              'produ.prun_unid_codigo',
-              '=',
-              knex.raw('?', [userUnit])
-            )
-          })
-          .select(
-            'prod.prod_codigo AS codigo',
-            'prod.prod_descricao AS descricao',
-            'prod.prod_complemento AS complemento',
-            'prod.prod_codbarras AS codigobarras',
-            'prod.prod_emb AS embalagem',
-            'produ.prun_ctempresa AS custoempresa',
-            'produ.prun_prvenda AS prvenda', // <-- Adicione esta linha
-            'produ.prun_unid_codigo AS unidade',
-            'produ.prun_dtultcomp AS data_ultima_compra'
           )
-          .where('prod.prod_codigo', productCode)
-          .where('produ.prun_ativo', 'S')
-          .where('produ.prun_unid_codigo', userUnit)
-          .first()
+        })
+        .select(
+          'prod.prod_codigo AS codigo',
+          'prod.prod_descricao AS descricao',
+          'prod.prod_complemento AS complemento',
+          'prod.prod_codbarras AS codigobarras',
+          'prod.prod_emb AS embalagem',
+          'produ.prun_ctempresa AS custoempresa',
+          'produ.prun_prvenda AS prvenda',
+          'produ.prun_unid_codigo AS unidade',
+          'produ.prun_dtultcomp AS data_ultima_compra'
+        )
+        .where('produ.prun_ativo', 'S')
+        .where('produ.prun_unid_codigo', userUnit)
 
-        if (productDetails) {
-          products.push(productDetails)
-        }
+      // Filtro condicional por código, EAN ou descrição
+      if (search && search.trim() !== '') {
+        const term = search.trim()
+
+        query.where(function () {
+          // 1. Se for numérico, bate exato no código ou código de barras
+          if (!isNaN(term)) {
+            this.where('prod.prod_codigo', term).orWhere(
+              'prod.prod_codbarras',
+              term
+            )
+          }
+
+          // 2. Busca por múltiplas palavras (ex: "arroz camil" acha mesmo que não estejam coladas)
+          const words = term.split(/\s+/).filter(Boolean)
+
+          this.orWhere(function () {
+            words.forEach(word => {
+              this.where(function () {
+                this.whereRaw('LOWER(prod.prod_descricao) LIKE ?', [
+                  `%${word.toLowerCase()}%`
+                ]).orWhereRaw('LOWER(prod.prod_complemento) LIKE ?', [
+                  `%${word.toLowerCase()}%`
+                ])
+              })
+            })
+          })
+        })
       }
 
-      // Sort products by description
-      products.sort((a, b) => a.descricao.localeCompare(b.descricao))
+      const products = await query.orderBy('prod.prod_descricao', 'asc')
 
-      // Add debug information to help troubleshoot
-      const debug = {
-        unidadeSolicitada: userUnit,
-        totalProdutosEncontrados: products.length,
-        unidadesEncontradas: [...new Set(products.map(p => p.unidade))]
-      }
-
-      return response.json({
-        products,
-        debug
-      })
+      // ✅ Retorna 200 sempre: se não achar, devolve array vazio sem estourar 404
+      return response.json(products)
     } catch (error) {
       console.error('Erro ao buscar produto:', error)
       return response.status(500).json({
@@ -284,8 +245,8 @@ class ProductController {
             sortField === 'codigo'
               ? 'prod.prod_codigo'
               : sortField === 'custoempresa'
-              ? 'produ.prun_ctempresa'
-              : 'prod.prod_descricao',
+                ? 'produ.prun_ctempresa'
+                : 'prod.prod_descricao',
             sortOrder
           )
           .limit(limitNumber)
