@@ -72,7 +72,7 @@ export function NewOffer() {
   const debouncedSearchTerm = useDebounce(searchTerm, 500)
   const [products, setProducts] = useState([])
   const [selectedProducts, setSelectedProducts] = useState([])
-  const [selectedProductId, setSelectedProductId] = useState(null)
+  const [selectedProductIds, setselectedProductIds] = useState([])
 
   // Estados do formulário
   const [offerName, setOfferName] = useState('')
@@ -133,7 +133,7 @@ export function NewOffer() {
       return
     }
 
-    setSelectedProductId(null)
+    setselectedProductIds([])
 
     if (clearAll) {
       setOfferName('')
@@ -296,7 +296,7 @@ export function NewOffer() {
           if (userUnit) url += `&unit=${encodeURIComponent(userUnit)}`
         } else {
           setIsSearching(false)
-          url = `/products/all?page=${page}&limit=20`
+          url = `/products/all?page=${page}&limit=30`
           if (userUnit) url += `&unit=${encodeURIComponent(userUnit)}`
         }
 
@@ -366,7 +366,7 @@ export function NewOffer() {
 
   const openModal = useCallback(() => {
     setIsModalOpen(true)
-    setSelectedProductId(null)
+    setselectedProductIds([])
     setSearchTerm('')
     setIsSearching(false)
 
@@ -423,52 +423,61 @@ export function NewOffer() {
     [userUnit, user]
   )
 
-  const addSelectedProduct = useCallback(async () => {
-    if (!selectedProductId) {
-      toastError('Selecione um produto')
+  const addSelectedProducts = useCallback(async () => {
+    if (!selectedProductIds || selectedProductIds.length === 0) {
+      toastError('Selecione pelo menos um produto')
       return
     }
 
-    const product = products.find(
-      p => String(p.id) === String(selectedProductId)
+    // Localiza todos os produtos marcados
+    const productsToAdd = products.filter(p =>
+      selectedProductIds.some(
+        id => String(id) === String(p.id || p.prod_codigo)
+      )
     )
 
-    if (product) {
-      const productExists = selectedProducts.some(
-        p => String(p.id) === String(selectedProductId)
+    // Filtra os que já estão na lista
+    const newProducts = productsToAdd.filter(
+      product =>
+        !selectedProducts.some(
+          p =>
+            String(p.id || p.prod_codigo) ===
+            String(product.id || product.prod_codigo)
+        )
+    )
+
+    if (newProducts.length === 0) {
+      toastError('Os produtos selecionados já estão na lista')
+      return
+    }
+
+    const formattedProducts = newProducts.map(product => ({
+      ...product,
+      offerPrice: '',
+      profit: calculateProfit(product.prod_preco_custo, 0)
+    }))
+
+    try {
+      // Sincroniza todos com o rascunho
+      await Promise.all(formattedProducts.map(prod => syncItemToDatabase(prod)))
+
+      setSelectedProducts(prev => [...prev, ...formattedProducts])
+      toastSuccess(
+        `${formattedProducts.length} produto(s) adicionado(s) ao rascunho!`
       )
-
-      if (productExists) {
-        toastError('Este produto já está na lista')
-        return
-      }
-
-      const productToAdd = {
-        ...product,
-        offerPrice: '',
-        profit: calculateProfit(product.prod_preco_custo, 0)
-      }
-
-      try {
-        await syncItemToDatabase(productToAdd)
-        setSelectedProducts(prev => [...prev, productToAdd])
-        toastSuccess('Produto adicionado ao rascunho!')
-        setSelectedProductId(null)
-
-        if (searchInputRef.current) {
-          searchInputRef.current.focus()
-        }
-      } catch (error) {
-        console.error('Erro ao salvar rascunho:', error)
-        toastError('Falha de rede ao salvar rascunho.')
-      }
+      setselectedProductIds([])
+      closeModal()
+    } catch (error) {
+      console.error('Erro ao salvar rascunho:', error)
+      toastError('Falha de rede ao salvar rascunho.')
     }
   }, [
-    selectedProductId,
+    selectedProductIds,
     products,
     selectedProducts,
     calculateProfit,
-    syncItemToDatabase
+    syncItemToDatabase,
+    closeModal
   ])
 
   // 1. Função removeProduct atualizada:
@@ -1058,9 +1067,9 @@ export function NewOffer() {
             onSearchChange={setSearchTerm}
             products={products}
             isLoading={isLoading}
-            selectedProductId={selectedProductId}
-            onSelectProduct={setSelectedProductId}
-            onConfirm={addSelectedProduct}
+            selectedProductIds={selectedProductIds}
+            onSelectProducts={setselectedProductIds}
+            onConfirm={addSelectedProducts}
             formatCurrency={formatCurrency}
           />
         )}

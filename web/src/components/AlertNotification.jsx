@@ -7,26 +7,26 @@ const AlertNotificationContext = createContext({})
 const variantStyles = {
   success: {
     icon: CheckCircle2,
-    iconColor: 'text-emerald-600 dark:text-emerald-500',
-    borderColor: 'border-zinc-200/80 dark:border-zinc-800',
+    iconColor: 'text-emerald-600 dark:text-emerald-400',
+    borderColor: 'border-emerald-500/20 sm:border-zinc-200/80 dark:sm:border-zinc-800',
     title: 'Sucesso',
   },
   destructive: {
     icon: AlertCircle,
-    iconColor: 'text-rose-600 dark:text-rose-500',
-    borderColor: 'border-zinc-200/80 dark:border-zinc-800',
+    iconColor: 'text-rose-600 dark:text-rose-400',
+    borderColor: 'border-rose-500/20 sm:border-zinc-200/80 dark:sm:border-zinc-800',
     title: 'Erro',
   },
   warning: {
     icon: AlertTriangle,
-    iconColor: 'text-amber-600 dark:text-amber-500',
-    borderColor: 'border-zinc-200/80 dark:border-zinc-800',
+    iconColor: 'text-amber-600 dark:text-amber-400',
+    borderColor: 'border-amber-500/20 sm:border-zinc-200/80 dark:sm:border-zinc-800',
     title: 'Atenção',
   },
   info: {
     icon: Info,
     iconColor: 'text-zinc-700 dark:text-zinc-300',
-    borderColor: 'border-zinc-200/80 dark:border-zinc-800',
+    borderColor: 'border-zinc-500/20 sm:border-zinc-200/80 dark:sm:border-zinc-800',
     title: 'Aviso',
   },
 }
@@ -77,40 +77,42 @@ function AlertItem({ item, onRemove }) {
         startTimer()
       }}
       className={cn(
-        'group pointer-events-auto relative flex w-full items-start gap-3 rounded-lg border bg-background/95 p-4 shadow-lg backdrop-blur-md transition-all duration-200',
+        // Mobile-first: Compacto, barra inferior centralizada ou ajustada, altura reduzida
+        'group pointer-events-auto relative flex w-full items-center sm:items-start gap-2.5 sm:gap-3',
+        'rounded-xl sm:rounded-lg border bg-background/95 px-3 py-2 sm:p-4 shadow-md sm:shadow-lg backdrop-blur-md transition-all duration-200',
         'dark:bg-zinc-950/95',
         config.borderColor,
-        'animate-in fade-in-0 slide-in-from-top-2 sm:slide-in-from-bottom-2'
+        'animate-in fade-in-0 slide-in-from-bottom-3 sm:slide-in-from-top-2'
       )}
     >
-      {/* Ícone sutil e sem caixa pesada */}
-      <Icon className={cn('h-5 w-5 shrink-0 mt-0.5', config.iconColor)} />
+      <Icon className={cn('h-4 w-4 sm:h-5 sm:w-5 shrink-0 sm:mt-0.5', config.iconColor)} />
 
-      {/* Conteúdo textual direto */}
-      <div className="flex-1 pr-4">
-        <h5 className="text-sm font-medium tracking-tight text-foreground">
+      {/* Conteúdo textual responsivo: inline no mobile, estruturado no desktop */}
+      <div className="flex-1 min-w-0 pr-1 sm:pr-4">
+        {/* Desktop Title */}
+        <h5 className="hidden sm:block text-sm font-medium tracking-tight text-foreground">
           {item.title || config.title}
         </h5>
-        {item.message && (
-          <p className="mt-0.5 text-xs text-muted-foreground leading-relaxed font-normal">
-            {item.message}
-          </p>
-        )}
+
+        {/* Mensagem direta: truncada em 1 linha no mobile se for muito longa */}
+        <p className="text-xs text-foreground/90 sm:text-muted-foreground sm:mt-0.5 leading-snug font-medium sm:font-normal truncate sm:whitespace-normal">
+          {item.message || item.title || config.title}
+        </p>
       </div>
 
-      {/* Botão fechar minimalista (visível sutilmente ao hover) */}
+      {/* Botão fechar */}
       <button
         type="button"
         onClick={() => onRemove(item.id)}
         className="rounded-md p-1 text-muted-foreground/60 transition-colors hover:bg-muted hover:text-foreground focus:outline-none"
         aria-label="Fechar notificação"
       >
-        <X className="h-3.5 w-3.5" />
+        <X className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
       </button>
 
-      {/* Linha discreta de progresso no rodapé */}
+      {/* Linha discreta de progresso */}
       {item.duration > 0 && (
-        <div className="absolute bottom-0 left-0 right-0 h-[2px] overflow-hidden rounded-b-lg bg-transparent">
+        <div className="absolute bottom-0 left-0 right-0 h-[2px] overflow-hidden rounded-b-xl sm:rounded-b-lg bg-transparent">
           <div
             className="h-full bg-foreground/15 dark:bg-foreground/20 transition-all"
             style={{
@@ -148,10 +150,10 @@ export function AlertNotificationProvider({ children }) {
     <AlertNotificationContext.Provider value={{ addAlert, removeAlert }}>
       {children}
 
-      {/* Posição no canto inferior direito ou superior direito limpo */}
+      {/* Container posicionado no rodapé no mobile (bottom-4) e no topo à direita no desktop (sm:top-4 sm:right-4 sm:bottom-auto) */}
       <aside
         aria-label="Notificações do sistema"
-        className="fixed top-4 right-4 z-[9999] flex w-full max-w-[360px] flex-col gap-2 pointer-events-none p-3 sm:p-0"
+        className="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-4 sm:top-4 sm:bottom-auto z-[9999] flex flex-col gap-2 pointer-events-none max-w-sm sm:max-w-[360px] mx-auto sm:mx-0"
       >
         {alerts.map((item) => (
           <AlertItem key={item.id} item={item} onRemove={removeAlert} />
@@ -170,12 +172,12 @@ export function useAlert() {
 }
 
 export const alertNotify = {
-  success: (message, title = 'Sucesso', duration = 3000) =>
+  success: (message, title = 'Sucesso', duration = 2000) =>
     notifyTrigger && notifyTrigger({ message, title, variant: 'success', duration }),
-  error: (message, title = 'Erro', duration = 4500) =>
+  error: (message, title = 'Erro', duration = 3500) =>
     notifyTrigger && notifyTrigger({ message, title, variant: 'destructive', duration }),
-  warning: (message, title = 'Atenção', duration = 3500) =>
+  warning: (message, title = 'Atenção', duration = 2500) =>
     notifyTrigger && notifyTrigger({ message, title, variant: 'warning', duration }),
-  info: (message, title = 'Informação', duration = 3000) =>
+  info: (message, title = 'Informação', duration = 2000) =>
     notifyTrigger && notifyTrigger({ message, title, variant: 'info', duration }),
 }
