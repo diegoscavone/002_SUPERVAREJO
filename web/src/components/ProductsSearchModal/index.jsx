@@ -263,7 +263,7 @@ export function ProductSearchModal({
               disabled={selectedList.length === 0 || isLoading}
               onClick={handleConfirm}
             >
-              Inserir na Oferta {selectedList.length > 0 && `(${selectedList.length})`}
+              Inserir {selectedList.length > 0 && `(${selectedList.length})`}
             </Button>
           </div>
         </DialogFooter>
