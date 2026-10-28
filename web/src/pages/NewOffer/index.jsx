@@ -466,7 +466,7 @@ export function NewOffer() {
         `${formattedProducts.length} produto(s) adicionado(s) ao rascunho!`
       )
       setselectedProductIds([])
-      closeModal()
+      // closeModal()
     } catch (error) {
       console.error('Erro ao salvar rascunho:', error)
       toastError('Falha de rede ao salvar rascunho.')
