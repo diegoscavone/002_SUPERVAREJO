@@ -2,7 +2,6 @@ import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Search,
-  Plus,
   Trash2,
   CalendarDays,
   AlertTriangle,
@@ -64,6 +63,7 @@ export function ProductsValidity() {
   // Estados de Controle
   const [loading, setLoading] = useState(false)
   const [isAutomating, setIsAutomating] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const [selectedRows, setSelectedRows] = useState({})
   const [campaigns, setCampaigns] = useState([])
   const [campaignSelected, setCampaignSelected] = useState('')
@@ -83,8 +83,17 @@ export function ProductsValidity() {
   }, [])
 
   const calculateProfit = useCallback((cost, price) => {
-    if (!cost || !price || price <= 0) return '0.0'
-    return (((price - cost) / price) * 100).toFixed(1)
+    const numCost = parseFloat(cost) || 0
+    const numPrice = parseFloat(price) || 0
+    if (numPrice <= 0) return '0.0'
+    return (((numPrice - numCost) / numPrice) * 100).toFixed(1)
+  }, [])
+
+  const formatCurrency = useCallback(value => {
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
+    }).format(Number(value) || 0)
   }, [])
 
   // Buscar Produtos de Validade
@@ -101,10 +110,15 @@ export function ProductsValidity() {
           pureDate = new Date(Number(year), Number(month) - 1, Number(day))
         }
 
+        const cost = Number(p.cost_price ?? p.custoempresa ?? p.custo ?? 0)
+        const currentOffer = p.offer_price ? Number(p.offer_price) : 0
+
         return {
           ...p,
+          barcode: p.barcode || p.codigobarras || p.prod_codbarras || 'N/A',
+          cost_price: cost,
           validadeObj: pureDate,
-          profit: calculateProfit(p.price, p.offer_price || 0)
+          profit: calculateProfit(cost, currentOffer)
         }
       })
 
@@ -139,13 +153,12 @@ export function ProductsValidity() {
           ? response.data.products[0]
           : response.data
 
-      if (productInfo) {
+      if (productInfo && (productInfo.prod_codigo || productInfo.codigo)) {
         setFetchedProduct(productInfo)
         setProductSearch({
           id: targetId,
-          description: productInfo.prod_descricao || productInfo.descricao
+          description: productInfo.prod_descricao || productInfo.descricao || ''
         })
-        // toastSuccess('Produto encontrado!')
       } else {
         toastError('Produto não encontrado.')
         setFetchedProduct(null)
@@ -191,13 +204,35 @@ export function ProductsValidity() {
       const [day, month, year] = productValidity.split('/')
       const isoDate = `${year}-${month}-${day}T00:00:00.000Z`
 
+      // Captura segura de custo e ean do ERP
+      const costValue = Number(
+        fetchedProduct.custoempresa ??
+        fetchedProduct.prun_ctempresa ??
+        fetchedProduct.prod_preco_custo ??
+        0
+      )
+
+      const barcodeValue = String(
+        fetchedProduct.codigobarras ??
+        fetchedProduct.prod_codbarras ??
+        ''
+      ).trim()
+
+      const salePrice = Number(
+        fetchedProduct.prvenda ??
+        fetchedProduct.prun_prvenda ??
+        fetchedProduct.prod_preco_venda ??
+        0
+      )
+
       const newProduct = {
-        product_id: fetchedProduct.prod_codigo || fetchedProduct.codigo,
+        product_id: String(fetchedProduct.prod_codigo || fetchedProduct.codigo),
+        barcode: barcodeValue || 'N/A',
         description: fetchedProduct.prod_descricao || fetchedProduct.descricao,
-        complement:
-          fetchedProduct.prod_complemento || fetchedProduct.complemento || '',
+        complement: fetchedProduct.prod_complemento || fetchedProduct.complemento || '',
         packaging: fetchedProduct.prod_emb || fetchedProduct.embalagem || 'UN',
-        price: fetchedProduct.prvenda,
+        cost_price: costValue,
+        price: salePrice,
         final_date: isoDate,
         lote: productBatch,
         quantity: parseFloat(String(productQuantity).replace(',', '.')) || 0,
@@ -219,20 +254,30 @@ export function ProductsValidity() {
     }
   }
 
-  // Remover Produto da Validade
-  const handleRemoveProduct = async id => {
+  // Exclusão em lote
+  const handleDeleteSelected = async () => {
+    const selectedIds = Object.keys(selectedRows).filter(id => selectedRows[id])
+
+    if (selectedIds.length === 0) {
+      return toastInfo('Nenhum produto selecionado para exclusão.')
+    }
+
     try {
-      await api.delete(`/productsValidity/${id}`)
-      setProductsList(prev => prev.filter(p => p.id !== id))
-      toastSuccess('Produto removido com sucesso.')
+      setIsDeleting(true)
+      await Promise.all(
+        selectedIds.map(id => api.delete(`/productsValidity/${id}`))
+      )
+
+      setProductsList(prev => prev.filter(p => !selectedIds.includes(String(p.id))))
+      setSelectedRows({})
+      toastSuccess(`${selectedIds.length} produto(s) removido(s) com sucesso.`)
 
       window.dispatchEvent(new CustomEvent('productAdded'))
-      setTimeout(() => {
-        fetchProducts()
-        resetForm()
-      }, 200)
     } catch (error) {
-      toastError('Erro ao remover produto.')
+      console.error('Erro ao deletar produtos:', error)
+      toastError('Erro ao remover produtos selecionados.')
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -246,7 +291,7 @@ export function ProductsValidity() {
             ? {
                 ...p,
                 offer_price: newPrice,
-                profit: calculateProfit(p.price, parseFloat(newPrice) || 0)
+                profit: calculateProfit(p.cost_price, parseFloat(newPrice) || 0)
               }
             : p
         )
@@ -267,7 +312,7 @@ export function ProductsValidity() {
         item[columnId] = value
 
         if (columnId === 'offer_price') {
-          item.profit = calculateProfit(item.price, parseFloat(value) || 0)
+          item.profit = calculateProfit(item.cost_price, parseFloat(value) || 0)
           updateOfferPrice(item.id, value)
         }
 
@@ -304,9 +349,7 @@ export function ProductsValidity() {
 
       if (productsToCreate.length === 0) {
         setIsAutomating(false)
-        return toastInfo(
-          'Nenhum dos produtos selecionados possui preço de oferta preenchido.'
-        )
+        return toastInfo('Nenhum dos produtos selecionados possui preço de oferta preenchido.')
       }
 
       let existingPosters = []
@@ -413,10 +456,30 @@ export function ProductsValidity() {
     }
   }
 
-  // Definição das Colunas
+  // Definição das colunas com larguras enxutas para evitar scroll horizontal
   const columns = useMemo(
     () => [
-      { accessorKey: 'product_id', header: 'Código' },
+      {
+        accessorKey: 'product_id',
+        header: 'Cód.',
+        cell: ({ getValue }) => (
+          <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+            {getValue()}
+          </span>
+        )
+      },
+      {
+        accessorKey: 'barcode',
+        header: 'EAN',
+        cell: ({ getValue }) => {
+          const val = getValue()
+          return (
+            <span className="text-zinc-700 whitespace-nowrap">
+              {val && val !== 'N/A' ? val : '—'}
+            </span>
+          )
+        }
+      },
       {
         accessorKey: 'description',
         header: 'Descrição',
@@ -436,8 +499,11 @@ export function ProductsValidity() {
           }
 
           return (
-            <div className="flex items-center gap-2 max-w-[240px] truncate">
-              <Icon className={`h-4 w-4 shrink-0 ${statusColor}`} />
+            <div
+              className="flex items-center gap-1.5 max-w-[180px] xl:max-w-[230px]"
+              title={row.original.description}
+            >
+              <Icon className={`h-3.5 w-3.5 shrink-0 ${statusColor}`} />
               <span className="font-medium truncate">
                 {row.original.description}
               </span>
@@ -445,17 +511,16 @@ export function ProductsValidity() {
           )
         }
       },
-      // { accessorKey: 'lote', header: 'Lote' },
       {
         accessorKey: 'quantity',
         header: 'Qtd',
         cell: ({ row }) => {
           const qty = Number(row.original.quantity || 0)
           return (
-            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-md bg-muted text-foreground">
-              <Boxes className="h-3 w-3 text-muted-foreground" />
-              {qty % 1 === 0 ? qty : qty.toFixed(2)}
-              <span className="text-[10px] text-muted-foreground uppercase">
+            <span className="inline-flex items-center gap-1 font-semibold px-1.5 py-0.5 rounded bg-muted/60 text-foreground whitespace-nowrap">
+              <Boxes className="h-2.5 w-2.5 text-muted-foreground" />
+              {qty % 1 === 0 ? qty : qty.toFixed(1)}
+              <span className="text-[9px] text-muted-foreground uppercase">
                 {row.original.packaging || 'UN'}
               </span>
             </span>
@@ -465,35 +530,50 @@ export function ProductsValidity() {
       {
         accessorKey: 'final_date',
         header: 'Validade',
-        cell: ({ getValue }) => new Date(getValue()).toLocaleDateString('pt-BR')
+        cell: ({ getValue }) => (
+          <span className="whitespace-nowrap font-medium">
+            {new Date(getValue()).toLocaleDateString('pt-BR')}
+          </span>
+        )
+      },
+      {
+        accessorKey: 'cost_price',
+        header: 'Custo',
+        cell: ({ getValue }) => (
+          <span className="text-zinc-600 dark:text-zinc-400 whitespace-nowrap">
+            {formatCurrency(getValue())}
+          </span>
+        )
       },
       {
         accessorKey: 'price',
-        header: 'Venda (R$)',
-        cell: ({ getValue }) =>
-          new Intl.NumberFormat('pt-BR', {
-            style: 'currency',
-            currency: 'BRL'
-          }).format(getValue() || 0)
+        header: 'Venda',
+        cell: ({ getValue }) => (
+          <span className="font-medium whitespace-nowrap">
+            {formatCurrency(getValue())}
+          </span>
+        )
       },
       {
         accessorKey: 'offer_price',
-        header: 'Preço Oferta (R$)',
+        header: 'Oferta',
         cell: ({ row }) => (
-          <PriceCell
-            value={row.original.offer_price}
-            index={row.index}
-            onUpdate={newValue =>
-              handleRowUpdate(row.index, 'offer_price', newValue)
-            }
-          />
+          <div className="w-[70px]">
+            <PriceCell
+              value={row.original.offer_price}
+              index={row.index}
+              onUpdate={newValue =>
+                handleRowUpdate(row.index, 'offer_price', newValue)
+              }
+            />
+          </div>
         )
       },
       {
         accessorKey: 'profit',
-        header: 'Margem (%)',
+        header: 'Margem',
         cell: ({ row }) => {
-          const custo = parseFloat(row.original.price) || 0
+          const custo = parseFloat(row.original.cost_price) || 0
           const preco =
             parseFloat(
               String(row.original.offer_price || '').replace(',', '.')
@@ -511,46 +591,25 @@ export function ProductsValidity() {
           const IconComponent = config.icon
 
           return (
-            <div className="flex items-center gap-1.5  select-none">
+            <div className="flex items-center gap-1 select-none whitespace-nowrap">
               <span
-                className={`h-2 w-2 rounded-full shadow-none shrink-0 ${config.dotClass}`}
+                className={`h-1.5 w-1.5 rounded-full shrink-0 ${config.dotClass}`}
               />
               <span
-                className={`font-bold text-sm tracking-tight ${config.colorClass}`}
+                className={`font-bold tracking-tight ${config.colorClass}`}
               >
                 {margemFormatada}%
               </span>
               <IconComponent
-                className={`h-3.5 w-3.5 shrink-0 ${config.colorClass}`}
+                className={`h-3 w-3 shrink-0 ${config.colorClass}`}
                 strokeWidth={2.5}
               />
             </div>
           )
         }
-      },
-      {
-        id: 'actions',
-        header: '',
-        cell: ({ row }) => {
-          const productCode = row.original.prod_codigo || row.original.id
-
-          return (
-            <button
-              type="button"
-              className="flex h-8 w-8 items-center justify-center rounded-lg text-rose-500 transition-colors hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/30"
-              onClick={e => {
-                e.stopPropagation()
-                handleRemoveProduct(productCode)
-              }}
-              title="Remover produto da oferta"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )
-        }
       }
     ],
-    [handleRowUpdate]
+    [handleRowUpdate, formatCurrency]
   )
 
   const selectedCount = Object.keys(selectedRows).filter(
@@ -559,9 +618,9 @@ export function ProductsValidity() {
 
   return (
     <Layout>
-      <div className="w-full max-w-7xl mx-auto px-4 py-6 md:px-8 space-y-4">
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 py-4 md:px-6 space-y-4">
         {/* Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card border border-border/60 p-4 sm:p-6 rounded-2xl shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-card border border-border/60 p-4 sm:p-5 rounded-xl shadow-xs">
           <div>
             <div className="flex items-center gap-2">
               <CalendarClock className="h-5 w-5 text-green-600" />
@@ -570,22 +629,21 @@ export function ProductsValidity() {
               </h1>
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              Faça o controle de validades dos produtos nas gôndolas e
-              automatize cartazes.
+              Faça o controle de validades dos produtos nas gôndolas e automatize cartazes.
             </p>
           </div>
         </div>
 
-        {/* Formulário de Cadastro de Vencimento com Quantidade */}
+        {/* Formulário de Cadastro */}
         <Card className="border-border/60 shadow-xs">
-          <CardContent className="p-4 sm:p-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-12 gap-3.5 items-end">
-              {/* Código + Busca / Scanner */}
-              <div className="lg:col-span-2 space-y-1.5">
-                <div className="flex items-end gap-2">
+          <CardContent className="p-3.5 sm:p-5">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-12 gap-3 items-end">
+              {/* Código + Busca */}
+              <div className="lg:col-span-2 space-y-1">
+                <div className="flex items-end gap-1.5">
                   <div className="relative flex-1">
                     <InputCustom
-                      label="Código do Produto"
+                      label="Código / EAN"
                       id="product_code"
                       ref={codeInputRef}
                       type="text"
@@ -620,7 +678,7 @@ export function ProductsValidity() {
               </div>
 
               {/* Descrição */}
-              <div className="lg:col-span-4 space-y-1.5">
+              <div className="lg:col-span-4 space-y-1">
                 <InputCustom
                   label="Descrição do Produto"
                   value={productSearch.description}
@@ -631,7 +689,7 @@ export function ProductsValidity() {
               </div>
 
               {/* Lote */}
-              <div className="lg:col-span-2 space-y-1.5">
+              <div className="lg:col-span-2 space-y-1">
                 <InputCustom
                   label="Lote"
                   id="batch"
@@ -642,10 +700,10 @@ export function ProductsValidity() {
                 />
               </div>
 
-              {/* Quantidade em Estoque / Gondola */}
-              <div className="lg:col-span-1 space-y-1.5">
+              {/* Quantidade */}
+              <div className="lg:col-span-1 space-y-1">
                 <InputCustom
-                  label="Qtd Aprox."
+                  label="Qtd."
                   id="product_quantity"
                   type="number"
                   step="any"
@@ -653,11 +711,12 @@ export function ProductsValidity() {
                   value={productQuantity}
                   onChange={e => setProductQuantity(e.target.value)}
                   placeholder="Ex: 10"
+                  className="h-10"
                 />
               </div>
 
               {/* Validade */}
-              <div className="lg:col-span-2">
+              <div className="lg:col-span-2 space-y-1">
                 <InputMask
                   id="validity_date"
                   name="validity_date"
@@ -678,7 +737,7 @@ export function ProductsValidity() {
                   label="Salvar"
                   type="button"
                   color="orange"
-                  className="w-full h-10"
+                  className="w-full h-10 font-semibold"
                   onClick={handleAddProduct}
                   disabled={!fetchedProduct}
                 />
@@ -711,22 +770,21 @@ export function ProductsValidity() {
 
         {/* Tabela de Produtos */}
         <Card className="border-border/60 shadow-none overflow-hidden">
-          <CardContent className="p-4">
+          <CardContent className="p-2 sm:p-4">
             {productsList.length === 0 ? (
-              <div className="flex flex-col items-center justify-center min-h-[320px] p-8 text-center bg-zinc-50/50 dark:bg-zinc-900/20">
-                <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-muted/60 text-muted-foreground mb-4">
-                  <PackageOpen className="h-8 w-8 stroke-[1.5]" />
+              <div className="flex flex-col items-center justify-center min-h-[300px] p-8 text-center bg-zinc-50/50 dark:bg-zinc-900/20">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted/60 text-muted-foreground mb-3">
+                  <PackageOpen className="h-7 w-7 stroke-[1.5]" />
                 </div>
-                <h3 className="text-base font-semibold text-foreground">
+                <h3 className="text-sm font-semibold text-foreground">
                   Nenhum produto cadastrado
                 </h3>
-                <p className="text-sm text-muted-foreground max-w-xs mt-1">
-                  Não localizamos nenhum produto com data de vencimento
-                  registrada para esta filial.
+                <p className="text-xs text-muted-foreground max-w-xs mt-1">
+                  Não localizamos nenhum produto com data de vencimento registrada para esta filial.
                 </p>
               </div>
             ) : (
-              <div className="w-full overflow-x-auto">
+              <div>
                 <DataTable
                   data={productsList}
                   columns={columns}
@@ -741,10 +799,11 @@ export function ProductsValidity() {
           </CardContent>
         </Card>
 
-        {/* Barra de Automação Flutuante */}
+        {/* Barra Flutuante de Ações em Lote */}
         {selectedCount > 0 && (
           <div className="sticky bottom-6 z-20 flex justify-center animate-in fade-in slide-in-from-bottom-4">
             <div className="flex flex-col sm:flex-row items-center gap-3 bg-zinc-900 text-white dark:bg-zinc-950 px-4 py-3 rounded-2xl shadow-2xl border border-white/10 w-full sm:w-auto">
+              {/* Contador */}
               <div className="flex items-center gap-2 shrink-0">
                 <CirclePlay className="h-4 w-4 text-orange-500" />
                 <span className="text-xs font-semibold tracking-wide">
@@ -752,7 +811,8 @@ export function ProductsValidity() {
                 </span>
               </div>
 
-              <div className="w-full sm:w-60 text-zinc-800 dark:text-zinc-100">
+              {/* Seleção de Campanha */}
+              <div className="w-full sm:w-56 text-zinc-800 dark:text-zinc-100">
                 <SelectCustom
                   id="campaign_automate_select"
                   placeholder="Selecione a Campanha"
@@ -769,21 +829,39 @@ export function ProductsValidity() {
                 />
               </div>
 
-              <Button
-                type="button"
-                onClick={handleGeneratePosters}
-                disabled={isAutomating}
-                className="w-full sm:w-auto h-9 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-4 rounded-xl shadow-xs gap-1.5 shrink-0"
-              >
-                {isAutomating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <CheckCircle2Icon className="h-4 w-4" />
-                )}
-                <span>
-                  {isAutomating ? 'Processando...' : 'Iniciar Automação'}
-                </span>
-              </Button>
+              {/* Botões de Ação */}
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <Button
+                  type="button"
+                  onClick={handleDeleteSelected}
+                  disabled={isDeleting || isAutomating}
+                  className="w-full sm:w-auto h-9 bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold px-3 rounded-xl shadow-xs gap-1.5 shrink-0"
+                  title="Excluir itens selecionados"
+                >
+                  {isDeleting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                  <span>{isDeleting ? 'Excluindo...' : 'Excluir'}</span>
+                </Button>
+
+                <Button
+                  type="button"
+                  onClick={handleGeneratePosters}
+                  disabled={isAutomating || isDeleting}
+                  className="w-full sm:w-auto h-9 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-4 rounded-xl shadow-xs gap-1.5 shrink-0"
+                >
+                  {isAutomating ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle2Icon className="h-4 w-4" />
+                  )}
+                  <span>
+                    {isAutomating ? 'Processando...' : 'Iniciar Automação'}
+                  </span>
+                </Button>
+              </div>
             </div>
           </div>
         )}

@@ -37,6 +37,7 @@ import { cn } from '@/lib/utils'
 export function DataTable({
   data = [],
   columns = [],
+  onRowClick, // ✅ Adicionado suporte a clique na linha
   onRowSelect,
   onRowUpdate,
   rowSelection: externalRowSelection,
@@ -56,7 +57,6 @@ export function DataTable({
     }
   }, [externalRowSelection])
 
-  // Centralização e Renderização das Colunas
   const tableColumns = useMemo(() => {
     const cols = columns.map(col => {
       if (col.accessorKey === 'status') {
@@ -67,18 +67,15 @@ export function DataTable({
             const statusMap = {
               active: {
                 label: 'Ativo',
-                className:
-                  'bg-emerald-500 border-emerald-600 shadow-sm shadow-emerald-500/30'
+                className: 'bg-emerald-500 border-emerald-600 shadow-xs shadow-emerald-500/30'
               },
               upcoming: {
                 label: 'Futuro',
-                className:
-                  'bg-amber-500 border-amber-600 shadow-sm shadow-amber-500/30'
+                className: 'bg-amber-500 border-amber-600 shadow-xs shadow-amber-500/30'
               },
               expired: {
                 label: 'Encerrado',
-                className:
-                  'bg-rose-500 border-rose-600 shadow-sm shadow-rose-500/30'
+                className: 'bg-rose-500 border-rose-600 shadow-xs shadow-rose-500/30'
               }
             }
 
@@ -103,7 +100,6 @@ export function DataTable({
       return col
     })
 
-    // Coluna de Checkbox no início com green-600
     if (showSelectColumn && enableRowSelection) {
       cols.unshift({
         id: 'select',
@@ -177,7 +173,6 @@ export function DataTable({
 
   const rows = table.getRowModel().rows
 
-  // Auto-scroll da linha ativa no teclado
   useEffect(() => {
     if (activeRowRef.current) {
       activeRowRef.current.scrollIntoView({
@@ -187,6 +182,7 @@ export function DataTable({
     }
   }, [activeIndex])
 
+  // ✅ Teclado integrado: dispara onRowClick ou toggleSelected do TanStack
   const handleKeyDown = useCallback(
     e => {
       if (rows.length === 0) return
@@ -203,36 +199,34 @@ export function DataTable({
         case ' ':
         case 'Enter':
           e.preventDefault()
-          if (activeIndex !== -1 && enableRowSelection) {
-            rows[activeIndex].toggleSelected()
+          if (activeIndex >= 0 && activeIndex < rows.length) {
+            const targetedRow = rows[activeIndex]
+            if (onRowClick) {
+              onRowClick(targetedRow)
+            } else if (enableRowSelection) {
+              targetedRow.toggleSelected()
+            }
           }
           break
         default:
           break
       }
     },
-    [rows, activeIndex, enableRowSelection]
+    [rows, activeIndex, enableRowSelection, onRowClick]
   )
 
   useEffect(() => {
     setActiveIndex(-1)
   }, [table.getState().pagination.pageIndex])
 
-  useEffect(() => {
-    if (Object.keys(rowSelection).length === 0) {
-      setActiveIndex(-1)
-    }
-  }, [rowSelection])
-
   return (
     <div
-      className="flex flex-col w-full gap-3 outline-none"
+      className="flex flex-col w-full gap-3 outline-hidden"
       onKeyDown={handleKeyDown}
       tabIndex={0}
       role="region"
       aria-label="Tabela interativa de dados"
     >
-      {/* Barra de Status */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 px-1 text-xs text-zinc-600 dark:text-zinc-400">
         <div className="flex items-center gap-2">
           {enableRowSelection ? (
@@ -260,22 +254,12 @@ export function DataTable({
         </div>
 
         <span className="hidden sm:inline-block text-xs text-zinc-500 italic">
-          Use as setas{' '}
-          <kbd className="font-sans px-1 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-            ↑
-          </kbd>{' '}
-          <kbd className="font-sans px-1 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-            ↓
-          </kbd>{' '}
-          e{' '}
-          <kbd className="font-sans px-1 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-            Enter/Espaço
-          </kbd>{' '}
-          para selecionar
+          Navegue com <kbd className="font-sans px-1 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">↑</kbd>{' '}
+          <kbd className="font-sans px-1 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">↓</kbd> e selecione com{' '}
+          <kbd className="font-sans px-1 rounded bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">Espaço</kbd>
         </span>
       </div>
 
-      {/* Container com Altura Fixada / Scroll Vertical e Horizontal */}
       <div className="w-full max-h-[500px] overflow-auto rounded-xl border border-border bg-card scrollbar-thin">
         <Table className="relative">
           <TableHeader className="bg-zinc-50 dark:bg-zinc-900 border-b border-border sticky top-0 z-10">
@@ -334,7 +318,9 @@ export function DataTable({
                     data-state={isSelected && 'selected'}
                     onClick={() => {
                       setActiveIndex(index)
-                      if (enableRowSelection) {
+                      if (onRowClick) {
+                        onRowClick(row)
+                      } else if (enableRowSelection) {
                         row.toggleSelected()
                       }
                     }}
@@ -342,7 +328,7 @@ export function DataTable({
                       'cursor-pointer transition-colors border-b border-border/50 text-xs sm:text-sm text-zinc-600 dark:text-zinc-300',
                       'hover:bg-zinc-50/70 dark:hover:bg-zinc-800/40',
                       isActive &&
-                        'bg-zinc-100 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100',
+                        'bg-zinc-100 dark:bg-zinc-800 font-medium text-zinc-900 dark:text-zinc-100 ring-1 ring-inset ring-zinc-300 dark:ring-zinc-700',
                       isSelected &&
                         'bg-green-50/60 dark:bg-green-950/20 hover:bg-green-50 dark:hover:bg-green-950/30'
                     )}
@@ -375,12 +361,9 @@ export function DataTable({
         </Table>
       </div>
 
-      {/* Paginação */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-1 py-1 text-zinc-600 dark:text-zinc-400">
         <div className="flex items-center gap-2 self-start sm:self-auto">
-          <span className="text-sm text-zinc-600 dark:text-zinc-400">
-            Exibir
-          </span>
+          <span className="text-sm text-zinc-600 dark:text-zinc-400">Exibir</span>
           <Select
             value={`${table.getState().pagination.pageSize}`}
             onValueChange={value => table.setPageSize(Number(value))}
@@ -390,11 +373,7 @@ export function DataTable({
             </SelectTrigger>
             <SelectContent side="top">
               {[10, 20, 30, 40, 50, 80].map(pageSize => (
-                <SelectItem
-                  key={pageSize}
-                  value={`${pageSize}`}
-                  className="text-sm text-zinc-600"
-                >
+                <SelectItem key={pageSize} value={`${pageSize}`} className="text-sm text-zinc-600">
                   {pageSize}
                 </SelectItem>
               ))}
@@ -417,7 +396,7 @@ export function DataTable({
           <div className="flex items-center gap-1">
             <Button
               variant="outline"
-              icon={ChevronLeft}
+              size="icon"
               className="h-8 w-8 border-zinc-200 dark:border-zinc-700 text-zinc-600"
               onClick={() => table.previousPage()}
               disabled={!table.getCanPreviousPage()}

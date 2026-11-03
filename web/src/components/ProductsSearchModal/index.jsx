@@ -17,7 +17,7 @@ import {
   Search,
   X
 } from 'lucide-react'
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import { DataTable } from '../DataTable'
 import { InputCustom } from '../InputCustom'
 
@@ -32,26 +32,37 @@ export function ProductSearchModal({
   onSelectProduct,
   onSelectProducts,
   onConfirm,
-  formatCurrency
+  formatCurrency,
+  externalInputRef
 }) {
   const searchInputRef = useRef(null)
-
-  // Unifica a prop de callback (com ou sem 's')
   const updateSelection = onSelectProducts || onSelectProduct
 
-  // Normalização defensiva: garante sempre array de strings
-  const selectedList = Array.isArray(selectedProductIds)
-    ? selectedProductIds.map(String)
-    : selectedProductIds
-      ? [String(selectedProductIds)]
-      : []
+  const selectedList = useMemo(() => {
+    return Array.isArray(selectedProductIds)
+      ? selectedProductIds.map(String)
+      : selectedProductIds
+        ? [String(selectedProductIds)]
+        : []
+  }, [selectedProductIds])
+
+  // 2. Mapeamento para o formato Record<string, boolean> do TanStack Table
+  const tableRowSelection = useMemo(() => {
+    return selectedList.reduce((acc, id) => {
+      acc[id] = true
+      return acc
+    }, {})
+  }, [selectedList])
 
   const handleConfirm = () => {
     onConfirm()
     onSearchChange('')
+
+    requestAnimationFrame(() => {
+      searchInputRef.current?.focus()
+    })
   }
 
-  // Alterna seleção individual
   const handleToggleProduct = id => {
     if (!id) return
     const stringId = String(id)
@@ -65,19 +76,21 @@ export function ProductSearchModal({
     }
   }
 
-  // Colunas desktop
   const columns = [
     {
       id: 'select',
       header: '',
       cell: ({ row }) => {
-        const idStr = String(row.original.prod_codigo || row.original.id || row.original.codigo)
+        const idStr = String(
+          row.original.prod_codigo || row.original.id || row.original.codigo
+        )
         const isChecked = selectedList.includes(idStr)
         return (
           <Checkbox
             checked={isChecked}
             onCheckedChange={() => handleToggleProduct(idStr)}
             onClick={e => e.stopPropagation()}
+            tabIndex={-1} // Evita duplo foco indesejado durante navegação
             className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
           />
         )
@@ -95,8 +108,22 @@ export function ProductSearchModal({
   ]
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-4xl h-[100dvh] sm:h-[88vh] max-h-[100dvh] sm:max-h-[88vh] flex flex-col p-0 gap-0 border-none sm:border sm:border-border sm:rounded-2xl overflow-hidden bg-background">
+    <Dialog open={isOpen} onOpenChange={open => !open && onClose()}>
+      <DialogContent
+        // 1. Garante que o foco vá diretamente para o Input de Busca ao abrir
+        onOpenAutoFocus={e => {
+          e.preventDefault()
+          searchInputRef.current?.focus()
+        }}
+        // 2. Garante a devolução do foco para a tela principal ao fechar
+        onCloseAutoFocus={e => {
+          if (externalInputRef?.current) {
+            e.preventDefault()
+            externalInputRef.current.focus()
+          }
+        }}
+        className="w-full max-w-4xl h-[100dvh] sm:h-[88vh] max-h-[100dvh] sm:max-h-[88vh] flex flex-col p-0 gap-0 border-none sm:border sm:border-border sm:rounded-2xl overflow-hidden bg-background"
+      >
         <DialogHeader className="p-4 sm:p-5 border-b border-border bg-card shrink-0">
           <div className="flex items-center justify-between">
             <DialogTitle className="text-base sm:text-lg font-bold flex items-center gap-2 text-green-600">
@@ -114,7 +141,6 @@ export function ProductSearchModal({
               icon={Search}
               value={searchTerm}
               onChange={e => onSearchChange(e.target.value)}
-              autoFocus
             />
             {searchTerm && (
               <button
@@ -131,9 +157,12 @@ export function ProductSearchModal({
           </div>
 
           <div
-            className="overflow-y-auto rounded-xl bg-card p-1 sm:p-0 flex-1"
+            className="overflow-y-auto rounded-xl bg-card p-1 sm:p-0 flex-1 outline-hidden"
+            tabIndex={0}
             onKeyDown={e => {
+              // Tecla ENTER confirma a seleção e fecha o modal
               if (e.key === 'Enter' && selectedList.length > 0) {
+                e.preventDefault()
                 handleConfirm()
               }
             }}
@@ -157,18 +186,27 @@ export function ProductSearchModal({
               </div>
             ) : (
               <>
-                {/* Mobile: Toque no Card */}
+                {/* Mobile View */}
                 <div className="flex flex-col gap-2 p-1 sm:hidden">
                   {products.map(prod => {
-                    const idStr = String(prod.prod_codigo || prod.id || prod.codigo)
+                    const idStr = String(
+                      prod.prod_codigo || prod.id || prod.codigo
+                    )
                     const isSelected = selectedList.includes(idStr)
 
                     return (
                       <div
                         key={idStr}
+                        tabIndex={0}
                         onClick={() => handleToggleProduct(idStr)}
+                        onKeyDown={e => {
+                          if (e.key === ' ' || e.code === 'Space') {
+                            e.preventDefault()
+                            handleToggleProduct(idStr)
+                          }
+                        }}
                         className={cn(
-                          'flex items-center gap-3 p-3.5 rounded-xl border transition-all cursor-pointer select-none active:scale-[0.99]',
+                          'flex items-center gap-3 p-3.5 rounded-xl border transition-all cursor-pointer select-none active:scale-[0.99] focus:outline-hidden focus:ring-2 focus:ring-green-500/40',
                           isSelected
                             ? 'bg-green-500/10 border-green-600 dark:bg-green-950/20 shadow-xs'
                             : 'bg-background border-border/80 hover:bg-muted/40'
@@ -178,6 +216,7 @@ export function ProductSearchModal({
                           checked={isSelected}
                           onCheckedChange={() => handleToggleProduct(idStr)}
                           onClick={e => e.stopPropagation()}
+                          tabIndex={-1}
                           className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600 h-5 w-5 shrink-0"
                         />
 
@@ -190,11 +229,12 @@ export function ProductSearchModal({
                             <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-zinc-700 dark:text-zinc-300">
                               #{prod.prod_codigo || prod.id}
                             </span>
-                            {prod.prod_cod_barras && prod.prod_cod_barras !== 'N/A' && (
-                              <span className="font-mono">
-                                {prod.prod_cod_barras}
-                              </span>
-                            )}
+                            {prod.prod_cod_barras &&
+                              prod.prod_cod_barras !== 'N/A' && (
+                                <span className="font-mono">
+                                  {prod.prod_cod_barras}
+                                </span>
+                              )}
                             {prod.prod_complemento && (
                               <Badge
                                 variant="outline"
@@ -219,16 +259,41 @@ export function ProductSearchModal({
                   })}
                 </div>
 
-                {/* Desktop: Linha da tabela clicável */}
-                <div className="hidden sm:block [&_tr]:cursor-pointer">
+                {/* Desktop View: Intercepta o Spacebar na linha focada */}
+                <div
+                  className="hidden sm:block [&_tr]:cursor-pointer [&_tr:focus]:outline-hidden [&_tr:focus]:bg-muted/60"
+                  onKeyDown={e => {
+                    if (e.key === ' ' || e.code === 'Space') {
+                      // Impede o scroll indesejado da barra de rolagem
+                      e.preventDefault()
+
+                      // Localiza a linha ativa via elemento focado
+                      const activeElement = document.activeElement
+                      const tr = activeElement?.closest('tr')
+
+                      if (tr) {
+                        // Dispara o evento de clique configurado na linha
+                        tr.dispatchEvent(
+                          new MouseEvent('click', {
+                            bubbles: true,
+                            cancelable: true
+                          })
+                        )
+                      }
+                    }
+                  }}
+                >
                   <DataTable
                     data={products}
                     columns={columns}
                     showSelectColumn={false}
-                    enableRowSelection={false}
+                    enableRowSelection={true}
+                    rowSelection={tableRowSelection} // ✅ Hook extraído para o escopo estável do componente
                     onRowClick={row => {
                       const raw = row.original || row
-                      const idStr = String(raw.prod_codigo || raw.id || raw.codigo)
+                      const idStr = String(
+                        raw.prod_codigo || raw.id || raw.codigo
+                      )
                       handleToggleProduct(idStr)
                     }}
                     defaultPageSize={30}
@@ -245,7 +310,9 @@ export function ProductSearchModal({
               <span className="inline-flex items-center gap-1.5 text-green-600 dark:text-green-400 font-semibold">
                 <CheckCircle2 className="h-4 w-4" />
                 {selectedList.length}{' '}
-                {selectedList.length === 1 ? 'item selecionado' : 'itens selecionados'}
+                {selectedList.length === 1
+                  ? 'item selecionado'
+                  : 'itens selecionados'}
               </span>
             ) : (
               <span>Selecione os produtos</span>

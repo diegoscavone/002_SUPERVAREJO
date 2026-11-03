@@ -9,7 +9,8 @@ import {
   Tag,
   Trash2,
   TrendingDown,
-  TrendingUp
+  TrendingUp,
+  RefreshCw
 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -95,6 +96,8 @@ export function NewOffer() {
   // Status de Sincronismo no Backend
   const [isSyncing, setIsSyncing] = useState(false)
   const [syncError, setSyncError] = useState(false)
+
+  const targetInputRef = useRef(null)
 
   useEffect(() => {
     isMountedRef.current = true
@@ -1071,6 +1074,7 @@ export function NewOffer() {
             onSelectProducts={setselectedProductIds}
             onConfirm={addSelectedProducts}
             formatCurrency={formatCurrency}
+            externalInputRef={targetInputRef}
           />
         )}
 

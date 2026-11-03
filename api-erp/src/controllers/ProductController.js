@@ -28,7 +28,9 @@ class ProductController {
       'prod.prod_descricao',
       'prod.prod_complemento',
       'prod.prod_emb',
-      'produ.prun_prvenda AS prvenda' // Sempre incluir o preço normal
+      'produ.prun_prvenda AS prvenda',
+      'produ.prun_ctempresa AS custoempresa',
+      'prod.prod_codbarras AS codigobarras'
     ]
 
     // Adicionar campos de atacarejo se necessário
